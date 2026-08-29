@@ -1,0 +1,19 @@
+HTTP/1.1 200 OK
+Server: nginx
+Date: Sat, 29 Aug 2026 14:03:27 GMT
+Content-Type: application/json;charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Access-Control-Allow-Origin: *
+ETag: W/"Zm94dHJvdC43MDkwXzNfODM4N3JTS21OVGpKMW5MRjEyMlY1NVhLWHRJZXVkRQ---gzij-YLkCGr-5RN5QYrJMb8a1whasE--gzip--gzip"
+X-SODA2-Fields: ["id","violation_last_modified_date","violation_date","violation_code","violation_status","violation_status_date","violation_description","violation_location","violation_inspector_comments","violation_ordinance","inspector_id","inspection_number","inspection_status","inspection_waived","inspection_category","department_bureau","address","street_number","street_direction","street_name","street_type","property_group","ssa","latitude","longitude","location"]
+X-SODA2-Types: ["text","floating_timestamp","floating_timestamp","text","text","floating_timestamp","text","text","text","text","text","number","text","text","text","text","text","number","text","text","text","number","text","number","number","location"]
+X-SODA2-Data-Out-Of-Date: false
+X-SODA2-Truth-Last-Modified: Sat, 29 Aug 2026 06:46:11 GMT
+X-SODA2-Secondary-Last-Modified: Sat, 29 Aug 2026 06:46:11 GMT
+Last-Modified: Sat, 29 Aug 2026 06:46:11 GMT
+Vary: Accept-Encoding
+X-Socrata-Region: aws-us-east-1-fedramp-prod
+X-Socrata-RequestId: 34a86ce6d6e94706cb956d579d4f8c23
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+

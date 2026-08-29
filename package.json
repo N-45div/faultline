@@ -1,0 +1,37 @@
+{
+  "name": "faultline",
+  "version": "0.1.0",
+  "description": "When they say it is handled, keep the dated record that says otherwise.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "convex": "convex dev",
+    "typecheck": "tsc -p tsconfig.json",
+    "deploy": "npx @convex-dev/static-hosting deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@agentmail/convex": "^0.1.0",
+    "@convex-dev/static-hosting": "^0.2.1",
+    "@firecrawl/firecrawl-convex": "^0.1.1",
+    "convex": "^1.45.0",
+    "convex-helpers": "^0.1.123",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  },
+  "private": true
+}

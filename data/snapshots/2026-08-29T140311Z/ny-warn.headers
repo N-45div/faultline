@@ -1,0 +1,32 @@
+HTTP/1.1 200 OK
+Content-Type: text/csv
+Content-Length: 32051
+Connection: keep-alive
+Date: Sat, 29 Aug 2026 14:03:15 GMT
+Set-Cookie: tableau_public_negotiated_locale=en-us;Path=/;SameSite=None;Secure;Partitioned;
+Server: nginx
+x-tsi-request-id: 1fe1c5c0-c1de-4e0f-9d59-a4d1218e655c, apLmoOodSEP3bY5Tb6VpDgAAAEw
+x-b3-traceid: a7d950321126a5c12fb26eaa35640dc5
+cache-control: private, max-age=0, must-revalidate
+pragma: 
+content-disposition: inline; filename*=UTF-8''WARN.csv
+x-tableau: Tableau Server
+p3p: CP="NON", CP="NON"
+x-ua-compatible: IE=Edge
+x-content-type-options: nosniff
+x-xss-protection: 1; mode=block
+global-session-header: MTAuNzYuMTIwLjg0OjgwODA=
+strict-transport-security: max-age=31536000; includeSubDomains
+strict-transport-security: max-age=31536000; includeSubDomains
+strict-transport-security: max-age=31536000; includeSubDomains
+strict-transport-security: max-age=31536000; includeSubDomains
+strict-transport-security: max-age=31536000; includeSubDomains
+strict-transport-security: max-age=31536000; includeSubDomains
+strict-transport-security: max-age=31536000; includeSubDomains
+strict-transport-security: max-age=31536000; includeSubDomains
+referrer-policy: strict-origin-when-cross-origin
+X-Cache: Miss from cloudfront
+Via: 1.1 8d38b6f02a4b2027cfa7da43722fd144.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: DEL51-P6
+X-Amz-Cf-Id: 41sSwFeXNI7wizzhENMeM6ANpq-tb0ac-UKt-NrC6MN-S5_8e2yMow==
+

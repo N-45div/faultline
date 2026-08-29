@@ -1,0 +1,18 @@
+HTTP/1.1 200 OK
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+Content-Length: 47038
+Connection: keep-alive
+X-Powered-By: ASP.NET
+Last-Modified: Thu, 27 Aug 2026 16:09:02 GMT
+Accept-Ranges: bytes
+Server: Microsoft-IIS/10.0
+X-AspNet-Version: 4.0.30319
+Date: Sat, 29 Aug 2026 14:01:46 GMT
+Cache-Control: public
+ETag: "1DD363E6026A300"
+X-Cache: Hit from cloudfront
+Via: 1.1 d9f2836b4d2caa47cb15d311b128293a.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: MRS53-P1
+X-Amz-Cf-Id: sxSocLnNE2CFn52RIwPijOXthpgtXvzb8X0HYMla-rdCRO2xvn6EXA==
+Age: 85
+

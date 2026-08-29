@@ -1,0 +1,19 @@
+HTTP/1.1 200 OK
+Server: nginx
+Date: Sat, 29 Aug 2026 14:03:19 GMT
+Content-Type: application/json;charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Access-Control-Allow-Origin: *
+ETag: W/"Zm94dHJvdC4xNTY1NV8xODNfMTkzMzMxNVFoNF9lRFd4NVFNMWo1Vm4tZUNPUEJocWE4---gzipuieAjkUL_RNFLTR353X30jsNhys--gzip--gzip"
+X-SODA2-Fields: ["unique_key","created_date","closed_date","agency","agency_name","complaint_type","descriptor","descriptor_2","location_type","incident_zip","incident_address","street_name","cross_street_1","cross_street_2","intersection_street_1","intersection_street_2","address_type","city","landmark","facility_type","status","due_date","resolution_description","resolution_action_updated_date","community_board","council_district","police_precinct","bbl","borough","x_coordinate_state_plane","y_coordinate_state_plane","open_data_channel_type","park_facility_name","park_borough","vehicle_type","taxi_company_borough","taxi_pick_up_location","bridge_highway_name","bridge_highway_direction","road_ramp","bridge_highway_segment","latitude","longitude","location"]
+X-SODA2-Types: ["text","floating_timestamp","floating_timestamp","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","text","floating_timestamp","text","floating_timestamp","text","text","text","text","text","number","number","text","text","text","text","text","text","text","text","text","text","number","number","point"]
+X-SODA2-Data-Out-Of-Date: false
+X-SODA2-Truth-Last-Modified: Sat, 29 Aug 2026 01:36:50 GMT
+X-SODA2-Secondary-Last-Modified: Sat, 29 Aug 2026 01:36:50 GMT
+Last-Modified: Sat, 29 Aug 2026 01:36:50 GMT
+Vary: Accept-Encoding
+X-Socrata-Region: aws-us-east-1-fedramp-prod
+X-Socrata-RequestId: 1224f87268e46bba87ee6cb59496cb35
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+

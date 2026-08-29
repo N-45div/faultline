@@ -1,0 +1,23 @@
+HTTP/1.1 200 OK
+Date: Sat, 29 Aug 2026 14:03:23 GMT
+Content-Type: application/json; charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Vary: Accept-Encoding
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: *
+Access-Control-Expose-Headers: *
+Carto-User: phl
+Carto-User-Id: bfb7c00c-43fa-443e-9512-e4cd177ffaf6
+Carto-Rate-Limit-Limit: 81
+Carto-Rate-Limit-Remaining: 80
+Carto-Rate-Limit-Reset: 0
+vary: Authorization
+Cache-Control: no-cache,max-age=97,must-revalidate,public
+Last-Modified: Sat, 29 Aug 2026 14:03:22 GMT
+Content-Disposition: inline; filename=cartodb-query.json; modification-date="Sat, 29 Aug 2026 14:03:22 GMT";
+X-Varnish: 23071221
+Age: 0
+X-Cache: MISS
+Accept-Ranges: bytes
+

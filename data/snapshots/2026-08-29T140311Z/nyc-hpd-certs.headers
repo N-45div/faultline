@@ -1,0 +1,19 @@
+HTTP/1.1 200 OK
+Server: nginx
+Date: Sat, 29 Aug 2026 14:03:17 GMT
+Content-Type: application/json;charset=utf-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Access-Control-Allow-Origin: *
+ETag: W/"Zm94dHJvdC4xNTY5MF80XzMzNzNqVkVoZl9LZF8wTHQzdm1pZDN6YV9oTnVpUVU---gziry4FjL_whgmiGkT49_GeQViIHSQQ--gzip--gzip"
+X-SODA2-Fields: ["violationid","buildingid","registrationid","boroid","boro","housenumber","lowhousenumber","highhousenumber","streetname","streetcode","zip","apartment","story","block","lot","class","inspectiondate","approveddate","originalcertifybydate","originalcorrectbydate","newcertifybydate","newcorrectbydate","certifieddate","ordernumber","novid","novdescription","novissueddate","currentstatusid","currentstatus","currentstatusdate","novtype","violationstatus","rentimpairing","latitude","longitude","communityboard","councildistrict","censustract","bin","bbl","nta"]
+X-SODA2-Types: ["number","number","number","number","text","text","text","text","text","text","text","text","text","number","number","text","floating_timestamp","floating_timestamp","floating_timestamp","floating_timestamp","floating_timestamp","floating_timestamp","floating_timestamp","text","number","text","floating_timestamp","number","text","floating_timestamp","text","text","text","text","text","text","text","text","text","text","text"]
+X-SODA2-Data-Out-Of-Date: false
+X-SODA2-Truth-Last-Modified: Fri, 28 Aug 2026 14:50:55 GMT
+X-SODA2-Secondary-Last-Modified: Fri, 28 Aug 2026 14:50:55 GMT
+Last-Modified: Fri, 28 Aug 2026 14:50:55 GMT
+Vary: Accept-Encoding
+X-Socrata-Region: aws-us-east-1-fedramp-prod
+X-Socrata-RequestId: 257aaf750c4135bc80fabe127b7aebfe
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+

@@ -1,0 +1,128 @@
+:root {
+  --bg: #fbfaf7;
+  --ink: #1b1b1b;
+  --muted: #5f5c57;
+  --line: #e4e0d8;
+  --accent: #b3261e;
+  --card: #ffffff;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121212;
+    --ink: #ebe7e0;
+    --muted: #a39e95;
+    --line: #2b2b2b;
+    --accent: #ff6b5e;
+    --card: #1b1b1b;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+.masthead h1 {
+  font-size: 28px;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+.promise {
+  margin: 0 0 36px;
+  color: var(--muted);
+  font-size: 18px;
+}
+.hero {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px 24px 18px;
+  margin-bottom: 36px;
+}
+.kicker {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.hero h2 {
+  font-size: 24px;
+  line-height: 1.25;
+  margin: 0 0 14px;
+}
+.gap {
+  font-size: 22px;
+  margin: 0 0 18px;
+  color: var(--accent);
+}
+.facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+  margin: 0 0 18px;
+}
+.facts dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.facts dd {
+  margin: 2px 0 0;
+}
+.stat {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+.fine {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+.wall h3 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+.wall ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.wall li {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.wall time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.muted {
+  color: var(--muted);
+}
+a {
+  color: inherit;
+}
+.foot {
+  margin-top: 48px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--muted);
+}
