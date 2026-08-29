@@ -65,9 +65,24 @@ function Landing({ go }: { go: (p: string) => void }) {
           if (q.trim()) go(`/e/${toSlug(q)}`);
         }}
       >
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="A company name — or email it to us" aria-label="Company name" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="A company name, or a New York City address" aria-label="Company name or address" />
         <button type="submit">Get the receipt</button>
       </form>
+
+      <div className="how" aria-label="How it works">
+        <div>
+          <strong>Ask</strong>
+          Type a name here, or email it to us. Nothing to sign up for.
+        </div>
+        <div>
+          <strong>Get the receipt</strong>
+          What they filed with the state, the dates, and the law — with the date we captured it.
+        </div>
+        <div>
+          <strong>Keep it</strong>
+          Reply FOLLOW and we email you when the filing changes. We keep every version.
+        </div>
+      </div>
 
       {hero && ny && (
         <section className="hero" aria-label="A filing as it stands today">

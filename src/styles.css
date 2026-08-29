@@ -151,6 +151,44 @@ body {
 a {
   color: inherit;
 }
+.how {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 0 0 32px;
+  font-size: 15px;
+  color: var(--muted);
+}
+.how strong {
+  display: block;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+@media (max-width: 560px) {
+  body {
+    font-size: 16px;
+  }
+  .page {
+    padding: 24px 16px 60px;
+  }
+  .search {
+    flex-direction: column;
+  }
+  .how,
+  .facts {
+    grid-template-columns: 1fr;
+  }
+  .hero {
+    padding: 18px 16px 14px;
+  }
+  .hero h2 {
+    font-size: 21px;
+  }
+  .wall li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
 .foot {
   margin-top: 48px;
   padding-top: 16px;
