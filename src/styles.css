@@ -41,6 +41,38 @@ body {
   color: var(--muted);
   font-size: 18px;
 }
+.search {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 28px;
+}
+.search input {
+  flex: 1;
+  font: inherit;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+}
+.search button {
+  font: inherit;
+  font-weight: 600;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--bg);
+  cursor: pointer;
+}
+.crumbs {
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+.crumbs a {
+  text-decoration: none;
+  color: var(--muted);
+}
 .hero {
   background: var(--card);
   border: 1px solid var(--line);
