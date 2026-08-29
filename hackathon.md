@@ -3,10 +3,10 @@
 - **Project:** Notice
 - **Event:** Convex All Gas Hackathon
 - **What it does:** Email a company name or a building address and get back what they filed with the government, dated — with every version kept, because the states overwrite the files.
-- **Live app:** not deployed
+- **Live app:** https://spotted-elephant-420.convex.site
 - **Repo:** https://github.com/N-45div/faultline
 - **Frontend:** Convex static hosting
-- **Convex deployment:** not deployed
+- **Convex deployment:** https://spotted-elephant-420.convex.cloud
 - **Components:** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex
 - **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, HTTP actions, crons, scheduled functions, file storage, realtime queries
 - **Auth:** none
@@ -45,9 +45,13 @@ functions, actions, queries (`convex/lookup.ts`, `convex/inbound.ts`,
 `convex/ingest/seed.ts`, `engine/match.ts`, `engine/intent.ts`,
 `engine/receipt.ts`, `src/Employer.tsx`).
 
-### 2026-08-30 - working tree
+### 2026-08-30 - 988db42
 Landing page: search box, a three-step explainer, and a mobile layout
-(`src/App.tsx`, `src/styles.css`).
+(`src/App.tsx`, `src/styles.css`). Deployed to production: functions on
+`spotted-elephant-420.convex.cloud`, the site on Convex static hosting at
+`spotted-elephant-420.convex.site`, exact routes verified to beat the SPA
+catch-all. The three sources bootstrapped on production and the cron took over
+within a minute; 1,992 rows held.
 
 ## About
 
