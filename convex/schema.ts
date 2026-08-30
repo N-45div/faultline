@@ -167,6 +167,8 @@ export default defineSchema({
     subjectKey: v.string(),
     email: v.string(),
     threadId: v.optional(v.string()),
+    /** The FOLLOW message, so a change is answered in the same thread. */
+    messageId: v.optional(v.string()),
     createdAt: v.number(),
     active: v.boolean(),
   })
@@ -273,7 +275,20 @@ export default defineSchema({
     model: v.string(),
     output: v.any(),
     createdAt: v.number(),
+    promptVersion: v.optional(v.string()),
+    costCents: v.optional(v.number()),
   }).index("by_body_sha", ["bodySha256"]),
+
+  /** Every model call, priced in cents at the moment it was made. */
+  llmUsage: defineTable({
+    model: v.string(),
+    purpose: v.string(),
+    inputTokens: v.number(),
+    cachedTokens: v.number(),
+    outputTokens: v.number(),
+    costCents: v.number(),
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]),
 
   packs: defineTable({
     caseId: v.id("cases"),

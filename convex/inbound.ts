@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import { internalMutation, type MutationCtx } from "./_generated/server";
-import { components, internal } from "./_generated/api";
-import { AgentMail } from "@agentmail/convex";
-import { fnv1a64 } from "../engine/canon";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { daysBetween, fnv1a64 } from "../engine/canon";
 import { looksLikeAddress } from "../engine/match";
 import { classifyInbound, emailAddressOf, stripHtml } from "../engine/intent";
 import { noMatchReceipt, receiptHtml, receiptText, type Receipt } from "../engine/receipt";
@@ -10,8 +10,8 @@ import { buildReceipt, guessCompanyFromText } from "./lookup";
 
 // The address is a search box that writes back. Everything a person can do by
 // email lands here, is classified without a model, and is answered in-thread.
+// A pasted letter is the one path that goes through the model, asynchronously.
 
-const agentmail = new AgentMail(components.agentmail);
 const MAX_REPLIES_PER_SENDER_PER_DAY = 20;
 
 export const onMessageReceived = internalMutation({
@@ -30,6 +30,14 @@ export interface InboundResult {
   text: string;
   sent: boolean;
   duplicate?: boolean;
+  pending?: boolean;
+}
+
+interface Target {
+  inboxId: Id<"inbox">;
+  messageId: string;
+  agentInboxId: string;
+  threadId: string;
 }
 
 export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boolean): Promise<InboundResult> {
@@ -46,6 +54,7 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   const query = intent.kind === "lookup" ? intent.query : intent.kind;
   const now = Date.now();
   const threadId = String(m.thread_id ?? "");
+  const bodyHash = fnv1a64(body);
 
   const inboxId = await ctx.db.insert("inbox", {
     messageId,
@@ -57,9 +66,10 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
     authenticated,
     intent: intent.kind,
     query,
-    bodyHash: fnv1a64(body),
+    bodyHash,
     replied: false,
   });
+  const target: Target = { inboxId, messageId, agentInboxId: String(m.inbox_id ?? ""), threadId };
 
   // Politeness ceiling per sender. Unauthenticated mail is stored, never answered.
   const recent = await ctx.db
@@ -88,23 +98,20 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       break;
     }
     case "letter": {
-      const guess = await guessCompanyFromText(ctx.db, intent.text);
-      if (guess) {
-        receipt = (await buildReceipt(ctx.db, guess)).receipt;
-        preface = [`We read your letter as being about ${guess}. If that's wrong, reply with the company's name.`];
-      } else {
-        receipt = {
-          ...noMatchReceipt("your letter", []),
-          headline: "We couldn't tell which employer your letter is about.",
-          blocks: [["Reply with the company's name as it appears on your paperwork, and we'll send the receipt."]],
-        };
+      if (process.env.OPENAI_API_KEY) {
+        // The model reads it once (or the cache does); the reply follows in seconds.
+        await ctx.scheduler.runAfter(0, internal.llm.extractLetter, { inboxId, text: intent.text.slice(0, 12_000), bodyHash });
+        return { intent: "letter", query, kind: "none", text: "", sent: false, pending: true };
       }
+      const guess = await guessCompanyFromText(ctx.db, intent.text);
+      receipt = guess ? (await buildReceipt(ctx.db, guess)).receipt : couldNotTell();
+      if (guess) preface = [`We read your letter as being about ${guess}. If that's wrong, reply with the company's name.`];
       break;
     }
     case "follow": {
       const prior = await latestMatchedInThread(ctx, threadId);
       if (prior) {
-        await upsertSubscription(ctx, prior.matchedSubjectKey!, from, threadId, now);
+        await upsertSubscription(ctx, prior.matchedSubjectKey!, from, threadId, messageId, now);
         receipt = {
           kind: "none",
           query: "follow",
@@ -144,33 +151,92 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
     }
   }
 
+  const delivered = await deliver(ctx, target, receipt, preface);
+  return { intent: intent.kind, query, kind: receipt.kind, text: delivered.text, sent: delivered.sent };
+}
+
+/** Second half of the letter path: the model (or the cache) has spoken. */
+export const finishLetter = internalMutation({
+  args: { inboxId: v.id("inbox"), text: v.string(), extraction: v.any(), note: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { inboxId, text, extraction, note }) => {
+    const row = await ctx.db.get(inboxId);
+    if (!row || row.replied) return null;
+    const x = extraction && typeof extraction === "object" ? (extraction as Record<string, any>) : null;
+
+    const company: string | null = (x?.employer && String(x.employer)) || (await guessCompanyFromText(ctx.db, text));
+    const receipt = company ? (await buildReceipt(ctx.db, company)).receipt : couldNotTell();
+
+    const preface: string[] = [];
+    if (x) {
+      preface.push("What your letter says:");
+      if (x.quotedClaim) preface.push(`“${String(x.quotedClaim).trim()}”`);
+      if (x.noticeDate && x.lastDay) {
+        const n = daysBetween(String(x.noticeDate), String(x.lastDay));
+        preface.push(`Letter dated ${x.noticeDate}; last day ${x.lastDay} — ${n} ${n === 1 ? "day" : "days"} between them.`);
+      } else if (x.lastDay) {
+        preface.push(`Last day: ${x.lastDay}.`);
+      }
+      if (x.signDeadlineDays) preface.push(`You were given ${x.signDeadlineDays} days to sign the release.`);
+      if (x.owbpaDisclosureAttached === "no") {
+        preface.push(
+          "Your letter does not appear to include the list of job titles and ages that a group termination must give anyone 40 or over (OWBPA). If you are 40 or over, that list should have come with the release, and you get 45 days to consider it — a lawyer will want to know.",
+        );
+      } else if (x.owbpaDisclosureAttached === "yes") {
+        preface.push("Your letter says the OWBPA list of job titles and ages is attached — keep it with the release.");
+      }
+      if (company && receipt.kind !== "none") preface.push(`What ${company} filed with the state:`);
+      else if (company) preface.push(`We read your letter as being about ${company}, but we don't hold a filing for them yet.`);
+    } else if (company) {
+      preface.push(`We read your letter as being about ${company}. If that's wrong, reply with the company's name.`);
+    }
+    if (note === "budget") preface.push("We've hit today's limit for reading letters; this receipt uses only the company name.");
+
+    await deliver(ctx, { inboxId, messageId: row.messageId, agentInboxId: row.inboxId, threadId: row.threadId }, receipt, preface);
+    return null;
+  },
+});
+
+async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: string[]): Promise<{ text: string; sent: boolean }> {
   const withPreface: Receipt = preface.length ? { ...receipt, blocks: [preface, ...receipt.blocks] } : receipt;
   const text = receiptText(withPreface);
   const html = receiptHtml(withPreface);
 
   const receiptId = await ctx.db.insert("receipts", {
-    inboxId,
-    threadId: threadId || undefined,
+    inboxId: t.inboxId,
+    threadId: t.threadId || undefined,
     query: receipt.query,
     kind: receipt.kind,
     subjectKey: receipt.subjectKey,
     text,
     html,
-    createdAt: now,
+    createdAt: Date.now(),
   });
-  if (receipt.subjectKey) await ctx.db.patch(inboxId, { matchedSubjectKey: receipt.subjectKey });
+  if (receipt.subjectKey) await ctx.db.patch(t.inboxId, { matchedSubjectKey: receipt.subjectKey });
 
-  let sent = false;
-  if (process.env.AGENTMAIL_API_KEY && m.inbox_id) {
-    const outboundId = await agentmail.replyToMessage(ctx as any, String(m.inbox_id), messageId, { text, html });
-    await ctx.db.patch(receiptId, { outboundId: String(outboundId) });
-    await ctx.db.patch(inboxId, { replied: true });
-    sent = true;
-  } else {
-    console.log(`[inbound] receipt stored, not sent (no AgentMail key) — ${intent.kind} "${query}"`);
+  if (process.env.AGENTMAIL_API_KEY && t.agentInboxId) {
+    // Sent from an action with the deployment's key; the component only
+    // handles inbound. markSent flips `replied` when AgentMail accepts it.
+    await ctx.scheduler.runAfter(0, internal.mail.reply, {
+      agentInboxId: t.agentInboxId,
+      parentMessageId: t.messageId,
+      text,
+      html,
+      receiptId,
+      inboxId: t.inboxId,
+    });
+    return { text, sent: true };
   }
+  console.log(`[inbound] receipt stored, not sent (no inbox on this message) — "${receipt.query}"`);
+  return { text, sent: false };
+}
 
-  return { intent: intent.kind, query, kind: receipt.kind, text, sent };
+function couldNotTell(): Receipt {
+  return {
+    ...noMatchReceipt("your letter", []),
+    headline: "We couldn't tell which employer your letter is about.",
+    blocks: [["Reply with the company's name as it appears on your paperwork, and we'll send the receipt."]],
+  };
 }
 
 async function latestMatchedInThread(ctx: MutationCtx, threadId: string) {
@@ -179,14 +245,14 @@ async function latestMatchedInThread(ctx: MutationCtx, threadId: string) {
   return rows.find((r) => r.matchedSubjectKey) ?? null;
 }
 
-async function upsertSubscription(ctx: MutationCtx, subjectKey: string, email: string, threadId: string, now: number) {
+async function upsertSubscription(ctx: MutationCtx, subjectKey: string, email: string, threadId: string, messageId: string, now: number) {
   const existing = await ctx.db
     .query("subscriptions")
     .withIndex("by_email", (q) => q.eq("email", email).eq("subjectKey", subjectKey))
     .unique();
   if (existing) {
-    if (!existing.active) await ctx.db.patch(existing._id, { active: true, threadId });
+    if (!existing.active || existing.messageId !== messageId) await ctx.db.patch(existing._id, { active: true, threadId, messageId });
     return;
   }
-  await ctx.db.insert("subscriptions", { subjectKey, email, threadId, createdAt: now, active: true });
+  await ctx.db.insert("subscriptions", { subjectKey, email, threadId, messageId, createdAt: now, active: true });
 }

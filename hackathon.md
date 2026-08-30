@@ -10,9 +10,9 @@
 - **Components:** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex
 - **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, HTTP actions, crons, scheduled functions, file storage, realtime queries
 - **Auth:** none
-- **AI models:** none
+- **AI models:** gpt-5.6-luna
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-08-29T18:44:48Z
+- **Last updated:** 2026-08-30T09:00:00Z
 
 ## Log
 
@@ -52,6 +52,20 @@ Landing page: search box, a three-step explainer, and a mobile layout
 `spotted-elephant-420.convex.site`, exact routes verified to beat the SPA
 catch-all. The three sources bootstrapped on production and the cron took over
 within a minute; 1,992 rows held.
+
+### 2026-08-30 - working tree
+The address is real. An AgentMail inbox receives mail through the component's
+webhook on production; replies go back in-thread through AgentMail's API from an
+app action, because a component cannot read the deployment's key. A pasted letter
+is read once by gpt-5.6-luna with a strict JSON schema (employer, dates, stated
+reason quoted verbatim, release deadline, whether the OWBPA age-and-title list was
+attached) and the result is cached by the letter's content hash, so the same
+letter forwarded again costs nothing; every call is priced in cents in a ledger
+(`convex/llm.ts`). FOLLOW creates a subscription, and when a followed filing
+changes, the commit that records it schedules an email to each follower in their
+own thread (`convex/mail.ts`, `convex/inbound.ts`, `convex/ingest/write.ts`).
+Verified on production: a lookup answered in 2 seconds, a letter in 6, at
+0.03 cents. Convex features: actions, scheduled functions, mutations, indexes.
 
 ## About
 

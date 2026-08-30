@@ -32,16 +32,16 @@ export const overview = internalQuery({
 
 /** Replays an inbound email through the real handler without AgentMail. */
 export const simulateInbound = internalMutation({
-  args: { from: v.string(), subject: v.string(), text: v.optional(v.string()), threadId: v.optional(v.string()) },
-  returns: v.object({ intent: v.string(), query: v.string(), kind: v.string(), sent: v.boolean(), text: v.string() }),
-  handler: async (ctx, { from, subject, text, threadId }) => {
+  args: { from: v.string(), subject: v.string(), text: v.optional(v.string()), threadId: v.optional(v.string()), agentInboxId: v.optional(v.string()) },
+  returns: v.object({ intent: v.string(), query: v.string(), kind: v.string(), sent: v.boolean(), text: v.string(), pending: v.optional(v.boolean()) }),
+  handler: async (ctx, { from, subject, text, threadId, agentInboxId }) => {
     const id = `sim-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
     const r = await handleInbound(
       ctx,
       {
         message_id: id,
         thread_id: threadId ?? `simthread-${id}`,
-        inbox_id: "",
+        inbox_id: agentInboxId ?? "",
         from,
         subject,
         text: text ?? "",
@@ -49,6 +49,6 @@ export const simulateInbound = internalMutation({
       },
       true,
     );
-    return { intent: r.intent, query: r.query, kind: r.kind, sent: r.sent, text: r.text };
+    return { intent: r.intent, query: r.query, kind: r.kind, sent: r.sent, text: r.text, pending: r.pending };
   },
 });

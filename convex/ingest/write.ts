@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+const MAX_ALERTS_PER_COMMIT = 50;
 
 // Everything in this file runs in the V8 runtime and imports no adapter: the
 // Node action parses, hashes, diffs and renders; this side only writes.
@@ -269,6 +270,7 @@ export const commit = internalMutation({
     }
 
     if (args.changes.length > 0) await bumpPulse(ctx, args.sourceId, now, args.changes.length);
+    if (emit && args.changes.length > 0) await notifyFollowers(ctx, args.changes, args.sourceUrl);
 
     await ctx.db.patch(args.sourceId, {
       lastRunAt: now,
@@ -342,3 +344,29 @@ export const markInboxSubject = internalMutation({
     return null;
   },
 });
+
+/** FOLLOW means: email me, in the same thread, when this filing changes. */
+async function notifyFollowers(
+  ctx: { db: any; scheduler: any },
+  changes: { subjectKey: string; sentence: string }[],
+  sourceUrl: string,
+) {
+  const inbox = process.env.AGENTMAIL_INBOX_ID;
+  if (!inbox || !process.env.AGENTMAIL_API_KEY) return;
+  const bySubject = new Map<string, string[]>();
+  for (const c of changes) bySubject.set(c.subjectKey, [...(bySubject.get(c.subjectKey) ?? []), c.sentence]);
+  let sent = 0;
+  for (const [subjectKey, sentences] of bySubject) {
+    const subs: Doc<"subscriptions">[] = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_subject", (q: any) => q.eq("subjectKey", subjectKey).eq("active", true))
+      .collect();
+    for (const s of subs) {
+      if (sent >= MAX_ALERTS_PER_COMMIT) return;
+      const text = ["A filing you follow changed.", "", ...sentences.slice(0, 5), "", `Check it: ${sourceUrl}`, "We kept the version before this one, dated.", "", "Reply STOP to stop."].join(String.fromCharCode(10));
+      if (s.messageId) await ctx.scheduler.runAfter(0, internal.mail.reply, { agentInboxId: inbox, parentMessageId: s.messageId, text });
+      else await ctx.scheduler.runAfter(0, internal.mail.send, { agentInboxId: inbox, to: s.email, subject: "A filing you follow changed", text });
+      sent++;
+    }
+  }
+}
