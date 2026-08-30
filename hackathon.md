@@ -53,7 +53,7 @@ Landing page: search box, a three-step explainer, and a mobile layout
 catch-all. The three sources bootstrapped on production and the cron took over
 within a minute; 1,992 rows held.
 
-### 2026-08-30 - working tree
+### 2026-08-30 - dc901ea
 The address is real. An AgentMail inbox receives mail through the component's
 webhook on production; replies go back in-thread through AgentMail's API from an
 app action, because a component cannot read the deployment's key. A pasted letter

@@ -3,6 +3,7 @@ import { internalMutation, type MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { daysBetween, fnv1a64 } from "../engine/canon";
+import { skipReason } from "../engine/hygiene";
 import { looksLikeAddress } from "../engine/match";
 import { classifyInbound, emailAddressOf, stripHtml } from "../engine/intent";
 import { noMatchReceipt, receiptHtml, receiptText, type Receipt } from "../engine/receipt";
@@ -13,6 +14,8 @@ import { buildReceipt, guessCompanyFromText } from "./lookup";
 // A pasted letter is the one path that goes through the model, asynchronously.
 
 const MAX_REPLIES_PER_SENDER_PER_DAY = 20;
+/** Reputation guard: past this, mail is stored and answered by a person later. */
+const MAX_REPLIES_PER_DAY = 150;
 
 export const onMessageReceived = internalMutation({
   args: { message: v.any(), thread: v.any(), eventId: v.string() },
@@ -71,13 +74,50 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   });
   const target: Target = { inboxId, messageId, agentInboxId: String(m.inbox_id ?? ""), threadId };
 
-  // Politeness ceiling per sender. Unauthenticated mail is stored, never answered.
+  // Never answer a robot: bounces, lists, auto-responders, our own address.
+  // The message is stored above either way; we just don't send.
+  const skip = skipReason(from, String(process.env.AGENTMAIL_INBOX_ID ?? ""), m.headers);
+  if (skip) {
+    console.log(`[inbound] stored, not answered: ${skip}`);
+    return { intent: intent.kind, query, kind: "none", text: "", sent: false };
+  }
+
+  // Politeness ceilings: per sender, and a global one for the inbox's
+  // reputation. Unauthenticated mail is stored, never answered.
   const recent = await ctx.db
     .query("inbox")
     .withIndex("by_from", (q) => q.eq("fromAddress", from).gte("receivedAt", now - 86_400_000))
     .collect();
-  if (!authenticated || recent.length > MAX_REPLIES_PER_SENDER_PER_DAY) {
+  const sentToday = await ctx.db
+    .query("receipts")
+    .withIndex("by_created", (q) => q.gte("createdAt", now - 86_400_000))
+    .take(MAX_REPLIES_PER_DAY + 1);
+  if (!authenticated || recent.length > MAX_REPLIES_PER_SENDER_PER_DAY || sentToday.length > MAX_REPLIES_PER_DAY) {
     return { intent: intent.kind, query, kind: "none", text: "", sent: false };
+  }
+
+  // A PDF attachment is a letter, whatever the body says — "see attached" is
+  // how real people send these. The model reads the file directly.
+  const attachments: any[] = Array.isArray(m.attachments) ? m.attachments : [];
+  const pdfAtt = attachments.find(
+    (a) => /pdf/i.test(String(a?.content_type ?? "")) || /\.pdf$/i.test(String(a?.filename ?? "")),
+  );
+  const pdfAttachmentId = String(pdfAtt?.attachment_id ?? pdfAtt?.id ?? "");
+  if (pdfAtt && pdfAttachmentId && process.env.OPENAI_API_KEY && ["lookup", "letter", "empty"].includes(intent.kind)) {
+    const h = fnv1a64(`${body}|${pdfAttachmentId}`);
+    await ctx.db.patch(inboxId, { intent: "letter", bodyHash: h });
+    await ctx.scheduler.runAfter(0, internal.llmActions.extractLetter, {
+      inboxId,
+      text: body.slice(0, 12_000),
+      bodyHash: h,
+      attachment: {
+        agentInboxId: target.agentInboxId,
+        messageId,
+        attachmentId: pdfAttachmentId,
+        filename: String(pdfAtt.filename ?? "letter.pdf"),
+      },
+    });
+    return { intent: "letter", query: "letter", kind: "none", text: "", sent: false, pending: true };
   }
 
   let receipt: Receipt;
@@ -100,7 +140,7 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
     case "letter": {
       if (process.env.OPENAI_API_KEY) {
         // The model reads it once (or the cache does); the reply follows in seconds.
-        await ctx.scheduler.runAfter(0, internal.llm.extractLetter, { inboxId, text: intent.text.slice(0, 12_000), bodyHash });
+        await ctx.scheduler.runAfter(0, internal.llmActions.extractLetter, { inboxId, text: intent.text.slice(0, 12_000), bodyHash });
         return { intent: "letter", query, kind: "none", text: "", sent: false, pending: true };
       }
       const guess = await guessCompanyFromText(ctx.db, intent.text);
@@ -134,25 +174,50 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       break;
     }
     case "pack": {
-      // The evidence pack ships this week; the request is real and threaded.
+      // A real pack, built now, delivered to this thread as a PDF.
       const base = intent.query ? (await buildReceipt(ctx.db, intent.query)).receipt : null;
-      receipt = {
-        kind: base?.kind ?? "none",
-        query: `pack:${intent.query}`,
-        subjectKey: base?.subjectKey,
-        headline: intent.query
-          ? `Evidence pack requested for ${intent.query}.`
-          : "Evidence pack requested — reply with the company name or building address it's for.",
-        blocks: [
-          [
-            "An evidence pack is a PDF: every dated version of the filing we hold, capture times and hashes, the statute text, and the intervals — the thing you hand a lawyer.",
-            "$79 per pack. We'll email it to this thread with a payment link when it's ready, within a day.",
+      if (base && base.kind !== "none" && base.subjectKey) {
+        await ctx.scheduler.runAfter(0, internal.packs.request, {
+          subjectKey: base.subjectKey,
+          query: intent.query,
+          kind: base.kind,
+          requestedBy: from,
+          agentInboxId: target.agentInboxId,
+          messageId,
+          threadId,
+        });
+        receipt = {
+          kind: base.kind,
+          query: `pack:${intent.query}`,
+          subjectKey: base.subjectKey,
+          headline: `Building your evidence pack for ${intent.query} now.`,
+          blocks: [
+            [
+              "It's a PDF: the record as it stands, every dated version we hold with its capture time and hash, the changes we recorded, and the statute — the thing you hand a lawyer.",
+              "It will arrive in this thread within a couple of minutes.",
+            ],
+            ["This preview pack is free while we launch. Packs are $79 once payments open."],
           ],
-          ...(base && base.kind !== "none" ? [[`What we hold today: ${base.headline}`]] : []),
-        ],
-        links: base?.links ?? [],
-        footer: ["No card needed to ask. Reply STOP to withdraw the request."],
-      };
+          links: base.links,
+          footer: [],
+        };
+      } else {
+        receipt = {
+          kind: "none",
+          query: `pack:${intent.query}`,
+          headline: intent.query
+            ? `We couldn't find "${intent.query}" in the files we hold, so there's nothing to pack yet.`
+            : "Evidence pack requested — reply with the company name or building address it's for.",
+          blocks: [
+            [
+              "An evidence pack is a PDF: every dated version of the filing we hold, capture times and hashes, the statute text, and the intervals — the thing you hand a lawyer.",
+              intent.query ? "Try the company's legal name as it appears on your paperwork, with PACK in front of it." : "For example: PACK Spirit Airlines.",
+            ],
+          ],
+          links: [],
+          footer: ["No card needed to ask."],
+        };
+      }
       break;
     }
     case "monitor": {
@@ -226,6 +291,22 @@ export const finishLetter = internalMutation({
       preface.push(`We read your letter as being about ${company}. If that's wrong, reply with the company's name.`);
     }
     if (note === "budget") preface.push("We've hit today's limit for reading letters; this receipt uses only the company name.");
+    if (note === "moderation") {
+      await deliver(
+        ctx,
+        { inboxId, messageId: row.messageId, agentInboxId: row.inboxId, threadId: row.threadId },
+        {
+          kind: "none",
+          query: "letter",
+          headline: "We can only read termination, layoff, and separation letters.",
+          blocks: [["Send a company name or a New York City building address, and we'll send back what they filed."]],
+          links: [],
+          footer: [],
+        },
+        [],
+      );
+      return null;
+    }
 
     await deliver(ctx, { inboxId, messageId: row.messageId, agentInboxId: row.inboxId, threadId: row.threadId }, receipt, preface);
     return null;
@@ -233,7 +314,19 @@ export const finishLetter = internalMutation({
 });
 
 async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: string[]): Promise<{ text: string; sent: boolean }> {
-  const withPreface: Receipt = preface.length ? { ...receipt, blocks: [preface, ...receipt.blocks] } : receipt;
+  // CAN-SPAM lines on everything we send: who we are, where we are, how to stop.
+  const compliance =
+    receipt.query === "stop"
+      ? []
+      : [
+          [`Notice — the address that writes back.`, process.env.NOTICE_POSTAL ?? ""].filter(Boolean).join(" "),
+          "Reply STOP and we will not email you again.",
+        ];
+  const withPreface: Receipt = {
+    ...receipt,
+    blocks: preface.length ? [preface, ...receipt.blocks] : receipt.blocks,
+    footer: [...receipt.footer, ...compliance],
+  };
   const text = receiptText(withPreface);
   const html = receiptHtml(withPreface);
 

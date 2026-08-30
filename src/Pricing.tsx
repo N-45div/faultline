@@ -28,7 +28,7 @@ export default function Pricing() {
           <ul>
             <li>Every dated version of the filing we hold</li>
             <li>Capture times and hashes, the statute text, the intervals</li>
-            <li>One PDF — the thing you hand a lawyer</li>
+            <li>One PDF in your thread within minutes — the thing you hand a lawyer</li>
           </ul>
           <a className="cta" href={mailto("PACK Spirit Airlines", "Replace the subject with the company name or building address the pack is for.")}>
             Email PACK + the name

@@ -4,9 +4,17 @@ import { internal } from "./_generated/api";
 
 // Outbound mail. The AgentMail component handles inbound (webhook, threads,
 // storage); sending goes straight to AgentMail's API from the app, because a
-// component cannot see the deployment's API key.
+// component cannot see the deployment's API key. Every message we send is
+// machine-generated and says so: RFC 3834's Auto-Submitted header is how we
+// tell other robots not to answer us back.
 
 const API = process.env.AGENTMAIL_BASE_URL ?? "https://api.agentmail.to/v0";
+
+const attachmentValidator = v.object({
+  filename: v.string(),
+  content: v.string(),
+  contentType: v.optional(v.string()),
+});
 
 async function call(path: string, body: unknown): Promise<{ message_id: string; thread_id: string }> {
   const key = process.env.AGENTMAIL_API_KEY;
@@ -21,6 +29,10 @@ async function call(path: string, body: unknown): Promise<{ message_id: string; 
   return data;
 }
 
+function wire(attachments?: { filename: string; content: string; contentType?: string }[]) {
+  return attachments?.map((a) => ({ filename: a.filename, content: a.content, content_type: a.contentType ?? "application/octet-stream" }));
+}
+
 /** Answer in the same thread. Marks the inbox row and receipt on success. */
 export const reply = internalAction({
   args: {
@@ -28,6 +40,7 @@ export const reply = internalAction({
     parentMessageId: v.string(),
     text: v.string(),
     html: v.optional(v.string()),
+    attachments: v.optional(v.array(attachmentValidator)),
     receiptId: v.optional(v.id("receipts")),
     inboxId: v.optional(v.id("inbox")),
   },
@@ -37,6 +50,8 @@ export const reply = internalAction({
       const r = await call(`/inboxes/${encodeURIComponent(a.agentInboxId)}/messages/${encodeURIComponent(a.parentMessageId)}/reply`, {
         text: a.text,
         html: a.html,
+        attachments: wire(a.attachments),
+        headers: { "Auto-Submitted": "auto-replied" },
       });
       await ctx.runMutation(internal.mail.markSent, { receiptId: a.receiptId, inboxId: a.inboxId, outboundId: r.message_id });
       console.log(`[mail] replied in thread ${r.thread_id}`);
@@ -49,7 +64,14 @@ export const reply = internalAction({
 
 /** A fresh message — used when a follower has no thread with us. */
 export const send = internalAction({
-  args: { agentInboxId: v.string(), to: v.string(), subject: v.string(), text: v.string(), html: v.optional(v.string()) },
+  args: {
+    agentInboxId: v.string(),
+    to: v.string(),
+    subject: v.string(),
+    text: v.string(),
+    html: v.optional(v.string()),
+    attachments: v.optional(v.array(attachmentValidator)),
+  },
   returns: v.null(),
   handler: async (_ctx, a) => {
     try {
@@ -58,6 +80,8 @@ export const send = internalAction({
         subject: a.subject,
         text: a.text,
         html: a.html,
+        attachments: wire(a.attachments),
+        headers: { "Auto-Submitted": "auto-generated" },
       });
       console.log(`[mail] sent ${r.message_id} to ${a.to}`);
     } catch (e) {

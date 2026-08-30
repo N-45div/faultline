@@ -16,8 +16,11 @@ import type * as ingest_fetch from "../ingest/fetch.js";
 import type * as ingest_seed from "../ingest/seed.js";
 import type * as ingest_write from "../ingest/write.js";
 import type * as llm from "../llm.js";
+import type * as llmActions from "../llmActions.js";
 import type * as lookup from "../lookup.js";
 import type * as mail from "../mail.js";
+import type * as packBuild from "../packBuild.js";
+import type * as packs from "../packs.js";
 import type * as sources from "../sources.js";
 import type * as wall from "../wall.js";
 
@@ -36,8 +39,11 @@ declare const fullApi: ApiFromModules<{
   "ingest/seed": typeof ingest_seed;
   "ingest/write": typeof ingest_write;
   llm: typeof llm;
+  llmActions: typeof llmActions;
   lookup: typeof lookup;
   mail: typeof mail;
+  packBuild: typeof packBuild;
+  packs: typeof packs;
   sources: typeof sources;
   wall: typeof wall;
 }>;

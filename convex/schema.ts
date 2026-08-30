@@ -160,7 +160,8 @@ export default defineSchema({
     outboundId: v.optional(v.string()),
   })
     .index("by_subject", ["subjectKey", "createdAt"])
-    .index("by_thread", ["threadId"]),
+    .index("by_thread", ["threadId"])
+    .index("by_created", ["createdAt"]),
 
   /** "Reply FOLLOW": email me when this filing changes. */
   subscriptions: defineTable({
@@ -290,13 +291,23 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_created", ["createdAt"]),
 
+  /** One requested evidence pack: a PDF built from the versions we hold. */
   packs: defineTable({
-    caseId: v.id("cases"),
-    createdAt: v.number(),
+    subjectKey: v.string(),
+    query: v.string(),
+    kind: v.union(v.literal("layoff"), v.literal("building")),
+    requestedBy: v.string(),
+    /** Where the finished PDF is delivered: the requester's own thread. */
+    agentInboxId: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+    threadId: v.optional(v.string()),
     downloadToken: v.string(),
     storageId: v.optional(v.id("_storage")),
     status: v.union(v.literal("building"), v.literal("ready"), v.literal("failed")),
+    pages: v.optional(v.number()),
+    bytes: v.optional(v.number()),
+    createdAt: v.number(),
   })
-    .index("by_case_created", ["caseId", "createdAt"])
-    .index("by_download_token", ["downloadToken"]),
+    .index("by_download_token", ["downloadToken"])
+    .index("by_subject", ["subjectKey", "createdAt"]),
 });

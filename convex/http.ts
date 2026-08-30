@@ -27,6 +27,28 @@ http.route({
   handler: httpAction(async () => new Response("ok", { status: 200 })),
 });
 
+// Evidence pack downloads. The token is the whole authorisation: 40 hex chars,
+// one pack, delivered only to the thread that asked for it.
+http.route({
+  pathPrefix: "/pack/",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const token = new URL(req.url).pathname.split("/").filter(Boolean).pop() ?? "";
+    const pack = await ctx.runQuery(internal.packs.byToken, { token });
+    if (!pack || pack.status !== "ready" || !pack.storageId) return new Response("Not found", { status: 404 });
+    const blob = await ctx.storage.get(pack.storageId);
+    if (!blob) return new Response("Not found", { status: 404 });
+    const name = `notice-pack-${pack.query.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) || "evidence"}.pdf`;
+    return new Response(blob, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="${name}"`,
+        "Cache-Control": "private, max-age=3600",
+      },
+    });
+  }),
+});
+
 // Static site last: SPA fallback for everything nothing above claimed.
 registerStaticRoutes(http, components.staticHosting);
 
