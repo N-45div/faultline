@@ -12,7 +12,7 @@
 - **Auth:** none
 - **AI models:** gpt-5.6-luna
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-08-30T09:00:00Z
+- **Last updated:** 2026-08-31T21:15:00Z
 
 ## Log
 
@@ -66,6 +66,32 @@ changes, the commit that records it schedules an email to each follower in their
 own thread (`convex/mail.ts`, `convex/inbound.ts`, `convex/ingest/write.ts`).
 Verified on production: a lookup answered in 2 seconds, a letter in 6, at
 0.03 cents. Convex features: actions, scheduled functions, mutations, indexes.
+
+### 2026-08-31 - 051aea5
+The evidence pack is real. Email "PACK Spirit Airlines" and a PDF arrives in
+your thread within a minute: cover, the record as it stands with the
+notice-gap line in red, every dated version with its capture time and hash,
+the changes we recorded, the statute with its exceptions, and how the capture
+works — built with pdf-lib in a node action, stored in Convex file storage,
+served at `/pack/<token>` ahead of the static catch-all, and attached to the
+reply. The model moved to the official OpenAI SDK: one zod schema drives both
+the strict output format and runtime validation, and the instructions are a
+byte-stable ~1,500-token prefix (per-state WARN table, OWBPA rules) with a
+prompt cache key — measured 1,469 of 1,584 input tokens served from cache on
+the second letter. An attached PDF letter now goes to gpt-5.6-luna as direct
+file input (AgentMail's attachment endpoint returns a signed download_url;
+the bytes live behind it), verified on production: a scanned-style letter
+extracted with the OWBPA disclosure and ADEA mention caught, at 0.036 cents.
+Free moderation screens inbound text before any paid call. Inbox hygiene
+shipped and immediately proved itself: robot senders and auto-submitted mail
+are stored and never answered — the gate caught our own test mail because
+AgentMail stamps List-Unsubscribe on ordinary API sends, so that header alone
+no longer counts as a robot; a global daily reply cap protects the inbox's
+reputation; outbound mail carries RFC 3834 Auto-Submitted headers; every
+reply ends with a STOP line. Deliverability test sent to Gmail. Convex
+features: file storage, HTTP actions with pathPrefix routing, node actions,
+scheduled functions, indexes (`convex/packs.ts`, `convex/packBuild.ts`,
+`convex/llmActions.ts`, `convex/mail.ts`, `engine/hygiene.ts`).
 
 ## About
 
