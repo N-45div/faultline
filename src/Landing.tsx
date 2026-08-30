@@ -11,114 +11,180 @@ export default function Landing({ go }: { go: (p: string) => void }) {
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });
   const sample = useQuery(api.lookup.employer, { q: "spirit airlines" });
   const hero = ny?.shortest[0];
+  const r = sample?.receipt;
 
   return (
     <>
-      <section className="lede">
-        <h1 className="lede-title">They told you one story. They filed another.</h1>
-        <p className="lede-sub">
-          Email us a company name or a building address. We send back what they told the government — the dates,
-          the gap against the law, and the government's own page — and we keep every version, because those files
-          get overwritten.
-        </p>
-        <div className="lede-ctas">
-          <a className="cta primary" href={mailto("Spirit Airlines")}>
-            Email {INBOX}
-          </a>
-          <a className="cta" href="/app" onClick={(e) => { e.preventDefault(); go("/app"); }}>
-            Look one up on the web →
-          </a>
+      <section className="band hero-band">
+        <div className="container hero-grid">
+          <div>
+            <h1 className="lede-title">They told you one story. They filed another.</h1>
+            <p className="lede-sub">
+              Email us a company name or a building address. We send back what they told the government — the dates,
+              the gap against the law, and the government's own page — and we keep every version, because those
+              files get overwritten.
+            </p>
+            <div className="lede-ctas">
+              <a className="cta primary" href={mailto("Spirit Airlines")}>
+                Email {INBOX}
+              </a>
+              <a className="cta" href="/app" onClick={(e) => { e.preventDefault(); go("/app"); }}>
+                Look one up on the web →
+              </a>
+            </div>
+            <p className="fine">Free. Nothing to install, nothing to sign up for. Reply FOLLOW to hear when a filing changes.</p>
+          </div>
+
+          <div className="mail-card" aria-label="A real receipt">
+            <div className="mail-head">
+              <span className="dot" />
+              <span>
+                <strong>Re: Spirit Airlines</strong> · from Notice, 20 seconds later
+              </span>
+            </div>
+            {r && r.kind === "layoff" ? (
+              <div className="mail-body">
+                <p>
+                  <strong>{r.headline}</strong>
+                </p>
+                {r.blocks.slice(0, 1).map((b) => (
+                  <p key={b[0]}>
+                    {b.map((line, j) => (
+                      <span key={line}>
+                        {line}
+                        {j < b.length - 1 && <br />}
+                      </span>
+                    ))}
+                  </p>
+                ))}
+                <p className="fine">{r.footer[0]}</p>
+                <p className="fine">
+                  <a href="/e/spirit-airlines" onClick={(e) => { e.preventDefault(); go("/e/spirit-airlines"); }}>
+                    See the whole receipt →
+                  </a>
+                </p>
+              </div>
+            ) : (
+              <div className="mail-body">
+                <p className="muted">Reading the state's file…</p>
+              </div>
+            )}
+          </div>
         </div>
-        <p className="fine">Free. Nothing to install, nothing to sign up for. Reply FOLLOW to hear when a filing changes.</p>
       </section>
 
       {ny && hero && (
-        <section className="proof" aria-label="From the file today">
-          <div>
-            <p className="big">{ny.underStatute}</p>
-            <p className="muted">
-              of {ny.total} layoff notices in New York's file today gave less than the {ny.statutoryDays} days the law
-              sets
-            </p>
-          </div>
-          <div>
-            <p className="big">{ny.postedAfterStart}</p>
-            <p className="muted">were put online by the state after the layoff had already started</p>
-          </div>
-          <div>
-            <p className="big">{days(hero.actualDays)}</p>
-            <p className="muted">
-              the shortest notice in the file right now — {hero.company}, {hero.workers} workers
-            </p>
-          </div>
-        </section>
-      )}
-
-      <section className="how" aria-label="How it works">
-        <div>
-          <strong>1. Ask</strong>
-          Email a company name, a New York City address, or paste the letter you got. Or type it on the web.
-        </div>
-        <div>
-          <strong>2. Get the receipt</strong>
-          What they filed with the state, the dates, the statute, the state's own page — with the date we captured
-          it. Twenty seconds, in the same thread.
-        </div>
-        <div>
-          <strong>3. Keep it</strong>
-          Reply FOLLOW and we email you when the filing changes. We keep every version — the state overwrites its own.
-        </div>
-      </section>
-
-      {sample && sample.receipt.kind === "layoff" && (
-        <section className="sample" aria-label="A real receipt">
-          <p className="kicker">A real receipt, as it reads today</p>
-          <div className="hero">
-            <h2>{sample.receipt.headline}</h2>
-            {sample.receipt.blocks.slice(0, 1).map((b, i) => (
-              <p key={i} className="gap">
-                {b.map((line, j) => (
-                  <span key={j}>
-                    {line}
-                    {j < b.length - 1 && <br />}
-                  </span>
-                ))}
-              </p>
-            ))}
-            {sample.receipt.footer.slice(0, 1).map((f, i) => (
-              <p key={i} className="fine">
-                {f}
-              </p>
-            ))}
-            <p className="fine">
-              <a href="/e/spirit-airlines" onClick={(e) => { e.preventDefault(); go("/e/spirit-airlines"); }}>
-                See the whole receipt →
-              </a>
-            </p>
+        <section className="band">
+          <div className="container">
+            <p className="kicker">From New York's layoff file, right now</p>
+            <div className="proof">
+              <div>
+                <p className="big">{ny.underStatute}</p>
+                <p className="muted">
+                  of {ny.total} notices gave less than the {ny.statutoryDays} days the law sets
+                </p>
+              </div>
+              <div>
+                <p className="big">{ny.postedAfterStart}</p>
+                <p className="muted">were put online by the state after the layoff had already started</p>
+              </div>
+              <div>
+                <p className="big">{days(hero.actualDays)}</p>
+                <p className="muted">
+                  the shortest notice in the file — {hero.company}, {hero.workers} workers
+                </p>
+              </div>
+              <div>
+                <p className="big">{ny.zeroDays}</p>
+                <p className="muted">notices dated the same day the layoff began, or after it</p>
+              </div>
+            </div>
           </div>
         </section>
       )}
 
-      <section className="letter" aria-label="Your letter beside their filing">
-        <h3>Paste your letter</h3>
-        <p>
-          Forward the letter you were given and we set what it says beside what they filed: the reason in their own
-          words, the days between the letter and your last day, the deadline you were given to sign, and whether the
-          list of job titles and ages the law requires for anyone over 40 came with it. Read once, kept private,
-          never sold.
-        </p>
+      <section className="band alt">
+        <div className="container">
+          <p className="kicker">How it works</p>
+          <div className="steps">
+            <div>
+              <span className="num">1</span>
+              <strong>Ask</strong>
+              <p>Email a company name, a New York City address, or paste the letter you got. Or type it on the web.</p>
+            </div>
+            <div>
+              <span className="num">2</span>
+              <strong>Get the receipt</strong>
+              <p>
+                What they filed with the state, the dates, the statute, the state's own page — with the date we
+                captured it. Twenty seconds, in the same thread.
+              </p>
+            </div>
+            <div>
+              <span className="num">3</span>
+              <strong>Keep it</strong>
+              <p>Reply FOLLOW and we email you when the filing changes. We keep every version — the state overwrites its own.</p>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <Pricing />
-
-      <section className="who" aria-label="Who this is for">
-        <h3>Who it's for</h3>
-        <p>
-          People who got a letter this month. Tenant organisers keeping a building's record. The lawyers both of them
-          bring it to. Employers can claim exceptions; that is a lawyer's call. We are the dated proof you bring
-          them.
-        </p>
+      <section className="band">
+        <div className="container two-col">
+          <div>
+            <p className="kicker">Your letter, beside their filing</p>
+            <h2 className="h2">Paste the letter you were given.</h2>
+            <p>
+              We set what it says beside what they filed: the reason in their own words, the days between the letter
+              and your last day, the deadline you were given to sign, and whether the list of job titles and ages the
+              law requires for anyone over 40 came with it.
+            </p>
+            <p className="fine">Read once by a model, kept private, never sold, never used to train anything.</p>
+          </div>
+          <div>
+            <p className="kicker">Buildings too</p>
+            <h2 className="h2">"It's fixed," said the landlord.</h2>
+            <p>
+              New York City inspects and stamps that claim FALSE CERTIFICATION about forty times a day — then
+              overwrites the record. Email us the address and you get every stamp for the building, dated.
+            </p>
+            <p className="fine">Class C is immediately hazardous, B hazardous, A non-hazardous — the city's own scale.</p>
+          </div>
+        </div>
       </section>
+
+      <section className="band alt">
+        <div className="container">
+          <Pricing />
+        </div>
+      </section>
+
+      <section className="band">
+        <div className="container two-col">
+          <div>
+            <p className="kicker">Who it's for</p>
+            <p>
+              People who got a letter this month. Tenant organisers keeping a building's record. The lawyers both of
+              them bring it to.
+            </p>
+          </div>
+          <div>
+            <p className="kicker">What we never say</p>
+            <p>
+              "Illegal." Employers can claim exceptions; that is a lawyer's call. We show two dates and one statute,
+              link to the government's own page, and keep the version they overwrote. We are the dated proof you bring
+              them.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <footer className="band foot-band">
+        <div className="container foot-row">
+          <span>Notice · {INBOX}</span>
+          <span className="muted">Built on Convex, AgentMail, Firecrawl and OpenAI. Reply STOP to any email to stop.</span>
+        </div>
+      </footer>
     </>
   );
 }

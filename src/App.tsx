@@ -27,6 +27,7 @@ export default function App() {
   const [path, go] = usePath();
   const employerMatch = /^\/e\/([^/]+)/.exec(path);
   const isApp = path === "/app" || path.startsWith("/app/");
+  const isLanding = !employerMatch && !isApp;
 
   const link = (to: string, label: string) => (
     <a
@@ -41,26 +42,35 @@ export default function App() {
     </a>
   );
 
-  return (
-    <main className="page">
-      <header className="masthead">
-        <div className="brand">{link("/", "Notice")}</div>
-        <nav className="nav" aria-label="Main">
-          {link("/app", "Receipts")}
-          <a href="/#pricing" onClick={(e) => { e.preventDefault(); go("/"); setTimeout(() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" }), 50); }}>
-            Pricing
-          </a>
-          <a href={mailto("Spirit Airlines")}>{INBOX}</a>
-        </nav>
-      </header>
+  let body;
+  if (employerMatch) body = <Employer q={decodeURIComponent(employerMatch[1])} onBack={() => go("/app")} />;
+  else if (isApp) body = <Receipts go={go} />;
+  else body = <Landing go={go} />;
 
-      {employerMatch ? (
-        <Employer q={decodeURIComponent(employerMatch[1])} onBack={() => go("/app")} />
-      ) : isApp ? (
-        <Receipts go={go} />
-      ) : (
-        <Landing go={go} />
-      )}
-    </main>
+  return (
+    <>
+      <header className="topbar">
+        <div className="container bar">
+          <div className="brand">{link("/", "Notice")}</div>
+          <nav className="nav" aria-label="Main">
+            {link("/app", "Receipts")}
+            <a
+              href="/#pricing"
+              onClick={(e) => {
+                e.preventDefault();
+                go("/");
+                setTimeout(() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" }), 60);
+              }}
+            >
+              Pricing
+            </a>
+            <a className="nav-cta" href={mailto("Spirit Airlines")}>
+              {INBOX}
+            </a>
+          </nav>
+        </div>
+      </header>
+      <main className={isLanding ? "landing" : "container narrow"}>{body}</main>
+    </>
   );
 }
