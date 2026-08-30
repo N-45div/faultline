@@ -101,8 +101,8 @@ are the dated proof you bring them.
 | 1 Sep | HPD out of shadow, wall live; change → follower alert proven with before/after; one digest per follower per day |
 | 2 Sep | Four zero-credit states: Virginia (CSV), Maryland (static HTML), North Carolina (S3 CSV with a government VersionId), Colorado (Google Sheet with stated reasons) |
 | 3 Sep | Sign-in: Google and email + password, optional everywhere — saved receipts, FOLLOW from the web, the Monitor team; a judge path that lands on a guided tour with no wall in front of the demo |
-| 4 Sep | Building page, address lookup on the web, stamp history as a timeline; Philadelphia and Chicago as "status reversal" cities; employer share pages; the data post with the corrected statistics |
-| 5 Sep | Ten receipts to ten plaintiff-side firms and tenant litigators — the thirty-day test; AgentMail Developer plan + custom domain, warmup starts |
+| 4 Sep | Paywall on Dodo Payments: $79 pack as a one-time checkout, Monitor $199/$499 as subscriptions; webhook marks the order paid, delivers the pack to the thread, activates the organisation; the PACK reply carries a real payment link. Building page and address lookup on the web |
+| 5 Sep | Ten receipts to ten plaintiff-side firms and tenant litigators — the thirty-day test; employer share pages; the data post; AgentMail Developer plan + custom domain, warmup starts |
 | 6 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint |
 | 7 Sep | New Jersey and Illinois (the overwritten-file states with 90/60-day laws); throwaway video take; log refresh |
 | 8–10 Sep | Evidence pack (PDF); cold-visitor landing; copy lint |
