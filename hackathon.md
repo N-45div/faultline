@@ -77,8 +77,12 @@ files get overwritten — yesterday's version is gone.
 - **Layoffs.** New York and California publish every WARN layoff notice. Of 193
   notices in New York's file on 29 Aug 2026, 87 gave less than the 90 days the
   law requires, and 96 were posted after the layoff had already started.
-  California publishes one spreadsheet and overwrites it in place; we hold every
-  version since 29 Aug.
+  California publishes its current-year notices as one spreadsheet and overwrites
+  it in place — edits within the year are lost, and only fiscal-year-end PDFs
+  survive on the state's site. We hold every version since 29 Aug.
+  Two dates matter and we keep them apart: the notice date is the employer's; the
+  posting date is the state's. "Posted after the layoff started" is about the
+  state's lag, never the employer's.
 - **Housing.** NYC HPD stamps a landlord's "it's fixed" as FALSE CERTIFICATION —
   in those words — about 38 times a day, then overwrites the status. We keep the
   stamp.
@@ -93,11 +97,14 @@ are the dated proof you bring them.
 |---|---|
 | 29 Aug | Engine, three sources on a cron, wall + hero page, lookup → receipt → inbox |
 | 30 Aug | Cloud deployment and convex.site; AgentMail round trip; FOLLOW; employer and building pages |
-| 31 Aug | OpenAI letter extraction (schema-constrained, cached by body hash); rate limits |
-| 1–2 Sep | Hosting smoke test; HPD out of shadow; public wall |
-| 3–4 Sep | Change → email followers; group board with member links |
-| 5–6 Sep | Housing receipts by address; building page |
-| 7 Sep | Buffer; throwaway video take |
+| 31 Aug | Evidence pack v1 (PDF: letter, every archived version with hash + capture time, statute, intervals); inbox hygiene — rate limiter, RFC 3834 auto-reply headers, skip list/bounce/auto-submitted mail, STOP + postal footer; deliverability test to Gmail and Outlook |
+| 1 Sep | HPD out of shadow, wall live; change → follower alert proven with before/after; one digest per follower per day |
+| 2 Sep | Four zero-credit states: Virginia (CSV), Maryland (static HTML), North Carolina (S3 CSV with a government VersionId), Colorado (Google Sheet with stated reasons) |
+| 3 Sep | Building page, address lookup on the web, stamp history as a timeline; Philadelphia and Chicago as "status reversal" cities |
+| 4 Sep | Employer pages with share images; the data post with the corrected statistics (employer notice date vs state posting date, kept apart) |
+| 5 Sep | Ten receipts to ten plaintiff-side firms and tenant litigators — the thirty-day test; AgentMail Developer plan + custom domain, warmup starts |
+| 6 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint |
+| 7 Sep | New Jersey and Illinois (the overwritten-file states with 90/60-day laws); throwaway video take; log refresh |
 | 8–10 Sep | Evidence pack (PDF); cold-visitor landing; copy lint |
 | 11–13 Sep | Firecrawl: HTML-only states and employer newsroom captures; share images; teaser post |
 | 14–16 Sep | Hardening: judging-week protections, redaction, chaos test with keys removed |
