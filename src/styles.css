@@ -189,6 +189,80 @@ a {
     gap: 4px;
   }
 }
+.pricing {
+  margin-top: 48px;
+}
+.pricing h3 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+.tiers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 18px 0 14px;
+}
+.tier {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 18px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.tier.featured {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.tier-name {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.tier-price {
+  margin: 4px 0 10px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.tier-price span {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.tier ul {
+  margin: 0 0 16px;
+  padding-left: 18px;
+  font-size: 15px;
+  flex: 1;
+}
+.tier li {
+  margin-bottom: 6px;
+}
+.cta {
+  display: inline-block;
+  text-align: center;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+}
+.tier.featured .cta {
+  background: var(--ink);
+  color: var(--bg);
+}
+@media (max-width: 720px) {
+  .tiers {
+    grid-template-columns: 1fr;
+  }
+}
 .foot {
   margin-top: 48px;
   padding-top: 16px;

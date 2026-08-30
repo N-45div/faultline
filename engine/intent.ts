@@ -7,6 +7,8 @@ export type Intent =
   | { kind: "lookup"; query: string }
   | { kind: "follow" }
   | { kind: "stop" }
+  | { kind: "pack"; query: string }
+  | { kind: "monitor" }
   | { kind: "letter"; text: string }
   | { kind: "empty" };
 
@@ -22,6 +24,11 @@ export function classifyInbound(subjectRaw: string, bodyRaw: string): Intent {
   const commands = [firstLine, subject].map((s) => s.toLowerCase().replace(/[^a-z]+$/, ""));
   if (commands.some((c) => /^(follow|watch|subscribe|yes)$/.test(c))) return { kind: "follow" };
   if (commands.some((c) => /^(stop|unsubscribe|unfollow)$/.test(c))) return { kind: "stop" };
+
+  // Paid requests arrive as "PACK <company or address>" and "MONITOR".
+  const packMatch = /^pack\b[:\s-]*(.*)$/i.exec(subject) ?? /^pack\b[:\s-]*(.*)$/i.exec(firstLine);
+  if (packMatch) return { kind: "pack", query: packMatch[1].trim().slice(0, 120) };
+  if (commands.some((c) => /^monitor$/.test(c))) return { kind: "monitor" };
 
   // A letter: long, and it talks like one.
   if (body.length > 160 && LETTER_WORDS.test(body)) return { kind: "letter", text: body };

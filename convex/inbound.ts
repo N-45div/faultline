@@ -133,6 +133,41 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       }
       break;
     }
+    case "pack": {
+      // The evidence pack ships this week; the request is real and threaded.
+      const base = intent.query ? (await buildReceipt(ctx.db, intent.query)).receipt : null;
+      receipt = {
+        kind: base?.kind ?? "none",
+        query: `pack:${intent.query}`,
+        subjectKey: base?.subjectKey,
+        headline: intent.query
+          ? `Evidence pack requested for ${intent.query}.`
+          : "Evidence pack requested — reply with the company name or building address it's for.",
+        blocks: [
+          [
+            "An evidence pack is a PDF: every dated version of the filing we hold, capture times and hashes, the statute text, and the intervals — the thing you hand a lawyer.",
+            "$79 per pack. We'll email it to this thread with a payment link when it's ready, within a day.",
+          ],
+          ...(base && base.kind !== "none" ? [[`What we hold today: ${base.headline}`]] : []),
+        ],
+        links: base?.links ?? [],
+        footer: ["No card needed to ask. Reply STOP to withdraw the request."],
+      };
+      break;
+    }
+    case "monitor": {
+      receipt = {
+        kind: "none",
+        query: "monitor",
+        headline: "Monitor: unlimited follows for your team, a weekly digest of what changed, packs included.",
+        blocks: [
+          ["$199 a month for an organisation, up to five people. $499 with CSV and API access across every state we cover.", "Reply with your organisation's name and the employers or buildings you watch, and we'll set it up and email this thread."],
+        ],
+        links: [],
+        footer: ["No card needed to ask. Reply STOP to withdraw the request."],
+      };
+      break;
+    }
     case "stop": {
       const subs = await ctx.db.query("subscriptions").withIndex("by_email", (q) => q.eq("email", from)).collect();
       for (const s of subs) if (s.active) await ctx.db.patch(s._id, { active: false });
