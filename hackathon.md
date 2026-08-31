@@ -10,9 +10,9 @@
 - **Components:** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex
 - **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, HTTP actions, crons, scheduled functions, file storage, realtime queries
 - **Auth:** none
-- **AI models:** gpt-5.6-luna
+- **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-08-31T21:15:00Z
+- **Last updated:** 2026-08-31T21:40:00Z
 
 ## Log
 
@@ -93,6 +93,55 @@ features: file storage, HTTP actions with pathPrefix routing, node actions,
 scheduled functions, indexes (`convex/packs.ts`, `convex/packBuild.ts`,
 `convex/llmActions.ts`, `convex/mail.ts`, `engine/hygiene.ts`).
 
+### 2026-08-31 - fdebbea
+The city was too big for one transaction. NYC HPD returns about 1,800 rows a
+cycle and every cycle died: the read that fetches the previous version asked
+for one row per key inside a single Convex query, and the write spent four
+database operations per row inside a single mutation. Both hit "too many
+system operations", and the source sat in backoff having ingested nothing. A
+cycle is now a snapshot, then slices of 150 rows, then a finish; the "before"
+side is read in slices of 250 deduped keys; subject lookups are deduped per
+batch; the wall is trimmed once per batch instead of once per change. Each
+slice carries a row's new version, its `current` pointer and its change event
+together, so a slice that never runs loses nothing — the next cycle finds the
+row still different and writes both. HPD now ingests 1,800 rows in one cycle
+and is out of shadow mode.
+
+Alerts stopped being sent from ingest, because a city file that moves two
+hundred rows must never become two hundred emails. A change queues one line
+per follower; a cron decides when it leaves. At most one email per person per
+day, and the first arrives within a minute of the change. Proven end to end on
+a real building: a violation at 107 East 126 Street moved from NOV CERTIFIED
+LATE to VIOLATION CLOSED, the alert queued, the threaded reply 404'd on a dead
+thread, the failed send was requeued and the thread forgotten, and the next
+pass delivered a fresh email — the failure path working on its first outing.
+
+New: what they said in public. One search per employer and filing date, capped
+at three, returns the employer's own dated words beside the reason they gave
+the state, with citations rendered as links on the employer page. Spirit
+Airlines' own release naming it the best airline of 2026 sits three weeks
+before a wind-down the state's file calls "Bankruptcy Economic". The search
+call and the strict-schema read are deliberately two calls: citation offsets
+index into the emitted text, and forcing a JSON schema onto the search would
+point them into raw JSON. 3.8 cents, bought once and kept.
+
+STOP now happens before every gate. It had been dropped for exactly the people
+most likely to send it — senders who fail SPF, and anyone who had already
+written twenty times that day.
+
+An adversarial review of yesterday's code found seven more, all fixed: every
+California evidence pack silently dropped the state's posting-lag line,
+because California calls that field `processedDate` and New York calls it
+`postedDate`; a PDF that was not a letter printed "What your letter says:"
+over nothing; a "thanks" in a pack thread rebuilt and re-sent the whole pack;
+`news@` addresses were being filed as robots, when reporters are a core
+audience; a failed pack promised a retry that nothing performed; the STOP
+confirmation ended by inviting the reader to reply FOLLOW; and the subject
+line — often the only place a "see attached" email names the employer — never
+reached the model. Convex features: node actions, scheduled functions, crons,
+indexes, file storage, HTTP actions (`convex/ingest/`, `convex/digest.ts`,
+`convex/corroborate.ts`, `engine/hygiene.ts`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
@@ -124,10 +173,11 @@ are the dated proof you bring them.
 | 29 Aug | Engine, three sources on a cron, wall + hero page, lookup → receipt → inbox |
 | 30 Aug | Cloud deployment and convex.site; AgentMail round trip; FOLLOW; employer and building pages |
 | 31 Aug | Evidence pack v1 (PDF: letter, every archived version with hash + capture time, statute, intervals); inbox hygiene — rate limiter, RFC 3834 auto-reply headers, skip list/bounce/auto-submitted mail, free moderation on inbound, STOP + postal footer; deliverability test to Gmail and Outlook. OpenAI: official SDK with one zod schema driving strict output and validation, a stable ≥1,024-token prefix with a cache key so every letter after the first pays the cached rate; attached PDF letters go to the model directly as file input |
-| 1 Sep | HPD out of shadow, wall live; change → follower alert proven with before/after; one digest per follower per day. Corroboration on demand: one web-search call per employer and filing date, restricted to the employer's site and local press, returning a dated statement with citations — the state's stated reason beside the employer's own words |
-| 2 Sep | Four zero-credit states: Virginia (CSV), Maryland (static HTML), North Carolina (S3 CSV with a government VersionId), Colorado (Google Sheet with stated reasons) |
+| 31 Aug (also) | Pulled forward from 1 Sep: batched ingest so a city fits; HPD out of shadow; alert proven with before/after; one digest per person per day; corroboration by web search with citations |
+| 1 Sep | Four zero-credit states: Virginia (CSV), Maryland (static HTML), North Carolina (S3 CSV with a government VersionId), Colorado (Google Sheet with stated reasons). Building page and address lookup on the web |
+| 2 Sep | Postal address in the footer and AgentMail Developer plan + custom domain (needs Divij); Outlook deliverability; the wall as a demo surface with HPD live |
 | 3 Sep | Sign-in: Google and email + password, optional everywhere — saved receipts, FOLLOW from the web, the Monitor team; a judge path that lands on a guided tour with no wall in front of the demo |
-| 4 Sep | Paywall on Dodo Payments: $79 pack as a one-time checkout, Monitor $199/$499 as subscriptions; webhook marks the order paid, delivers the pack to the thread, activates the organisation; the PACK reply carries a real payment link. Building page and address lookup on the web |
+| 4 Sep | Paywall on Dodo Payments: $79 pack as a one-time checkout, Monitor $199/$499 as subscriptions; webhook marks the order paid, delivers the pack to the thread, activates the organisation; the PACK reply carries a real payment link |
 | 5 Sep | Ten receipts to ten plaintiff-side firms and tenant litigators — the thirty-day test; employer share pages; the data post; AgentMail Developer plan + custom domain, warmup starts |
 | 6 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint |
 | 7 Sep | New Jersey and Illinois (the overwritten-file states with 90/60-day laws); throwaway video take; log refresh |
