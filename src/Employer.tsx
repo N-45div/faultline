@@ -76,6 +76,7 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
                 {result.filing.employer} said publicly in the month around {result.filing.filingDate}, and show you the links.
               </p>
               <button
+                type="button"
                 className="cta"
                 disabled={asking}
                 onClick={async () => {
@@ -107,7 +108,7 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
                   <span key={c.url}>
                     {i > 0 && " · "}
                     <a href={c.url} target="_blank" rel="noreferrer">
-                      {c.title}
+                      {c.title || c.url}
                     </a>
                   </span>
                 ))}

@@ -102,7 +102,9 @@ export const check = action({
       const text: string = part?.text ?? search.output_text ?? "";
       const citations = ((part?.annotations ?? []) as any[])
         .filter((a) => a?.type === "url_citation" && a.url)
-        .map((a) => ({ url: String(a.url), title: String(a.title ?? a.url) }))
+        // A citation with an empty title renders as an invisible link, and the
+        // whole point is that the reader can click it.
+        .map((a) => ({ url: String(a.url), title: String(a.title || "").trim() || hostOf(String(a.url)) }))
         .filter((c, i, all) => all.findIndex((o) => o.url === c.url) === i)
         .slice(0, 6);
 
@@ -156,6 +158,14 @@ export const check = action({
     }
   },
 });
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url.slice(0, 60);
+  }
+}
 
 function usageOf(res: { usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } } }): Usage {
   return {
