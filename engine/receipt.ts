@@ -142,12 +142,18 @@ const HOW_TO = [
   "Reply with another company name, or a building address, for another receipt.",
 ];
 
+/**
+ * Someone who has just said STOP is not invited to reply FOLLOW, and the last
+ * line they read should be the one that tells them it is over.
+ */
+const howTo = (r: Receipt) => (r.query === "stop" ? [] : HOW_TO);
+
 export function receiptText(r: Receipt): string {
   const parts = [r.headline, ""];
   for (const b of r.blocks) parts.push(...b, "");
   for (const l of r.links) parts.push(`${l.label}: ${l.url}`);
   if (r.links.length) parts.push("");
-  parts.push(...r.footer, "", ...HOW_TO);
+  parts.push(...howTo(r), "", ...r.footer);
   return parts.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 

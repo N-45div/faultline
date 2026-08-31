@@ -25,8 +25,12 @@ export function classifyInbound(subjectRaw: string, bodyRaw: string): Intent {
   if (commands.some((c) => /^(follow|watch|subscribe|yes)$/.test(c))) return { kind: "follow" };
   if (commands.some((c) => /^(stop|unsubscribe|unfollow)$/.test(c))) return { kind: "stop" };
 
-  // Paid requests arrive as "PACK <company or address>" and "MONITOR".
-  const packMatch = /^pack\b[:\s-]*(.*)$/i.exec(subject) ?? /^pack\b[:\s-]*(.*)$/i.exec(firstLine);
+  // Paid requests arrive as "PACK <company or address>" and "MONITOR". Our own
+  // subject comes back on every message in the thread once we have replied, so
+  // inside a reply only the body may ask — otherwise "thanks" reads as a
+  // second request and we build and send the whole pack again.
+  const isReply = /^\s*(re|fwd|fw)\s*:/i.test(subjectRaw ?? "");
+  const packMatch = (isReply ? null : /^pack\b[:\s-]*(.*)$/i.exec(subject)) ?? /^pack\b[:\s-]*(.*)$/i.exec(firstLine);
   if (packMatch) return { kind: "pack", query: packMatch[1].trim().slice(0, 120) };
   if (commands.some((c) => /^monitor$/.test(c))) return { kind: "monitor" };
 

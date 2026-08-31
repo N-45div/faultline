@@ -54,6 +54,8 @@ export interface SourceAdapter<Raw = Fields> {
   publisher: string;
   jurisdiction: string;
   datasetUrl: string;
+  /** Where to send a person to check it themselves — some datasetUrls are JSON. */
+  pageUrl?: string;
   transport: Transport;
   cadence: { baseMs: number; hotMs: number; jitterPct: number; gate: "always" | "when_watched" };
   targeting: "server_filter" | "whole_file";

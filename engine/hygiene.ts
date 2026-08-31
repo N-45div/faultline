@@ -3,8 +3,10 @@
 // is the product. RFC 3834 both ways: this detects auto-submitted mail coming
 // in, and outbound replies carry Auto-Submitted so other robots leave us alone.
 
+// Deliberately absent: "news" and "feedback". A reporter writing from
+// news@ or a tenant organiser from feedback@ is exactly who this is for.
 const ROBOT_LOCALPART =
-  /^(mailer-daemon|postmaster|no-?reply|do-?not-?reply|donotreply|bounces?|bounce\+|notifications?|alerts?|newsletters?|news|digest|updates?|marketing|promo(tions?)?|billing|receipts?|invoices?|noc|abuse|list-?serv|majordomo|feedback|unsubscribe)([+@.:_-]|$)/i;
+  /^(mailer-daemon|postmaster|no[-_]?reply|do[-_]?not[-_]?reply|bounces?|notifications?|alerts?|newsletters?|digest|updates?|marketing|promo(tions?)?|billing|receipts?|invoices?|noc|abuse|list-?serv|majordomo|unsubscribe)([+@.:_-]|$)/i;
 
 /** An address that is a machine, not a person. */
 export function robotSender(address: string): boolean {

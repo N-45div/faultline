@@ -74,6 +74,12 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   });
   const target: Target = { inboxId, messageId, agentInboxId: String(m.inbox_id ?? ""), threadId };
 
+  // STOP is honoured before every gate below it. A person who wants us to go
+  // away may well be mailing from an address that fails SPF, or mailing for the
+  // twenty-first time today — exactly the cases the gates drop. Whether we send
+  // a confirmation is a separate question, and the gates still decide that.
+  if (intent.kind === "stop") await unsubscribe(ctx, from, now);
+
   // Never answer a robot: bounces, lists, auto-responders, our own address.
   // The message is stored above either way; we just don't send.
   const skip = skipReason(from, String(process.env.AGENTMAIL_INBOX_ID ?? ""), m.headers);
@@ -104,11 +110,14 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   );
   const pdfAttachmentId = String(pdfAtt?.attachment_id ?? pdfAtt?.id ?? "");
   if (pdfAtt && pdfAttachmentId && process.env.OPENAI_API_KEY && ["lookup", "letter", "empty"].includes(intent.kind)) {
-    const h = fnv1a64(`${body}|${pdfAttachmentId}`);
+    // "see attached" bodies say nothing; the subject is often the only place
+    // the employer is named, so it travels with the letter.
+    const withSubject = [subject, body].filter(Boolean).join(String.fromCharCode(10));
+    const h = fnv1a64(`${withSubject}|${pdfAttachmentId}`);
     await ctx.db.patch(inboxId, { intent: "letter", bodyHash: h });
     await ctx.scheduler.runAfter(0, internal.llmActions.extractLetter, {
       inboxId,
-      text: body.slice(0, 12_000),
+      text: withSubject.slice(0, 12_000),
       bodyHash: h,
       attachment: {
         agentInboxId: target.agentInboxId,
@@ -234,8 +243,7 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       break;
     }
     case "stop": {
-      const subs = await ctx.db.query("subscriptions").withIndex("by_email", (q) => q.eq("email", from)).collect();
-      for (const s of subs) if (s.active) await ctx.db.patch(s._id, { active: false });
+      // Already done above, before the gates. This only confirms it.
       receipt = { kind: "none", query: "stop", headline: "Stopped. We won't email you again unless you ask.", blocks: [], links: [], footer: [] };
       break;
     }
@@ -267,8 +275,15 @@ export const finishLetter = internalMutation({
     const company: string | null = (x?.employer && String(x.employer)) || (await guessCompanyFromText(ctx.db, text));
     const receipt = company ? (await buildReceipt(ctx.db, company)).receipt : couldNotTell();
 
+    // A file that is not a termination letter comes back as every field null,
+    // exactly as the model was told to. Saying "What your letter says:" over
+    // nothing is worse than not saying it.
+    const said =
+      x &&
+      (x.quotedClaim || x.noticeDate || x.lastDay || x.signDeadlineDays || x.severanceOffered || (x.owbpaDisclosureAttached && x.owbpaDisclosureAttached !== "unclear"));
+
     const preface: string[] = [];
-    if (x) {
+    if (x && said) {
       preface.push("What your letter says:");
       if (x.quotedClaim) preface.push(`“${String(x.quotedClaim).trim()}”`);
       if (x.noticeDate && x.lastDay) {
@@ -289,6 +304,8 @@ export const finishLetter = internalMutation({
       else if (company) preface.push(`We read your letter as being about ${company}, but we don't hold a filing for them yet.`);
     } else if (company) {
       preface.push(`We read your letter as being about ${company}. If that's wrong, reply with the company's name.`);
+    } else if (x) {
+      preface.push("We couldn't read that as a termination, layoff or separation letter.");
     }
     if (note === "budget") preface.push("We've hit today's limit for reading letters; this receipt uses only the company name.");
     if (note === "moderation") {
@@ -365,6 +382,26 @@ function couldNotTell(): Receipt {
     headline: "We couldn't tell which employer your letter is about.",
     blocks: [["Reply with the company's name as it appears on your paperwork, and we'll send the receipt."]],
   };
+}
+
+/**
+ * Every follow off, and anything already queued for them dropped. Called before
+ * the gates, so a STOP always lands, however it arrived.
+ */
+async function unsubscribe(ctx: MutationCtx, email: string, now: number) {
+  const subs = await ctx.db.query("subscriptions").withIndex("by_email", (q) => q.eq("email", email)).collect();
+  let off = 0;
+  for (const s of subs) {
+    if (!s.active) continue;
+    await ctx.db.patch(s._id, { active: false });
+    off++;
+  }
+  const queued = await ctx.db
+    .query("alertQueue")
+    .withIndex("by_email_status", (q) => q.eq("email", email).eq("status", "pending"))
+    .take(500);
+  for (const a of queued) await ctx.db.patch(a._id, { status: "sent", sentAt: now });
+  if (off > 0 || queued.length > 0) console.log(`[inbound] STOP honoured: ${off} follows off, ${queued.length} queued alerts dropped`);
 }
 
 async function latestMatchedInThread(ctx: MutationCtx, threadId: string) {

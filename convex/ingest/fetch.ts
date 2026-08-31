@@ -5,16 +5,23 @@ import { internal } from "../_generated/api";
 import { adapters } from "../../engine/adapters/index";
 import { hashFields, sha256Hex } from "../../engine/canon";
 import { diffRows } from "../../engine/diff";
-import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../../engine/types";
+import type { DiffResult, FetchBody, Observation, PrevIndex, SourceAdapter } from "../../engine/types";
 
 // The one place bytes from the outside world are touched. Parse, hash and diff
 // here; hand the mutation only what it needs to write.
 
 const UA = "Notice/0.1 (+https://github.com/N-45div/notice; keeps dated copies of public filings)";
 const CURSOR_TRAIL_DAYS = 3;
-// One transaction stays well inside Convex's write limits; anything past the
-// cap is picked up next cycle as a plain addition.
-const MAX_ROWS_PER_COMMIT = 1200;
+// A cycle is written in slices. Each row costs about four database operations,
+// so a slice this size stays far inside what one Convex function may do; the
+// cycle is many slices, driven from here.
+const ROWS_PER_BATCH = 150;
+// How many rows one cycle will write at all. Whatever is left over still
+// differs from `current` next cycle, so it is written then, not lost.
+const MAX_ROWS_PER_CYCLE = 3000;
+// The "before" side is read in slices too, for the same reason: a closed-world
+// source asks for one row per key it fetched, and a city fetches thousands.
+const PREV_KEYS_PER_QUERY = 250;
 
 export const runSource = internalAction({
   args: { slug: v.string() },
@@ -35,7 +42,7 @@ export const runSource = internalAction({
       };
 
       if (fetched.kind === "unchanged") {
-        await ctx.runMutation(internal.ingest.write.commit, {
+        await ctx.runMutation(internal.ingest.write.beginCommit, {
           sourceId: source._id,
           snapshot: {
             capturedAt: startedAt,
@@ -46,9 +53,12 @@ export const runSource = internalAction({
             rowCount: 0,
             degraded: false,
           },
-          observations: [],
-          changes: [],
-          sourceUrl: adapter.datasetUrl,
+        });
+        await ctx.runMutation(internal.ingest.write.finishCommit, {
+          sourceId: source._id,
+          capturedAt: startedAt,
+          bodySha256: source.lastBodySha256 ?? "",
+          etag: fetched.etag,
           next,
         });
         return null;
@@ -56,17 +66,25 @@ export const runSource = internalAction({
 
       const observations = await toObservations(adapter, fetched.body, fetched.bodySha256, startedAt);
       next.lastStatus = `${fetched.status} · ${observations.length} rows`;
-      const prevRows = await ctx.runQuery(internal.ingest.write.prevFor, {
-        sourceId: source._id,
-        mode: adapter.presence === "open_world" ? "all" : "keys",
-        identityKeys: observations.map((o) => o.identityKey),
-      });
-      const prev: PrevIndex = Object.fromEntries(
-        prevRows.map((r) => [r.identityKey, { sigHash: r.sigHash, fullHash: r.fullHash, fields: r.fields }]),
-      );
+
+      // The "before" side, read in slices — a city asks about thousands of rows.
+      const prev: PrevIndex = {};
+      const mode = adapter.presence === "open_world" ? "all" : "keys";
+      const keyBatches: string[][] = [];
+      if (mode === "all") keyBatches.push([]);
+      else {
+        // A file can carry the same row twice; asking twice costs twice.
+        const unique = [...new Set(observations.map((o) => o.identityKey))];
+        for (let i = 0; i < unique.length; i += PREV_KEYS_PER_QUERY) keyBatches.push(unique.slice(i, i + PREV_KEYS_PER_QUERY));
+      }
+      for (const identityKeys of keyBatches) {
+        const rows = await ctx.runQuery(internal.ingest.write.prevFor, { sourceId: source._id, mode, identityKeys });
+        for (const r of rows) prev[r.identityKey] = { sigHash: r.sigHash, fullHash: r.fullHash, fields: r.fields };
+      }
+
       const diff = diffRows(adapter, prev, observations);
       const allNew = observations.filter((o) => !prev[o.identityKey] || prev[o.identityKey].fullHash !== o.fullHash);
-      const newVersions = allNew.slice(0, MAX_ROWS_PER_COMMIT);
+      const newVersions = allNew.slice(0, MAX_ROWS_PER_CYCLE);
       const kept = new Set(newVersions.map((o) => o.identityKey));
       if (allNew.length > newVersions.length) console.warn(`[${slug}] ${allNew.length - newVersions.length} rows deferred to next cycle`);
 
@@ -76,7 +94,7 @@ export const runSource = internalAction({
         bodyStorageId = await ctx.storage.store(new Blob([fetched.bytes as BlobPart], { type: "application/octet-stream" }));
       }
 
-      const result = await ctx.runMutation(internal.ingest.write.commit, {
+      const snapshotId = await ctx.runMutation(internal.ingest.write.beginCommit, {
         sourceId: source._id,
         snapshot: {
           capturedAt: startedAt,
@@ -89,30 +107,68 @@ export const runSource = internalAction({
           rowCount: observations.length,
           degraded: diff.degraded,
         },
-        observations: newVersions.map((o) => ({
-          identityKey: o.identityKey,
-          subject: o.subject,
-          claimKind: o.claimKind,
-          assertedAt: o.assertedAt,
-          fields: o.fields,
-          sigHash: o.sigHash,
-          fullHash: o.fullHash,
-        })),
-        changes: diff.changes.filter((c) => c.kind === "removed" || kept.has(c.identityKey)).map((c) => ({
-          identityKey: c.identityKey,
-          subjectKey: c.subject.key,
-          kind: c.kind,
-          changed: c.changed,
-          before: "before" in c ? c.before : undefined,
-          after: "after" in c ? c.after : undefined,
-          sentence: c.sentence,
-        })),
-        sourceUrl: adapter.datasetUrl,
+      });
+
+      // A change travels in the same slice as the row it describes, so a slice
+      // that never runs leaves both undone — and the next cycle finds the row
+      // still changed and writes both together.
+      const changesByKey = new Map<string, ReturnType<typeof toChangeArg>[]>();
+      const removed: ReturnType<typeof toChangeArg>[] = [];
+      for (const c of diff.changes) {
+        const arg = toChangeArg(c);
+        if (c.kind === "removed") removed.push(arg);
+        else if (kept.has(c.identityKey)) changesByKey.set(c.identityKey, [...(changesByKey.get(c.identityKey) ?? []), arg]);
+      }
+
+      let wrote = 0;
+      let emitted = 0;
+      let emittedFlag = false;
+      for (let i = 0; i < newVersions.length; i += ROWS_PER_BATCH) {
+        const slice = newVersions.slice(i, i + ROWS_PER_BATCH);
+        const result = await ctx.runMutation(internal.ingest.write.commitBatch, {
+          sourceId: source._id,
+          snapshotId,
+          capturedAt: startedAt,
+          observations: slice.map((o) => ({
+            identityKey: o.identityKey,
+            subject: o.subject,
+            claimKind: o.claimKind,
+            assertedAt: o.assertedAt,
+            fields: o.fields,
+            sigHash: o.sigHash,
+            fullHash: o.fullHash,
+          })),
+          changes: slice.flatMap((o) => changesByKey.get(o.identityKey) ?? []),
+          sourceUrl: adapter.pageUrl ?? adapter.datasetUrl,
+        });
+        wrote += result.observations;
+        emitted += result.changes;
+        emittedFlag = result.emitted;
+      }
+      // Rows that left the file carry no new version, so they go last, alone.
+      for (let i = 0; i < removed.length; i += ROWS_PER_BATCH) {
+        const result = await ctx.runMutation(internal.ingest.write.commitBatch, {
+          sourceId: source._id,
+          snapshotId,
+          capturedAt: startedAt,
+          observations: [],
+          changes: removed.slice(i, i + ROWS_PER_BATCH),
+          sourceUrl: adapter.pageUrl ?? adapter.datasetUrl,
+        });
+        emitted += result.changes;
+        emittedFlag = result.emitted;
+      }
+
+      await ctx.runMutation(internal.ingest.write.finishCommit, {
+        sourceId: source._id,
+        capturedAt: startedAt,
+        bodySha256: fetched.bodySha256,
+        etag: fetched.etag,
         next,
       });
       console.log(
-        `[${slug}] ${fetched.status} rows=${observations.length} new=${result.observations} changes=${result.changes}` +
-          ` silent=${diff.silentUpdates} suppressed=${diff.suppressed} degraded=${diff.degraded} emit=${result.emitted}`,
+        `[${slug}] ${fetched.status} rows=${observations.length} new=${wrote} changes=${emitted}` +
+          ` silent=${diff.silentUpdates} suppressed=${diff.suppressed} degraded=${diff.degraded} emit=${emittedFlag}`,
       );
     } catch (e) {
       const failures = source.consecutiveFailures + 1;
@@ -123,6 +179,18 @@ export const runSource = internalAction({
     return null;
   },
 });
+
+function toChangeArg(c: DiffResult["changes"][number]) {
+  return {
+    identityKey: c.identityKey,
+    subjectKey: c.subject.key,
+    kind: c.kind,
+    changed: c.changed,
+    before: "before" in c ? c.before : undefined,
+    after: "after" in c ? c.after : undefined,
+    sentence: c.sentence,
+  };
+}
 
 type Fetched =
   | { kind: "unchanged"; url: string; etag?: string; cursor?: string }

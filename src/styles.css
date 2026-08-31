@@ -491,3 +491,36 @@ a {
   font-size: 14px;
   color: var(--muted);
 }
+
+.said {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px 22px 18px;
+  margin: 0 0 32px;
+}
+.said h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.said button.cta {
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  margin-top: 12px;
+}
+.said button.cta:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.said .quote {
+  font-size: 19px;
+  line-height: 1.4;
+  margin: 0 0 8px;
+  border-left: 3px solid var(--accent);
+  padding-left: 14px;
+}

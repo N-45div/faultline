@@ -24,8 +24,18 @@ export const request = internalMutation({
     messageId: v.optional(v.string()),
     threadId: v.optional(v.string()),
   },
-  returns: v.id("packs"),
+  returns: v.union(v.id("packs"), v.null()),
   handler: async (ctx, a) => {
+    // Building the same pack twice for the same person in the same few minutes
+    // is never what they meant, whatever the mail said.
+    const recent = await ctx.db
+      .query("packs")
+      .withIndex("by_subject", (q) => q.eq("subjectKey", a.subjectKey).gte("createdAt", Date.now() - 10 * 60_000))
+      .collect();
+    if (recent.some((p) => p.requestedBy === a.requestedBy && p.status !== "failed")) {
+      console.log(`[pack] duplicate request for ${a.query} from ${a.requestedBy}, ignored`);
+      return null;
+    }
     const packId = await ctx.db.insert("packs", {
       subjectKey: a.subjectKey,
       query: a.query,

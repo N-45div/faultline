@@ -52,3 +52,38 @@ export const simulateInbound = internalMutation({
     return { intent: r.intent, query: r.query, kind: r.kind, sent: r.sent, text: r.text, pending: r.pending };
   },
 });
+
+/**
+ * Rewinds rows so the next fetch of a source sees them as changed. This is how
+ * the alert path is proven end to end without waiting for a city to act: the
+ * held version is made stale, the real file is read again, and the difference
+ * between them is a real diff over real bytes.
+ */
+export const forceChange = internalMutation({
+  args: { slug: v.string(), rows: v.number(), field: v.string(), value: v.string(), subjectKey: v.optional(v.string()) },
+  returns: v.object({ rewound: v.number(), subjectKeys: v.array(v.string()) }),
+  handler: async (ctx, { slug, rows, field, value, subjectKey }) => {
+    const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+    if (!src) throw new Error(`no source ${slug}`);
+    const current = subjectKey
+      ? await ctx.db
+          .query("current")
+          .withIndex("by_source_subject", (q) => q.eq("sourceId", src._id).eq("subjectKey", subjectKey))
+          .take(Math.min(rows, 25))
+      : await ctx.db
+          .query("current")
+          .withIndex("by_source_identity", (q) => q.eq("sourceId", src._id))
+          .take(Math.min(rows, 25));
+    const subjectKeys: string[] = [];
+    for (const c of current) {
+      await ctx.db.patch(c._id, {
+        fields: { ...c.fields, [field]: value },
+        sigHash: `rewound-${c.sigHash.slice(0, 8)}`,
+        fullHash: `rewound-${c.fullHash.slice(0, 8)}`,
+      });
+      if (!subjectKeys.includes(c.subjectKey)) subjectKeys.push(c.subjectKey);
+    }
+    await ctx.db.patch(src._id, { nextRunAt: 0, lockedUntil: undefined });
+    return { rewound: current.length, subjectKeys };
+  },
+});

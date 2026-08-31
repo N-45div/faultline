@@ -24,6 +24,7 @@ export const nycHpd: SourceAdapter<Raw> = {
   publisher: "NYC Department of Housing Preservation and Development",
   jurisdiction: "US-NY-NYC",
   datasetUrl: `https://${DOMAIN}/resource/${RESOURCE}.json`,
+  pageUrl: `https://${DOMAIN}/Housing-Development/Housing-Maintenance-Code-Violations/${RESOURCE}`,
   transport: {
     kind: "socrata",
     domain: DOMAIN,

@@ -172,9 +172,28 @@ export default defineSchema({
     messageId: v.optional(v.string()),
     createdAt: v.number(),
     active: v.boolean(),
+    /** The one-a-day ceiling is per person, so it is stamped on every follow. */
+    lastEmailedAt: v.optional(v.number()),
   })
     .index("by_subject", ["subjectKey", "active"])
     .index("by_email", ["email", "subjectKey"]),
+
+  /**
+   * News waiting to be sent. Ingest queues; the digest cron sends. A city file
+   * can move hundreds of rows in one cycle and that must never become hundreds
+   * of emails, so nobody hears from us more than once a day.
+   */
+  alertQueue: defineTable({
+    email: v.string(),
+    subjectKey: v.string(),
+    sentence: v.string(),
+    sourceUrl: v.string(),
+    status: v.union(v.literal("pending"), v.literal("sent")),
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+  })
+    .index("by_status_created", ["status", "createdAt"])
+    .index("by_email_status", ["email", "status"]),
 
   // ---- the product ---------------------------------------------------------
   cases: defineTable({
@@ -279,6 +298,26 @@ export default defineSchema({
     promptVersion: v.optional(v.string()),
     costCents: v.optional(v.number()),
   }).index("by_body_sha", ["bodySha256"]),
+
+  /**
+   * What the employer said in public, beside what they filed. One row per
+   * employer and filing date — the search is the expensive part, so it is
+   * bought once and kept.
+   */
+  corroborations: defineTable({
+    employer: v.string(),
+    filingDate: v.string(),
+    subjectKey: v.optional(v.string()),
+    corroborated: v.boolean(),
+    statementDate: v.union(v.string(), v.null()),
+    employerStatement: v.union(v.string(), v.null()),
+    speakerOrOutlet: v.union(v.string(), v.null()),
+    confidence: v.string(),
+    /** Shown as links, always: OpenAI requires visible, clickable citations. */
+    citations: v.array(v.object({ url: v.string(), title: v.string() })),
+    costCents: v.number(),
+    createdAt: v.number(),
+  }).index("by_key", ["employer", "filingDate"]),
 
   /** Every model call, priced in cents at the moment it was made. */
   llmUsage: defineTable({

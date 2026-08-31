@@ -100,6 +100,12 @@ const JURIS = { "ny-warn": "US-NY", "ca-warn": "US-CA" } as const;
 
 const iso = (ms: number) => new Date(ms).toISOString().replace("T", " ").slice(0, 19) + " UTC";
 
+/** The date the state published it. New York and California name it differently. */
+function statePostedDate(f: Record<string, string | number | boolean | null>): string | undefined {
+  const v = f.postedDate ?? f.processedDate;
+  return v ? String(v) : undefined;
+}
+
 function fieldLines(fields: Record<string, string | number | boolean | null>): string[] {
   return Object.entries(fields)
     .filter(([k, val]) => !k.startsWith("__") && val !== null && val !== "")
@@ -144,7 +150,9 @@ function renderPack(pdf: Pdf, d: PackData) {
           jurisdiction: JURIS[c.sourceSlug as keyof typeof JURIS] ?? "US",
           noticeDate: String(f.noticeDate),
           effectiveDate: String(f.effectiveDate),
-          postedDate: f.postedDate ? String(f.postedDate) : undefined,
+          // New York calls it postedDate, California calls it processedDate.
+          // Reading only one silently drops the state's lag on the other.
+          postedDate: statePostedDate(f),
         });
         pdf.space(3);
         pdf.text(
@@ -231,9 +239,10 @@ function renderPack(pdf: Pdf, d: PackData) {
 }
 
 export const buildPack = internalAction({
-  args: { packId: v.id("packs") },
+  args: { packId: v.id("packs"), attempt: v.optional(v.number()) },
   returns: v.null(),
-  handler: async (ctx, { packId }) => {
+  handler: async (ctx, { packId, attempt }) => {
+    const tries = attempt ?? 1;
     const d = (await ctx.runQuery(internal.packs.data, { packId })) as PackData | null;
     const inbox = process.env.AGENTMAIL_INBOX_ID ?? "";
     try {
@@ -274,13 +283,19 @@ export const buildPack = internalAction({
       }
       console.log(`[pack] built ${pages} pages, ${bytes.byteLength} bytes for "${d.pack.query}"`);
     } catch (e) {
-      console.error(`[pack] failed: ${String(e)}`);
+      console.error(`[pack] failed (attempt ${tries}): ${String(e)}`);
+      // "We're on it" has to be true, so one retry actually happens before we
+      // say anything to the person who asked.
+      if (tries < 2) {
+        await ctx.scheduler.runAfter(60_000, internal.packBuild.buildPack, { packId, attempt: tries + 1 });
+        return null;
+      }
       await ctx.runMutation(internal.packs.failed, { packId });
       if (d?.pack.agentInboxId && d.pack.messageId && inbox) {
         await ctx.scheduler.runAfter(0, internal.mail.reply, {
           agentInboxId: d.pack.agentInboxId,
           parentMessageId: d.pack.messageId,
-          text: "We hit a problem building your evidence pack. We're on it - you'll get it in this thread without asking again.",
+          text: "We tried twice and couldn't build your evidence pack. Reply PACK and the name again and we'll have another go - or just reply here and a person will read it.",
         });
       }
     }

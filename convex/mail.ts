@@ -16,6 +16,12 @@ const attachmentValidator = v.object({
   contentType: v.optional(v.string()),
 });
 
+/** Queued news that must go back in the queue if this send does not happen. */
+const onFailureValidator = v.object({
+  alertIds: v.array(v.id("alertQueue")),
+  email: v.string(),
+});
+
 async function call(path: string, body: unknown): Promise<{ message_id: string; thread_id: string }> {
   const key = process.env.AGENTMAIL_API_KEY;
   if (!key) throw new Error("AGENTMAIL_API_KEY is not set");
@@ -43,6 +49,7 @@ export const reply = internalAction({
     attachments: v.optional(v.array(attachmentValidator)),
     receiptId: v.optional(v.id("receipts")),
     inboxId: v.optional(v.id("inbox")),
+    onFailure: v.optional(onFailureValidator),
   },
   returns: v.null(),
   handler: async (ctx, a) => {
@@ -57,6 +64,9 @@ export const reply = internalAction({
       console.log(`[mail] replied in thread ${r.thread_id}`);
     } catch (e) {
       console.error(`[mail] reply failed: ${String(e)}`);
+      // A thread can go stale — the message aged out, or the person deleted it.
+      // Put the news back and forget the thread, so the retry starts a new one.
+      if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: true });
     }
     return null;
   },
@@ -71,9 +81,10 @@ export const send = internalAction({
     text: v.string(),
     html: v.optional(v.string()),
     attachments: v.optional(v.array(attachmentValidator)),
+    onFailure: v.optional(onFailureValidator),
   },
   returns: v.null(),
-  handler: async (_ctx, a) => {
+  handler: async (ctx, a) => {
     try {
       const r = await call(`/inboxes/${encodeURIComponent(a.agentInboxId)}/messages/send`, {
         to: [a.to],
@@ -86,6 +97,7 @@ export const send = internalAction({
       console.log(`[mail] sent ${r.message_id} to ${a.to}`);
     } catch (e) {
       console.error(`[mail] send failed: ${String(e)}`);
+      if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: false });
     }
     return null;
   },

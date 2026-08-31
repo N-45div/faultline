@@ -2,7 +2,9 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-const MAX_ALERTS_PER_COMMIT = 50;
+const MAX_ALERTS_PER_BATCH = 200;
+/** Every active follow is read into memory per batch; this bounds that read. */
+const MAX_TRACKED_SUBSCRIPTIONS = 2000;
 
 // Everything in this file runs in the V8 runtime and imports no adapter: the
 // Node action parses, hashes, diffs and renders; this side only writes.
@@ -142,68 +144,96 @@ export const addTargets = internalMutation({
   },
 });
 
-/** One fetch cycle, written atomically. */
-export const commit = internalMutation({
+// ---- the commit, in three parts ------------------------------------------
+//
+// A cycle used to be one mutation. That works for a 193-row state file and
+// falls over on a city: NYC HPD returns ~1,800 rows a cycle, and at four
+// database operations a row one transaction blows past what Convex will let a
+// single function do ("too many system operations"). So a cycle is now a
+// snapshot, then batches of rows, then a finish. Each batch writes a row's new
+// version, its `current` pointer and its change event together, so a batch that
+// never runs loses nothing: the next cycle re-reads the file, finds those rows
+// still differ from `current`, and commits them then.
+
+const snapshotArg = v.object({
+  capturedAt: v.number(),
+  requestUrl: v.string(),
+  httpStatus: v.number(),
+  etag: v.optional(v.string()),
+  lastModified: v.optional(v.string()),
+  bodySha256: v.string(),
+  bodyStorageId: v.optional(v.id("_storage")),
+  rowCount: v.number(),
+  degraded: v.boolean(),
+});
+
+const observationArg = v.object({
+  identityKey: v.string(),
+  subject,
+  claimKind: v.string(),
+  assertedAt: v.string(),
+  fields,
+  sigHash: v.string(),
+  fullHash: v.string(),
+});
+
+const changeArg = v.object({
+  identityKey: v.string(),
+  subjectKey: v.string(),
+  kind: v.union(v.literal("added"), v.literal("changed"), v.literal("removed")),
+  changed: v.array(v.string()),
+  before: v.optional(fields),
+  after: v.optional(fields),
+  sentence: v.string(),
+});
+
+/** One row per fetch. The bytes are pinned only when something moved. */
+export const beginCommit = internalMutation({
+  args: { sourceId: v.id("sources"), snapshot: snapshotArg },
+  returns: v.id("snapshots"),
+  handler: async (ctx, args) => {
+    const now = args.snapshot.capturedAt;
+    return await ctx.db.insert("snapshots", {
+      sourceId: args.sourceId,
+      ...args.snapshot,
+      pinnedUntil: args.snapshot.bodyStorageId ? now + 14 * 86_400_000 : undefined,
+    });
+  },
+});
+
+/**
+ * A slice of one cycle: these rows' new versions, their `current` pointers and
+ * the change events they produced, written together.
+ */
+export const commitBatch = internalMutation({
   args: {
     sourceId: v.id("sources"),
-    snapshot: v.object({
-      capturedAt: v.number(),
-      requestUrl: v.string(),
-      httpStatus: v.number(),
-      etag: v.optional(v.string()),
-      lastModified: v.optional(v.string()),
-      bodySha256: v.string(),
-      bodyStorageId: v.optional(v.id("_storage")),
-      rowCount: v.number(),
-      degraded: v.boolean(),
-    }),
-    /** Only rows that are new or whose full content moved. */
-    observations: v.array(
-      v.object({
-        identityKey: v.string(),
-        subject,
-        claimKind: v.string(),
-        assertedAt: v.string(),
-        fields,
-        sigHash: v.string(),
-        fullHash: v.string(),
-      }),
-    ),
-    changes: v.array(
-      v.object({
-        identityKey: v.string(),
-        subjectKey: v.string(),
-        kind: v.union(v.literal("added"), v.literal("changed"), v.literal("removed")),
-        changed: v.array(v.string()),
-        before: v.optional(fields),
-        after: v.optional(fields),
-        sentence: v.string(),
-      }),
-    ),
+    snapshotId: v.id("snapshots"),
+    capturedAt: v.number(),
+    observations: v.array(observationArg),
+    changes: v.array(changeArg),
     sourceUrl: v.string(),
-    next: v.object({
-      nextRunAt: v.number(),
-      cursor: v.optional(v.string()),
-      lastStatus: v.string(),
-    }),
   },
   returns: v.object({ observations: v.number(), changes: v.number(), emitted: v.boolean() }),
   handler: async (ctx, args) => {
     const source = await ctx.db.get(args.sourceId);
     if (!source) throw new Error("source vanished");
-    const now = args.snapshot.capturedAt;
+    const now = args.capturedAt;
+    const emit = source.emit;
 
-    const snapshotId = await ctx.db.insert("snapshots", {
-      sourceId: args.sourceId,
-      ...args.snapshot,
-      pinnedUntil: args.snapshot.bodyStorageId ? now + 14 * 86_400_000 : undefined,
-    });
+    // Many rows share one building. Look each subject up once per batch.
+    const subjectsSeen = new Set<string>();
+    for (const o of args.observations) {
+      const k = `${o.subject.kind}/${o.subject.key}`;
+      if (subjectsSeen.has(k)) continue;
+      subjectsSeen.add(k);
+      await upsertSubject(ctx, o.subject);
+    }
 
     for (const o of args.observations) {
-      await upsertSubject(ctx, o.subject);
       const observationId = await ctx.db.insert("observations", {
         sourceId: args.sourceId,
-        snapshotId,
+        snapshotId: args.snapshotId,
         identityKey: o.identityKey,
         subjectKey: o.subject.key,
         claimKind: o.claimKind,
@@ -241,7 +271,8 @@ export const commit = internalMutation({
       }
     }
 
-    // Removed rows leave `current` so a reappearance reads as "added" again.
+    // A row that left the file leaves `current`, so a reappearance reads as
+    // "added" again rather than as a silent edit.
     for (const c of args.changes) {
       if (c.kind !== "removed") continue;
       const cur = await ctx.db
@@ -251,7 +282,7 @@ export const commit = internalMutation({
       if (cur) await ctx.db.delete(cur._id);
     }
 
-    const emit = source.emit;
+    let onWall = 0;
     for (const c of args.changes) {
       const changeId = await ctx.db.insert("changes", {
         sourceId: args.sourceId,
@@ -264,30 +295,53 @@ export const commit = internalMutation({
         after: c.after,
         sentence: c.sentence,
         emit,
-        snapshotId,
+        snapshotId: args.snapshotId,
       });
-      if (emit) await pushToWall(ctx, args.sourceId, changeId, now, c.sentence, args.sourceUrl);
+      // The wall shows the last WALL_CAP; writing more than that per batch is
+      // work whose only outcome is being deleted again below.
+      if (emit && onWall < WALL_CAP) {
+        await ctx.db.insert("recentChanges", { sourceId: args.sourceId, changeId, createdAt: now, sentence: c.sentence, sourceUrl: args.sourceUrl });
+        onWall++;
+      }
     }
 
+    if (emit && args.changes.length > 0) {
+      await trimWall(ctx, args.sourceId);
+      await enqueueAlerts(ctx, args.changes, args.sourceUrl);
+    }
     if (args.changes.length > 0) await bumpPulse(ctx, args.sourceId, now, args.changes.length);
-    if (emit && args.changes.length > 0) await notifyFollowers(ctx, args.changes, args.sourceUrl);
-
-    await ctx.db.patch(args.sourceId, {
-      lastRunAt: now,
-      nextRunAt: args.next.nextRunAt,
-      cursor: args.next.cursor ?? source.cursor,
-      lastStatus: args.next.lastStatus,
-      lastEtag: args.snapshot.etag ?? source.lastEtag,
-      lastBodySha256: args.snapshot.bodySha256,
-      lockedUntil: undefined,
-      consecutiveFailures: 0,
-      shadowCycles: emit ? source.shadowCycles : source.shadowCycles + 1,
-    });
 
     return { observations: args.observations.length, changes: args.changes.length, emitted: emit };
   },
 });
 
+/** Close the cycle: release the lock and set the next run. */
+export const finishCommit = internalMutation({
+  args: {
+    sourceId: v.id("sources"),
+    capturedAt: v.number(),
+    bodySha256: v.string(),
+    etag: v.optional(v.string()),
+    next: v.object({ nextRunAt: v.number(), cursor: v.optional(v.string()), lastStatus: v.string() }),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const source = await ctx.db.get(args.sourceId);
+    if (!source) throw new Error("source vanished");
+    await ctx.db.patch(args.sourceId, {
+      lastRunAt: args.capturedAt,
+      nextRunAt: args.next.nextRunAt,
+      cursor: args.next.cursor ?? source.cursor,
+      lastStatus: args.next.lastStatus,
+      lastEtag: args.etag ?? source.lastEtag,
+      lastBodySha256: args.bodySha256,
+      lockedUntil: undefined,
+      consecutiveFailures: 0,
+      shadowCycles: source.emit ? source.shadowCycles : source.shadowCycles + 1,
+    });
+    return null;
+  },
+});
 export const fail = internalMutation({
   args: { sourceId: v.id("sources"), error: v.string(), retryInMs: v.number() },
   returns: v.null(),
@@ -304,7 +358,6 @@ export const fail = internalMutation({
     return null;
   },
 });
-
 async function upsertSubject(ctx: { db: any }, s: { kind: "building" | "employer_site"; key: string; label: string }) {
   const existing: Doc<"subjects"> | null = await ctx.db
     .query("subjects")
@@ -314,9 +367,12 @@ async function upsertSubject(ctx: { db: any }, s: { kind: "building" | "employer
   else if (existing.label !== s.label && s.label) await ctx.db.patch(existing._id, { label: s.label });
 }
 
-/** The public wall: bounded per source, trimmed in the same transaction. */
-async function pushToWall(ctx: { db: any }, sourceId: Id<"sources">, changeId: Id<"changes">, now: number, sentence: string, sourceUrl: string) {
-  await ctx.db.insert("recentChanges", { sourceId, changeId, createdAt: now, sentence, sourceUrl });
+/**
+ * The public wall is bounded per source and trimmed once per batch. Trimming
+ * after every single row meant re-reading the whole wall for every change —
+ * fine for a state file, ruinous for a city.
+ */
+async function trimWall(ctx: { db: any }, sourceId: Id<"sources">) {
   const rows: Doc<"recentChanges">[] = await ctx.db
     .query("recentChanges")
     .withIndex("by_source", (q: any) => q.eq("sourceId", sourceId))
@@ -345,28 +401,56 @@ export const markInboxSubject = internalMutation({
   },
 });
 
-/** FOLLOW means: email me, in the same thread, when this filing changes. */
-async function notifyFollowers(
-  ctx: { db: any; scheduler: any },
+/**
+ * FOLLOW means: tell me when this filing changes. Ingest only queues the news
+ * — one row per follower per change — and `digest.flush` decides when to send,
+ * because a city file that moves 200 rows at once must never become 200
+ * emails. Every active subscription is read once per batch and matched in
+ * memory: the alternative is one query per subject, and a batch touches
+ * hundreds of subjects.
+ */
+async function enqueueAlerts(
+  ctx: { db: any },
   changes: { subjectKey: string; sentence: string }[],
   sourceUrl: string,
 ) {
-  const inbox = process.env.AGENTMAIL_INBOX_ID;
-  if (!inbox || !process.env.AGENTMAIL_API_KEY) return;
-  const bySubject = new Map<string, string[]>();
-  for (const c of changes) bySubject.set(c.subjectKey, [...(bySubject.get(c.subjectKey) ?? []), c.sentence]);
-  let sent = 0;
-  for (const [subjectKey, sentences] of bySubject) {
-    const subs: Doc<"subscriptions">[] = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_subject", (q: any) => q.eq("subjectKey", subjectKey).eq("active", true))
-      .collect();
-    for (const s of subs) {
-      if (sent >= MAX_ALERTS_PER_COMMIT) return;
-      const text = ["A filing you follow changed.", "", ...sentences.slice(0, 5), "", `Check it: ${sourceUrl}`, "We kept the version before this one, dated.", "", "Reply STOP to stop."].join(String.fromCharCode(10));
-      if (s.messageId) await ctx.scheduler.runAfter(0, internal.mail.reply, { agentInboxId: inbox, parentMessageId: s.messageId, text });
-      else await ctx.scheduler.runAfter(0, internal.mail.send, { agentInboxId: inbox, to: s.email, subject: "A filing you follow changed", text });
-      sent++;
+  const subs: Doc<"subscriptions">[] = await ctx.db
+    .query("subscriptions")
+    .withIndex("by_subject")
+    .take(MAX_TRACKED_SUBSCRIPTIONS);
+  if (subs.length === 0) return;
+  const followers = new Map<string, Doc<"subscriptions">[]>();
+  for (const s of subs) {
+    if (!s.active) continue;
+    followers.set(s.subjectKey, [...(followers.get(s.subjectKey) ?? []), s]);
+  }
+  if (followers.size === 0) return;
+
+  const now = Date.now();
+  let queued = 0;
+  const seen = new Set<string>();
+  for (const c of changes) {
+    const watchers = followers.get(c.subjectKey);
+    if (!watchers) continue;
+    for (const w of watchers) {
+      // One line per follower per sentence, however many rows carried it.
+      const key = `${w.email}|${c.sentence}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (queued >= MAX_ALERTS_PER_BATCH) {
+        // Never silently: an alert dropped here is a person not told.
+        console.warn(`[alerts] batch cap ${MAX_ALERTS_PER_BATCH} reached; the rest of this batch is not queued`);
+        return;
+      }
+      await ctx.db.insert("alertQueue", {
+        email: w.email,
+        subjectKey: c.subjectKey,
+        sentence: c.sentence,
+        sourceUrl,
+        status: "pending",
+        createdAt: now,
+      });
+      queued++;
     }
   }
 }
