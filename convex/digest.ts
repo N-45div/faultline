@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
+import { complianceLines } from "../engine/receipt";
 
 // One email per person per day, at most — and the first one goes out within a
 // minute of the change that caused it. Ingest never sends; it queues. This runs
@@ -92,7 +93,8 @@ export const flush = internalMutation({
         `Check it on the government's own page: ${rows[0].sourceUrl}`,
         "We kept the version before this one, dated. Reply PACK and the name for the whole record as a PDF.",
         "",
-        "We send at most one of these a day. Reply STOP and we will not email you again.",
+        "We send at most one of these a day.",
+        ...complianceLines(process.env.NOTICE_POSTAL, "you are getting this because you replied FOLLOW."),
       ].join(NL);
 
       const withThread = active.find((s) => s.messageId);

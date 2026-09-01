@@ -6,7 +6,7 @@ import { daysBetween, fnv1a64 } from "../engine/canon";
 import { skipReason } from "../engine/hygiene";
 import { looksLikeAddress } from "../engine/match";
 import { classifyInbound, emailAddressOf, stripHtml } from "../engine/intent";
-import { noMatchReceipt, receiptHtml, receiptText, type Receipt } from "../engine/receipt";
+import { complianceLines, noMatchReceipt, receiptHtml, receiptText, type Receipt } from "../engine/receipt";
 import { buildReceipt, guessCompanyFromText } from "./lookup";
 
 // The address is a search box that writes back. Everything a person can do by
@@ -331,14 +331,10 @@ export const finishLetter = internalMutation({
 });
 
 async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: string[]): Promise<{ text: string; sent: boolean }> {
-  // CAN-SPAM lines on everything we send: who we are, where we are, how to stop.
-  const compliance =
-    receipt.query === "stop"
-      ? []
-      : [
-          [`Notice — the address that writes back.`, process.env.NOTICE_POSTAL ?? ""].filter(Boolean).join(" "),
-          "Reply STOP and we will not email you again.",
-        ];
+  // On everything we send: who we are, why it arrived, and how to stop it.
+  const postal = (process.env.NOTICE_POSTAL ?? "").trim();
+  if (!postal) console.warn("[inbound] NOTICE_POSTAL is unset — outbound mail carries no postal address");
+  const compliance = receipt.query === "stop" ? [] : complianceLines(postal, "you are getting this because you wrote to this address.");
   const withPreface: Receipt = {
     ...receipt,
     blocks: preface.length ? [preface, ...receipt.blocks] : receipt.blocks,

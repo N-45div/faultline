@@ -135,6 +135,18 @@ export function noMatchReceipt(query: string, suggestions: string[]): Receipt {
   };
 }
 
+/**
+ * The lines at the bottom of everything we send: who we are, why this arrived,
+ * and how to stop it. When we hold a postal address it goes here. When we do
+ * not, the line says something true instead of trailing off — an address we do
+ * not have is not one we may print, and a made-up one is the very thing the
+ * rule exists to prevent.
+ */
+export function complianceLines(postal: string | undefined, why: string): string[] {
+  const trimmed = (postal ?? "").trim();
+  return [trimmed ? `Notice · ${trimmed}` : `Notice · ${why}`, "Reply STOP and we will not email you again."];
+}
+
 // ---- rendering -------------------------------------------------------------
 
 const HOW_TO = [
