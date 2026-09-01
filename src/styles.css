@@ -524,3 +524,15 @@ a {
   border-left: 3px solid var(--accent);
   padding-left: 14px;
 }
+
+.wall time .tag {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.wall li.loud > span:not(.tag) {
+  font-weight: 600;
+}

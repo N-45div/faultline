@@ -113,10 +113,15 @@ export default defineSchema({
   /** The public wall. Capped at 50 per source; the oldest is deleted in the same mutation. */
   recentChanges: defineTable({
     sourceId: v.id("sources"),
+    /** The first change this line stands for; a grouped line stands for `count`. */
     changeId: v.id("changes"),
     createdAt: v.number(),
     sentence: v.string(),
     sourceUrl: v.string(),
+    subjectKey: v.optional(v.string()),
+    count: v.optional(v.number()),
+    /** 3: a filing or the city's stamp. 2: a status that moved. 1: routine. */
+    weight: v.optional(v.number()),
   }).index("by_source", ["sourceId", "createdAt"]),
 
   pulseBuckets: defineTable({

@@ -4,24 +4,70 @@ import { noticeSentence, warnNoticeGap } from "../engine/rules";
 
 // Public, unauthenticated reads. Nothing here touches a model or a network.
 
-/** The wall: what moved, per publisher, bounded, newest first. */
+/** What each file is called when a person reads it. */
+export const PUBLISHER: Record<string, string> = {
+  "ny-warn": "New York",
+  "ca-warn": "California",
+  "va-warn": "Virginia",
+  "md-warn": "Maryland",
+  "nc-warn": "North Carolina",
+  "co-warn": "Colorado",
+  "nyc-hpd": "NYC housing",
+};
+
+/** No one file may take more than this many of the lines on show. */
+const PER_SOURCE_ON_WALL = 8;
+const WALL_SHOWN = 30;
+
+/**
+ * The wall: what moved, newest first, with no one publisher allowed to drown
+ * the rest. A city moves hundreds of rows a day and a state moves a few a
+ * week; both belong here, and the state's few must stay visible.
+ */
 export const recent = query({
   args: {},
-  returns: v.array(v.object({ sentence: v.string(), sourceUrl: v.string(), at: v.number(), slug: v.string() })),
+  returns: v.array(
+    v.object({
+      sentence: v.string(),
+      sourceUrl: v.string(),
+      at: v.number(),
+      slug: v.string(),
+      publisher: v.string(),
+      count: v.number(),
+      weight: v.number(),
+      subjectKey: v.optional(v.string()),
+    }),
+  ),
   handler: async (ctx) => {
     const sources = await ctx.db.query("sources").collect();
-    const out: { sentence: string; sourceUrl: string; at: number; slug: string }[] = [];
+    const out: { sentence: string; sourceUrl: string; at: number; slug: string; publisher: string; count: number; weight: number; subjectKey?: string }[] = [];
     for (const s of sources) {
       const rows = await ctx.db
         .query("recentChanges")
         .withIndex("by_source", (q) => q.eq("sourceId", s._id))
         .order("desc")
-        .take(20);
-      for (const r of rows) out.push({ sentence: r.sentence, sourceUrl: r.sourceUrl, at: r.createdAt, slug: s.slug });
+        .take(WALL_CAP_READ);
+      // Within one publisher, what matters most rises; then the newest.
+      const ranked = rows
+        .map((r) => ({
+          sentence: r.sentence,
+          sourceUrl: r.sourceUrl,
+          at: r.createdAt,
+          slug: s.slug,
+          publisher: PUBLISHER[s.slug] ?? s.slug,
+          count: r.count ?? 1,
+          weight: r.weight ?? 1,
+          subjectKey: r.subjectKey,
+        }))
+        .sort((a, b) => b.weight - a.weight || b.at - a.at)
+        .slice(0, PER_SOURCE_ON_WALL);
+      out.push(...ranked);
     }
-    return out.sort((a, b) => b.at - a.at).slice(0, 30);
+    return out.sort((a, b) => b.at - a.at).slice(0, WALL_SHOWN);
   },
 });
+
+const WALL_CAP_READ = 40;
 
 const noticeRow = v.object({
   company: v.string(),

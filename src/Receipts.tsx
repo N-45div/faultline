@@ -109,15 +109,30 @@ export default function Receipts({ go }: { go: (p: string) => void }) {
         )}
         {wall && wall.length > 0 && (
           <ul>
-            {wall.map((w) => (
-              <li key={`${w.slug}-${w.at}-${w.sentence.slice(0, 24)}`}>
-                <time>{when(w.at)}</time>
-                <span>{w.sentence}</span>
-                <a href={w.sourceUrl} target="_blank" rel="noreferrer">
-                  check it →
-                </a>
-              </li>
-            ))}
+            {wall.map((w) => {
+              const building = w.slug === "nyc-hpd" && w.subjectKey ? `/b/${w.subjectKey}` : null;
+              return (
+                <li key={`${w.slug}-${w.at}-${w.sentence.slice(0, 24)}`} className={w.weight >= 3 ? "loud" : undefined}>
+                  <time>
+                    {when(w.at)}
+                    <span className="tag">{w.publisher}</span>
+                  </time>
+                  <span>
+                    {w.sentence}
+                    {w.count > 1 && <span className="muted"> · {w.count} records</span>}
+                  </span>
+                  {building ? (
+                    <a href={building} onClick={(e) => { e.preventDefault(); go(building); }}>
+                      the building →
+                    </a>
+                  ) : (
+                    <a href={w.sourceUrl} target="_blank" rel="noreferrer">
+                      check it →
+                    </a>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

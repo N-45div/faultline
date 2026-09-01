@@ -87,3 +87,14 @@ export const forceChange = internalMutation({
     return { rewound: current.length, subjectKeys };
   },
 });
+
+/** Empties the public wall. It is a cache of `changes`; nothing is lost. */
+export const clearWall = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const rows = await ctx.db.query("recentChanges").take(500);
+    for (const r of rows) await ctx.db.delete(r._id);
+    return rows.length;
+  },
+});

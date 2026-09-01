@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { groupForWall } from "../../engine/wall";
 const MAX_ALERTS_PER_BATCH = 200;
 /** Every active follow is read into memory per batch; this bounds that read. */
 const MAX_TRACKED_SUBSCRIPTIONS = 2000;
@@ -282,30 +283,41 @@ export const commitBatch = internalMutation({
       if (cur) await ctx.db.delete(cur._id);
     }
 
-    let onWall = 0;
+    const changeIds: Id<"changes">[] = [];
     for (const c of args.changes) {
-      const changeId = await ctx.db.insert("changes", {
-        sourceId: args.sourceId,
-        subjectKey: c.subjectKey,
-        identityKey: c.identityKey,
-        kind: c.kind,
-        detectedAt: now,
-        changed: c.changed.slice(0, 16),
-        before: c.before,
-        after: c.after,
-        sentence: c.sentence,
-        emit,
-        snapshotId: args.snapshotId,
-      });
-      // The wall shows the last WALL_CAP; writing more than that per batch is
-      // work whose only outcome is being deleted again below.
-      if (emit && onWall < WALL_CAP) {
-        await ctx.db.insert("recentChanges", { sourceId: args.sourceId, changeId, createdAt: now, sentence: c.sentence, sourceUrl: args.sourceUrl });
-        onWall++;
-      }
+      changeIds.push(
+        await ctx.db.insert("changes", {
+          sourceId: args.sourceId,
+          subjectKey: c.subjectKey,
+          identityKey: c.identityKey,
+          kind: c.kind,
+          detectedAt: now,
+          changed: c.changed.slice(0, 16),
+          before: c.before,
+          after: c.after,
+          sentence: c.sentence,
+          emit,
+          snapshotId: args.snapshotId,
+        }),
+      );
     }
 
     if (emit && args.changes.length > 0) {
+      // Nine violations at one building become one line that says nine, and
+      // the city's stamp outranks "will be reinspected". The wall shows the
+      // last WALL_CAP, so writing more than that is work that is deleted below.
+      for (const row of groupForWall(args.changes).slice(0, WALL_CAP)) {
+        await ctx.db.insert("recentChanges", {
+          sourceId: args.sourceId,
+          changeId: changeIds[row.first],
+          createdAt: now,
+          sentence: row.sentence,
+          sourceUrl: args.sourceUrl,
+          subjectKey: row.subjectKey,
+          count: row.count,
+          weight: row.weight,
+        });
+      }
       await trimWall(ctx, args.sourceId);
       await enqueueAlerts(ctx, args.changes, args.sourceUrl);
     }
