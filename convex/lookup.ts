@@ -44,10 +44,17 @@ export async function findBuildings(db: DatabaseReader, q: string) {
 
 export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Promise<LayoffNoticeRow[]> {
   const rows: LayoffNoticeRow[] = [];
-  for (const slugName of ["ny-warn", "ca-warn"] as const) {
+  const STATES = {
+    "ny-warn": "US-NY",
+    "ca-warn": "US-CA",
+    "md-warn": "US-MD",
+    "co-warn": "US-CO",
+    "nc-warn": "US-NC",
+    "va-warn": "US-VA",
+  } as const;
+  for (const [slugName, jurisdiction] of Object.entries(STATES) as [keyof typeof STATES, LayoffNoticeRow["jurisdiction"]][]) {
     const src = await db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slugName)).unique();
     if (!src) continue;
-    const jurisdiction = slugName === "ny-warn" ? "US-NY" : "US-CA";
     for (const key of subjectKeys) {
       const cur = await db
         .query("current")

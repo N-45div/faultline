@@ -248,17 +248,35 @@ async function fetchSource(
 
   if (t.kind === "http_text" || t.kind === "http_binary") {
     if (t.kind === "http_binary" && t.conditional.etag && source.lastEtag) headers["If-None-Match"] = source.lastEtag;
-    const res = await fetch(t.url, { headers });
+
+    // A state that renames its file on every publish links to it from one page
+    // that does not move. Read that page first; fall back to the last URL we
+    // knew if it cannot be read, so a redesign degrades rather than breaks.
+    let url = t.url;
+    if (t.kind === "http_text" && t.discover) {
+      try {
+        const page = await fetch(t.discover.pageUrl, { headers });
+        if (page.ok) {
+          const found = t.discover.find(await page.text());
+          if (found) url = found;
+          else console.warn(`[${adapter.id}] discovery page had no link; using the last URL we knew`);
+        }
+      } catch (e) {
+        console.warn(`[${adapter.id}] discovery failed (${String(e)}); using the last URL we knew`);
+      }
+    }
+
+    const res = await fetch(url, { headers });
     const etag = res.headers.get("etag") ?? undefined;
     const lastModified = res.headers.get("last-modified") ?? undefined;
-    if (res.status === 304) return { kind: "unchanged", url: t.url, etag: etag ?? source.lastEtag };
-    if (!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(t.url).host}`);
+    if (res.status === 304) return { kind: "unchanged", url, etag: etag ?? source.lastEtag };
+    if (!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(url).host}`);
     const bytes = new Uint8Array(await res.arrayBuffer());
     const body: FetchBody =
       t.kind === "http_binary"
-        ? { kind: "bytes", bytes, status: res.status, url: t.url, fetchedAt, etag, lastModified }
-        : { kind: "text", text: new TextDecoder().decode(bytes), status: res.status, url: t.url, fetchedAt, etag, lastModified };
-    return { kind: "body", url: t.url, status: res.status, etag, lastModified, bytes, bodySha256: await sha256Hex(bytes), body, rowCount: -1 };
+        ? { kind: "bytes", bytes, status: res.status, url, fetchedAt, etag, lastModified }
+        : { kind: "text", text: new TextDecoder().decode(bytes), status: res.status, url, fetchedAt, etag, lastModified };
+    return { kind: "body", url, status: res.status, etag, lastModified, bytes, bodySha256: await sha256Hex(bytes), body, rowCount: -1 };
   }
 
   throw new Error(`transport ${t.kind} not wired yet`);

@@ -66,7 +66,10 @@ check(spirit.length >= 1, `Spirit Airlines rows in file: ${spirit.length}`);
 const receipt = layoffReceipt("Spirit Airlines", "x", spirit, { versionsSince: "2026-08-29", pageUrl: "https://example.convex.site/e/spirit-airlines" });
 const text = receiptText(receipt);
 console.log("\n" + text.split("\n").map((l) => "    " + l).join("\n") + "\n");
-check(/0 days' notice\. New York's WARN Act sets 90\./.test(text), "receipt states the 0-day gap against the 90-day statute");
+// A notice dated the day the layoff began now says so in words: "0 days'
+// notice" was arithmetic, and a notice dated afterwards read as "-37 days'".
+check(/Dated the day the layoff began\. New York's WARN Act sets 90 days\./.test(text), "receipt states the 0-day gap against the 90-day statute");
+check(!/-\d+ days?' notice/.test(text), "no negative day count reaches the copy");
 check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(text), "receipt copy passes the ban list");
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

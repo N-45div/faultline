@@ -118,3 +118,34 @@ export const lastChecked = query({
     return sources.map((s) => ({ label: labels[s.slug] ?? s.slug, at: s.lastRunAt }));
   },
 });
+
+/**
+ * The housing side, counted from what we hold rather than asserted. The city's
+ * own status words are the only verdict on this page.
+ */
+export const buildings = query({
+  args: {},
+  returns: v.object({ buildings: v.number(), records: v.number(), stamped: v.number(), since: v.string() }),
+  handler: async (ctx) => {
+    const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
+    if (!src) return { buildings: 0, records: 0, stamped: 0, since: "" };
+    const rows = await ctx.db
+      .query("current")
+      .withIndex("by_source_identity", (q) => q.eq("sourceId", src._id))
+      .take(4000);
+    const seen = new Set<string>();
+    let stamped = 0;
+    for (const r of rows) {
+      seen.add(r.subjectKey);
+      const status = String(r.fields.currentstatus ?? "");
+      if (status === "FALSE CERTIFICATION" || status === "INVALID CERTIFICATION") stamped++;
+    }
+    const first = await ctx.db.query("snapshots").order("asc").first();
+    return {
+      buildings: seen.size,
+      records: rows.length,
+      stamped,
+      since: first ? new Date(first.capturedAt).toISOString().slice(0, 10) : "",
+    };
+  },
+});

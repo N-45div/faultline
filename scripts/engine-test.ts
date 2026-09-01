@@ -23,6 +23,10 @@ const bodies: Record<string, FetchBody> = {
   "nyc-hpd": { kind: "text", text: readFileSync(join(dir, "nyc-hpd-certs.json"), "utf8"), status: 200, url: "fixture", fetchedAt: now },
   "ny-warn": { kind: "text", text: readFileSync(join(dir, "ny-warn.csv"), "utf8"), status: 200, url: "fixture", fetchedAt: now },
   "ca-warn": { kind: "bytes", bytes: new Uint8Array(readFileSync(join(dir, "ca-warn.xlsx"))), status: 200, url: "fixture", fetchedAt: now },
+  "md-warn": { kind: "text", text: readFileSync(join(dir, "md-warn.html"), "utf8"), status: 200, url: "fixture", fetchedAt: now },
+  "co-warn": { kind: "text", text: readFileSync(join(dir, "co-warn.csv"), "utf8"), status: 200, url: "fixture", fetchedAt: now },
+  "nc-warn": { kind: "text", text: readFileSync(join(dir, "nc-warn.csv"), "utf8"), status: 200, url: "fixture", fetchedAt: now },
+  "va-warn": { kind: "text", text: readFileSync(join(dir, "va-warn.csv"), "utf8"), status: 200, url: "fixture", fetchedAt: now },
 };
 
 let failures = 0;

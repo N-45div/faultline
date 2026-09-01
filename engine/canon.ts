@@ -86,3 +86,36 @@ export function fnv1a64(s: string): string {
   }
   return a.toString(16).padStart(8, "0") + b.toString(16).padStart(8, "0");
 }
+
+/** US date cells, as governments actually type them: "8/25/2026", "08/25/2026",
+ * "1/06/2025" and "1/2/26" are all real, and all mean one day. */
+export function usDate(raw: string): string {
+  const m = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/.exec(raw ?? "");
+  if (!m) return "";
+  const [, mm, dd, y] = m;
+  // A two-digit year on a layoff filing is this century.
+  const yyyy = y.length === 4 ? y : `20${y.padStart(2, "0")}`;
+  return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+}
+
+/**
+ * Government date cells are not always dates. Maryland writes ranges
+ * ("10/23/2026 - 03/26/2027"), sometimes backwards, sometimes with a
+ * three-digit year typo. The first well-formed date is the one the statute
+ * measures from; the rest is kept verbatim and never parsed.
+ */
+export function firstUsDate(raw: string): string {
+  const all = (raw ?? "").match(/\d{1,2}\/\d{1,2}\/\d{2,4}/g);
+  return all && all.length > 0 ? usDate(all[0]) : "";
+}
+
+export function secondUsDate(raw: string): string {
+  const all = (raw ?? "").match(/\d{1,2}\/\d{1,2}\/\d{2,4}/g);
+  return all && all.length > 1 ? usDate(all[1]) : "";
+}
+
+/** "2 (Remote workers in MD)" is two workers. */
+export function leadingInt(raw: string): number {
+  const m = /-?\d[\d,]*/.exec(raw ?? "");
+  return m ? Number(m[0].replace(/,/g, "")) || 0 : 0;
+}

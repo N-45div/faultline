@@ -1,4 +1,4 @@
-import { warnNoticeGap } from "./rules";
+import { noticePhrase, warnNoticeGap } from "./rules";
 
 // The receipt is the product. Every word here is read by someone who got a
 // letter this month, so it uses the record's own words and never a verdict.
@@ -10,7 +10,7 @@ export interface LayoffNoticeRow {
   noticeDate: string;
   effectiveDate: string;
   postedDate: string;
-  jurisdiction: "US-NY" | "US-CA";
+  jurisdiction: "US-NY" | "US-CA" | "US-MD" | "US-CO" | "US-NC" | "US-VA";
   layoffOrClosure?: string;
   reason?: string;
 }
@@ -37,10 +37,14 @@ export interface ReceiptOpts {
   pageUrl?: string;
 }
 
-const STATE = { "US-NY": "New York", "US-CA": "California" } as const;
+const STATE = { "US-NY": "New York", "US-CA": "California", "US-MD": "Maryland", "US-CO": "Colorado", "US-NC": "North Carolina", "US-VA": "Virginia" } as const;
 const STATE_PAGE = {
   "US-NY": "https://dol.ny.gov/warn-notices",
   "US-CA": "https://edd.ca.gov/en/jobs_and_training/Layoff_Services_WARN/",
+  "US-MD": "https://labor.maryland.gov/employment/warn.shtml",
+  "US-CO": "https://cdle.colorado.gov/employers/layoff-separations/layoff-warn-list",
+  "US-NC": "https://www.commerce.nc.gov/data-tools-reports/labor-market-data-tools/workforce-warn-reports/report-workforce-warn-summary-list-2026",
+  "US-VA": "https://virginiaworks.gov/im-an-employer/retain-and-grow/warn-notices/",
 } as const;
 
 const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
@@ -63,10 +67,11 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
     const event = r.layoffOrClosure?.toLowerCase().includes("closure") ? "closure" : "layoff";
     const kind = [r.layoffOrClosure, r.reason].filter(Boolean).join(" · ");
     const siteLine = sites > 1 ? `${r.siteAddress} — ${r.workers} workers${kind ? ` · ${kind}` : ""}` : kind;
+    const phrase = noticePhrase(g.actualDays);
     const noticeLine =
       g.verdict === "gap"
-        ? `${days(g.actualDays)}' notice. ${state}'s WARN Act sets ${g.statutoryDays}.`
-        : `${days(g.actualDays)}' notice — inside the ${g.statutoryDays} ${state} sets.`;
+        ? `${phrase[0].toUpperCase()}${phrase.slice(1)}. ${state}'s WARN Act sets ${g.statutoryDays} days.`
+        : `${phrase[0].toUpperCase()}${phrase.slice(1)} — inside the ${g.statutoryDays} ${state} sets.`;
     const lines = [siteLine, `Notice dated ${r.noticeDate}. ${event === "closure" ? "Closure" : "Layoff"} started ${r.effectiveDate}.`, noticeLine];
     if (g.postingLagDays !== null) {
       const posted = `${state} put this online on ${r.postedDate}, ${days(g.postingLagDays)} after the notice`;
@@ -124,14 +129,14 @@ export function noMatchReceipt(query: string, suggestions: string[]): Receipt {
   return {
     kind: "none",
     query,
-    headline: `We couldn't find "${query}" in New York's or California's layoff files, or in New York City's housing records.`,
+    headline: `We couldn't find "${query}" in the layoff files we hold, or in New York City's housing records.`,
     blocks: [
       suggestions.length > 0
         ? ["Did you mean:", ...suggestions.map((s) => `— ${s}`)]
         : ["Try the company's legal name as it appears on your paperwork, or a street address with the house number."],
     ],
     links: [],
-    footer: ["We hold every layoff notice New York and California have published, and the violations for 300 New York City buildings."],
+    footer: ["We hold every layoff notice New York, California, Virginia, Maryland, Colorado and North Carolina have published, and the housing records for hundreds of New York City buildings."],
   };
 }
 

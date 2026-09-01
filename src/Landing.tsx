@@ -9,6 +9,7 @@ const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
 
 export default function Landing({ go }: { go: (p: string) => void }) {
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });
+  const b = useQuery(api.wall.buildings, {});
   const sample = useQuery(api.lookup.employer, { q: "spirit airlines" });
   const hero = ny?.shortest[0];
   const r = sample?.receipt;
@@ -146,8 +147,14 @@ export default function Landing({ go }: { go: (p: string) => void }) {
             <h2 className="h2">"It's fixed," said the landlord.</h2>
             <p>
               New York City inspects and stamps that claim FALSE CERTIFICATION about forty times a day — then
-              overwrites the record. Email us the address and you get every stamp for the building, dated.
+              overwrites the record. Email us the address and you get every record for the building, dated.
             </p>
+            {b && b.buildings > 0 && (
+              <p className="fine">
+                Right now we hold {b.records.toLocaleString()} records across {b.buildings} New York City buildings,
+                kept since {b.since}. When the city changes one, we keep the version it replaced.
+              </p>
+            )}
             <p className="fine">Class C is immediately hazardous, B hazardous, A non-hazardous — the city's own scale.</p>
           </div>
         </div>

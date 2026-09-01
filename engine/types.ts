@@ -44,7 +44,19 @@ export type Transport =
       /** Only the subjects somebody is actually looking at. */
       watch: (subjectKeys: string[], cursorIso: string) => string;
     }
-  | { kind: "http_text"; url: string; format: "csv" | "json"; rejectIfMatches: string[] }
+  | {
+      kind: "http_text";
+      url: string;
+      format: "csv" | "json" | "html";
+      rejectIfMatches: string[];
+      /**
+       * Some states publish the file at a new path every time they publish it,
+       * and link to it from one stable page. Given that page, `find` returns
+       * today's URL; `url` above is the last one we knew about, used only if
+       * the page cannot be read.
+       */
+      discover?: { pageUrl: string; find: (html: string) => string | null };
+    }
   | { kind: "http_binary"; url: string; decode: "xlsx"; conditional: { etag: true; treat304As: "no_change" } }
   | { kind: "firecrawl_scrape"; url: string; formats: ("markdown" | "json")[]; creditsPerFetch: number };
 
