@@ -85,7 +85,7 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
     const noticeLine =
       g.verdict === "gap"
         ? `${phrase[0].toUpperCase()}${phrase.slice(1)}. ${state}'s WARN Act sets ${g.statutoryDays} days.`
-        : `${phrase[0].toUpperCase()}${phrase.slice(1)} — inside the ${g.statutoryDays} ${state} sets.`;
+        : `${phrase[0].toUpperCase()}${phrase.slice(1)} — inside the ${g.statutoryDays} days ${state} sets.`;
     const lines = [siteLine, `Notice dated ${r.noticeDate}. ${event === "closure" ? "Closure" : "Layoff"} started ${r.effectiveDate}.`, noticeLine];
     if (g.postingLagDays !== null) {
       const posted = `${state} put this online on ${r.postedDate}, ${days(g.postingLagDays)} after the notice`;

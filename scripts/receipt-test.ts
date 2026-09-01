@@ -90,6 +90,7 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/Virginia · Richmond VA — 545 workers/.test(t) && /Maryland · 100 E\. Carroll St/.test(t), "each block names its state");
   check(/Check it on Virginia's page/.test(t) && /Check it on Maryland's page/.test(t), "one link per state present");
   check(!/1 workers/.test(t), "no '1 workers'");
+  check(/inside the 60 days Virginia sets/.test(t) && !/inside the 60 Virginia/.test(t), "the statute line says 'days'");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
