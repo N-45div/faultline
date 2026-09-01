@@ -194,6 +194,11 @@ export const beginCommit = internalMutation({
   returns: v.id("snapshots"),
   handler: async (ctx, args) => {
     const now = args.snapshot.capturedAt;
+    // A 304 carries no rows; the count from the last full read stands, so a
+    // page reading "unchanged" never shows a file as empty.
+    if (args.snapshot.httpStatus !== 304 && args.snapshot.rowCount > 0) {
+      await ctx.db.patch(args.sourceId, { rowCount: args.snapshot.rowCount });
+    }
     return await ctx.db.insert("snapshots", {
       sourceId: args.sourceId,
       ...args.snapshot,

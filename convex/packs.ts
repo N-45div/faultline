@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { foldString } from "../engine/canon";
-import { findEmployerSites } from "./lookup";
+import { findEmployerSites, LAYOFF_STATES } from "./lookup";
 
 // The evidence pack's data plane. The PDF itself is built in packBuild.ts
 // (node runtime); this file owns the rows: the request, the gathered versions,
@@ -79,7 +79,9 @@ export const data = internalQuery({
       }
     }
 
-    const slugs = pack.kind === "layoff" ? ["ny-warn", "ca-warn"] : ["nyc-hpd"];
+    // Every layoff file we hold, not the two we started with: a pack that
+    // silently drops four states is the paid product contradicting the free one.
+    const slugs = pack.kind === "layoff" ? Object.keys(LAYOFF_STATES) : ["nyc-hpd"];
     const currents: { sourceSlug: string; fields: Record<string, string | number | boolean | null>; identityKey: string }[] = [];
     const observations: (typeof observationOut.type)[] = [];
     const changes: { detectedAt: number; sentence: string }[] = [];

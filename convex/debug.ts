@@ -146,3 +146,25 @@ export const rebuildWall = internalMutation({
     return written;
   },
 });
+
+/** Row counts for sources whose last read was a 304, from their last full read. */
+export const backfillRowCounts = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    let n = 0;
+    for (const s of await ctx.db.query("sources").collect()) {
+      const snaps = await ctx.db
+        .query("snapshots")
+        .withIndex("by_source_captured", (q) => q.eq("sourceId", s._id))
+        .order("desc")
+        .take(50);
+      const full = snaps.find((x) => x.httpStatus !== 304 && x.rowCount > 0);
+      if (full && s.rowCount !== full.rowCount) {
+        await ctx.db.patch(s._id, { rowCount: full.rowCount });
+        n++;
+      }
+    }
+    return n;
+  },
+});

@@ -135,13 +135,22 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   switch (intent.kind) {
     case "lookup": {
       receipt = (await buildReceipt(ctx.db, intent.query)).receipt;
+      if (receipt.kind === "none" && !looksLikeAddress(intent.query)) {
+        // "Re: FW: my layoff letter from Spirit" is not a company name, but a
+        // company is named in it. Look for one before giving up.
+        const guess = await guessCompanyFromText(ctx.db, `${subject}\n${body}`);
+        if (guess) {
+          receipt = (await buildReceipt(ctx.db, guess)).receipt;
+          if (receipt.kind !== "none") preface = [`We read your message as being about ${guess}. If that's wrong, reply with the company's name.`];
+        }
+      }
       if (receipt.kind === "none" && looksLikeAddress(intent.query)) {
         // A building we don't hold yet: start pulling it from the city now.
         await ctx.scheduler.runAfter(0, internal.ingest.seed.resolveAddress, { q: intent.query, inboxId });
         receipt = {
           ...receipt,
           headline: `We don't hold ${intent.query} yet — we're pulling this building's records from the city now.`,
-          blocks: [["Ask again in a few minutes for the receipt. Reply FOLLOW and we'll email you when this building's records change."]],
+          blocks: [["We'll send the receipt to this thread as soon as the city answers, usually within a few minutes."]],
         };
       }
       break;

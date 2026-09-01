@@ -72,5 +72,25 @@ check(/Dated the day the layoff began\. New York's WARN Act sets 90 days\./.test
 check(!/-\d+ days?' notice/.test(text), "no negative day count reaches the copy");
 check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(text), "receipt copy passes the ban list");
 
+// An employer that filed in two states must name both, count filings (not
+// distinct addresses), and link to both states' pages.
+{
+  const two = layoffReceipt(
+    "Crothall Healthcare",
+    "x",
+    [
+      { company: "Crothall Healthcare", siteAddress: "Richmond VA", workers: 545, noticeDate: "2026-08-28", effectiveDate: "2026-10-31", postedDate: "", jurisdiction: "US-VA", layoffOrClosure: "Closure" },
+      { company: "Crothall Healthcare", siteAddress: "Richmond VA", workers: 139, noticeDate: "2018-11-15", effectiveDate: "2019-01-20", postedDate: "", jurisdiction: "US-VA", layoffOrClosure: "Layoff" },
+      { company: "Crothall Healthcare", siteAddress: "100 E. Carroll St Salisbury, MD 21801", workers: 109, noticeDate: "2026-04-29", effectiveDate: "2026-07-01", postedDate: "", jurisdiction: "US-MD", layoffOrClosure: "Mass Layoff - No Recall" },
+    ],
+    { versionsSince: "2026-08-29" },
+  );
+  const t = receiptText(two);
+  check(/3 filings in Virginia and Maryland, 793 workers, 2018–2026/.test(two.headline), `two-state headline: ${two.headline}`);
+  check(/Virginia · Richmond VA — 545 workers/.test(t) && /Maryland · 100 E\. Carroll St/.test(t), "each block names its state");
+  check(/Check it on Virginia's page/.test(t) && /Check it on Maryland's page/.test(t), "one link per state present");
+  check(!/1 workers/.test(t), "no '1 workers'");
+}
+
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

@@ -155,13 +155,10 @@ export const lastChecked = query({
   args: {},
   returns: v.array(v.object({ label: v.string(), at: v.optional(v.number()) })),
   handler: async (ctx) => {
-    const labels: Record<string, string> = {
-      "ny-warn": "New York layoff filings",
-      "ca-warn": "California layoff filings",
-      "nyc-hpd": "NYC housing violations",
-    };
     const sources = await ctx.db.query("sources").collect();
-    return sources.map((s) => ({ label: labels[s.slug] ?? s.slug, at: s.lastRunAt }));
+    return sources
+      .filter((s) => s.emit)
+      .map((s) => ({ label: PUBLISHER[s.slug] ?? s.slug, at: s.lastRunAt }));
   },
 });
 

@@ -45,11 +45,19 @@ export function groupForWall(changes: WallChange[]): WallRow[] {
   const out: WallRow[] = [];
   const buildingGroups = new Map<string, number[]>();
 
+  const employerGroups = new Map<string, number[]>();
+
   changes.forEach((c, i) => {
     const f = c.after ?? c.before;
     const isBuilding = f?.__subjectKind === "building";
     if (!isBuilding || !c.after) {
-      // A layoff filing is always news; so is a row the state removed.
+      // A layoff filing is always news; so is a row the state removed. But one
+      // employer filing for seven sites on one day is one piece of news.
+      if (c.kind === "added" && c.after && c.after.company && c.after.noticeDate) {
+        const key = `${employerStem(String(c.after.company))}|${String(c.after.noticeDate)}`;
+        employerGroups.set(key, [...(employerGroups.get(key) ?? []), i]);
+        return;
+      }
       out.push({ sentence: c.sentence, subjectKey: c.subjectKey, count: 1, weight: c.kind === "removed" ? 2 : 3, first: i });
       return;
     }
@@ -80,6 +88,25 @@ export function groupForWall(changes: WallChange[]): WallRow[] {
     out.push({ sentence, subjectKey: first.subjectKey, count: idx.length, weight, first: idx[0] });
   }
 
+  for (const [, idx] of employerGroups) {
+    const first = changes[idx[0]];
+    if (idx.length === 1) {
+      out.push({ sentence: first.sentence, subjectKey: first.subjectKey, count: 1, weight: 3, first: idx[0] });
+      continue;
+    }
+    const rows = idx.map((i) => changes[i].after!);
+    const workers = rows.reduce((n, r) => n + (Number(r.employeesAffected) || 0), 0);
+    const sites = new Set(rows.map((r) => String(r.siteAddress ?? ""))).size;
+    const stem = employerStem(String(first.after!.company));
+    const sentence = `${stem} filed ${idx.length} layoff notices dated ${String(first.after!.noticeDate)}: ${workers} ${workers === 1 ? "worker" : "workers"} across ${sites} ${sites === 1 ? "site" : "sites"}.`;
+    out.push({ sentence, subjectKey: first.subjectKey, count: idx.length, weight: 3, first: idx[0] });
+  }
+
   // Loudest first, then in the order they arrived.
   return out.sort((a, b) => b.weight - a.weight || a.first - b.first);
+}
+
+/** "John Muir Health - 1450 Treat Blvd." and "John Muir Health - 177 La Casa Via" are one employer. */
+function employerStem(company: string): string {
+  return company.split(/\s+[-–—]\s+/)[0].trim() || company;
 }

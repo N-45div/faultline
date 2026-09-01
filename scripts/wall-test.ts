@@ -45,5 +45,18 @@ check(rows[0].weight === 3 && rows[1].weight === 3, "the filing and the stamp le
 check(rows.some((r) => /HPD stamped 1 violation .* FALSE CERTIFICATION/.test(r.sentence) === false && /FALSE CERTIFICATION/.test(r.sentence)), "a single stamp keeps its own sentence");
 check(rows.at(-1)?.weight === 1, "routine rows come last");
 
+// Seven filings by one employer on one day are one piece of news.
+{
+  const warn = (site: string, workers: number): WallChange => ({
+    kind: "added",
+    subjectKey: `john-muir-health|${site}`,
+    after: { __subjectKind: "employer_site", company: `John Muir Health - ${site}`, noticeDate: "2026-08-15", siteAddress: site, employeesAffected: workers },
+    sentence: `John Muir Health - ${site} filed a layoff notice: ${workers} workers at ${site}, 62 days' notice (inside the 60 days California sets).`,
+  });
+  const grouped = groupForWall([warn("1450 Treat Blvd.", 4), warn("177 La Casa Via", 2), warn("5860 Owens Drive", 1)]);
+  check(grouped.length === 1 && grouped[0].count === 3, "three sites, one line");
+  check(/John Muir Health filed 3 layoff notices dated 2026-08-15: 7 workers across 3 sites\./.test(grouped[0]?.sentence ?? ""), `grouped WARN line: ${grouped[0]?.sentence}`);
+}
+
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

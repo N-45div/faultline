@@ -16,10 +16,13 @@ const PUBLISHER: Record<string, string> = {
   "nyc-hpd": "NYC housing",
 };
 
-const rowsOf = (status?: string) => {
-  const m = /(\d[\d,]*) rows/.exec(status ?? "");
+// The count from the last full read; a "304 unchanged" is not an empty file.
+const rowsOf = (s: { rowCount?: number; lastStatus?: string }) => {
+  if (s.rowCount) return s.rowCount;
+  const m = /(\d[\d,]*) rows/.exec(s.lastStatus ?? "");
   return m ? Number(m[1].replace(/,/g, "")) : 0;
 };
+const unchanged = (s: { lastStatus?: string }) => /304/.test(s.lastStatus ?? "");
 
 function ago(ms?: number): string {
   if (!ms) return "not yet";
@@ -38,7 +41,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
   const r = sample?.receipt;
 
   const files = sources?.filter((s) => s.emit) ?? [];
-  const held = files.reduce((n, s) => n + rowsOf(s.lastStatus), 0);
+  const held = files.reduce((n, s) => n + rowsOf(s), 0);
   const freshest = files.reduce((t, s) => Math.max(t, s.lastRunAt ?? 0), 0);
 
   return (
@@ -112,8 +115,11 @@ export default function Judge({ go }: { go: (p: string) => void }) {
             {files.map((s) => (
               <li key={s.slug}>
                 <strong>{PUBLISHER[s.slug] ?? s.slug}</strong>
-                <span>{rowsOf(s.lastStatus).toLocaleString() || "—"} rows</span>
-                <span className="muted">read {ago(s.lastRunAt)}</span>
+                <span>{rowsOf(s) > 0 ? `${rowsOf(s).toLocaleString()} rows` : "—"}</span>
+                <span className="muted">
+                  {unchanged(s) ? "checked" : "read"} {ago(s.lastRunAt)}
+                  {unchanged(s) ? ", unchanged" : ""}
+                </span>
               </li>
             ))}
           </ul>

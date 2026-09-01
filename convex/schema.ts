@@ -18,6 +18,8 @@ export default defineSchema({
     nextRunAt: v.number(),
     lastRunAt: v.optional(v.number()),
     lastStatus: v.optional(v.string()),
+    /** Rows in the last full read. A 304 keeps the previous count. */
+    rowCount: v.optional(v.number()),
     lastBodySha256: v.optional(v.string()),
     lastEtag: v.optional(v.string()),
     cursor: v.optional(v.string()),

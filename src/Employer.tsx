@@ -1,18 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import FollowButton from "./FollowButton";
 
 // The web version of the receipt. Same words the email uses.
 
-type Said = {
+type Found = {
   corroborated: boolean;
   statementDate: string | null;
   employerStatement: string | null;
   speakerOrOutlet: string | null;
   confidence: string;
   citations: { url: string; title: string }[];
-} | null;
+};
+// "We couldn't find it" and "we didn't look" are different answers.
+type Said = ({ state: "found" | "none" } & Found) | { state: "budget" | "off" | "failed" } | null;
 
 export default function Employer({ q, onBack }: { q: string; onBack: () => void }) {
   const result = useQuery(api.lookup.employer, { q });
@@ -20,6 +22,17 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
   const [said, setSaid] = useState<Said>(null);
   const [asking, setAsking] = useState(false);
   const [asked, setAsked] = useState(false);
+  // A search already bought for this filing is shown without a click.
+  const bought = useQuery(
+    api.corroborateData.shown,
+    result?.filing ? { employer: result.filing.employer, filingDate: result.filing.filingDate } : "skip",
+  );
+  useEffect(() => {
+    if (bought && !asked) {
+      setSaid({ ...bought, state: "found" });
+      setAsked(true);
+    }
+  }, [bought, asked]);
 
   if (result === undefined) {
     return (
@@ -89,7 +102,7 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
                     filingDate: result.filing!.filingDate,
                     statedReason: result.filing!.statedReason,
                   });
-                  setSaid(r2 ?? null);
+                  setSaid(r2);
                   setAsked(true);
                   setAsking(false);
                 }}
@@ -98,7 +111,7 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
               </button>
             </>
           )}
-          {asked && said?.corroborated && (
+          {asked && said?.state === "found" && (
             <>
               <p className="quote">“{said.employerStatement?.replace(/^[“"]|[”"]$/g, "")}”</p>
               <p className="muted">
@@ -116,14 +129,26 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
                   </span>
                 ))}
               </p>
-              <p className="fine">Found by searching the web just now. Read the sources yourself — that is what they are for.</p>
+              <p className="fine">
+                {"cached" in said && said.cached ? "Found by an earlier search, kept. " : "Found by searching the web just now. "}
+                Read the sources yourself — that is what they are for.
+              </p>
             </>
           )}
-          {asked && !said?.corroborated && (
+          {asked && said?.state === "none" && (
             <p className="muted">
               We couldn't find {result.filing.employer}'s own public words from that month. That isn't evidence of anything — it
               only means the search didn't find them.
             </p>
+          )}
+          {asked && said?.state === "budget" && (
+            <p className="muted">
+              We've used today's search allowance. We didn't look, so this says nothing about {result.filing.employer} — try
+              again tomorrow.
+            </p>
+          )}
+          {asked && (said?.state === "off" || said?.state === "failed" || said === null) && (
+            <p className="muted">The search isn't available right now. We didn't look, so this says nothing about the employer.</p>
           )}
         </section>
       )}

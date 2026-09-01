@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 
 // The database half of the corroboration path. The search itself lives in
 // corroborate.ts, which needs the Node runtime; this side is what remembers,
@@ -81,5 +81,30 @@ export const record = internalMutation({
       createdAt: now,
     });
     return null;
+  },
+});
+
+/**
+ * A search already bought for this employer and filing date, shown without a
+ * click. Public and read-only: it costs nothing and reveals only what a
+ * button press would have.
+ */
+export const shown = query({
+  args: { employer: v.string(), filingDate: v.string() },
+  returns: v.union(v.null(), v.object(result)),
+  handler: async (ctx, { employer, filingDate }) => {
+    const row = await ctx.db
+      .query("corroborations")
+      .withIndex("by_key", (q) => q.eq("employer", employer).eq("filingDate", filingDate))
+      .unique();
+    if (!row?.corroborated) return null;
+    return {
+      corroborated: row.corroborated,
+      statementDate: row.statementDate,
+      employerStatement: row.employerStatement,
+      speakerOrOutlet: row.speakerOrOutlet,
+      confidence: row.confidence,
+      citations: row.citations,
+    };
   },
 });

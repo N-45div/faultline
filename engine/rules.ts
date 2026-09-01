@@ -117,10 +117,12 @@ export function noticePhrase(actualDays: number): string {
 export function noticeSentence(company: string, workers: number, site: string, r: NoticeGapResult, stateName: string): string {
   const days = noticePhrase(r.actualDays);
   const law = r.verdict === "gap"
-    ? `${stateName} sets ${r.statutoryDays}`
-    : `inside the ${r.statutoryDays} ${stateName} sets`;
-  const posted = r.postedAfterEffective
-    ? ` Posted ${r.postingLagDays} days after the notice, once the layoff had started.`
-    : r.postingLagDays !== null ? ` Posted ${r.postingLagDays} days after the notice.` : "";
-  return `${company} filed a layoff notice: ${workers} workers at ${site}, ${days} (${law}).${posted}`;
+    ? `${stateName} sets ${r.statutoryDays} days`
+    : `inside the ${r.statutoryDays} days ${stateName} sets`;
+  const lag = r.postingLagDays;
+  const lagText = lag === null ? "" : lag === 0 ? "the same day" : `${lag} ${lag === 1 ? "day" : "days"} after the notice`;
+  const posted =
+    lag === null ? "" : r.postedAfterEffective ? ` Posted ${lagText}, once the layoff had started.` : ` Posted ${lagText}.`;
+  const people = `${workers} ${workers === 1 ? "worker" : "workers"}`;
+  return `${company} filed a layoff notice: ${people} at ${site}, ${days} (${law}).${posted}`;
 }

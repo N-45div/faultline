@@ -95,8 +95,24 @@ interface PackData {
   firstCapture: string;
 }
 
-const STATE = { "ny-warn": "New York", "ca-warn": "California" } as const;
-const JURIS = { "ny-warn": "US-NY", "ca-warn": "US-CA" } as const;
+const STATE: Record<string, string> = {
+  "ny-warn": "New York",
+  "ca-warn": "California",
+  "va-warn": "Virginia",
+  "md-warn": "Maryland",
+  "nc-warn": "North Carolina",
+  "co-warn": "Colorado",
+};
+const JURIS: Record<string, string> = {
+  "ny-warn": "US-NY",
+  "ca-warn": "US-CA",
+  "va-warn": "US-VA",
+  "md-warn": "US-MD",
+  "nc-warn": "US-NC",
+  "co-warn": "US-CO",
+};
+/** States with a WARN act of their own; the rest are federal 60 days only. */
+const OWN_ACT: Record<string, string> = { "US-NY": "New York's WARN Act", "US-CA": "Cal-WARN", "US-MD": "Maryland's Economic Stabilization Act" };
 
 const iso = (ms: number) => new Date(ms).toISOString().replace("T", " ").slice(0, 19) + " UTC";
 
@@ -208,12 +224,22 @@ function renderPack(pdf: Pdf, d: PackData) {
   // Section 4: the statute.
   pdf.heading(`${d.changes.length > 0 ? 4 : 3}. The statute`);
   if (d.pack.kind === "layoff") {
-    pdf.text(
-      `Federal WARN requires ${WARN_STATUTORY_DAYS["US"]} days' written notice. New York's WARN Act sets ${WARN_STATUTORY_DAYS["US-NY"]} days; California's sets ${WARN_STATUTORY_DAYS["US-CA"]}.`,
-    );
-    pdf.space(4);
-    pdf.text(`Exceptions an employer may claim in New York: ${WARN_EXCEPTIONS["US-NY"].join("; ")}.`, { size: 9.5, color: MUTED });
-    pdf.text(`In California: ${WARN_EXCEPTIONS["US-CA"].join("; ")}.`, { size: 9.5, color: MUTED });
+    // One paragraph per state this employer actually filed in — never a
+    // paragraph about a state they did not.
+    const present = [...new Set(d.currents.map((c) => JURIS[c.sourceSlug]).filter(Boolean))];
+    pdf.text(`Federal WARN requires ${WARN_STATUTORY_DAYS["US"]} days' written notice.`);
+    for (const j of present) {
+      const name = Object.entries(JURIS).find(([, v]) => v === j)?.[0];
+      const stateName = name ? STATE[name] : j;
+      const days = WARN_STATUTORY_DAYS[j] ?? WARN_STATUTORY_DAYS["US"];
+      pdf.space(3);
+      pdf.text(
+        OWN_ACT[j]
+          ? `${OWN_ACT[j]} sets ${days} days.`
+          : `${stateName} has no WARN act of its own; the federal ${days} days is the whole rule.`,
+      );
+      pdf.text(`Exceptions an employer may claim in ${stateName}: ${(WARN_EXCEPTIONS[j] ?? WARN_EXCEPTIONS["US"]).join("; ")}.`, { size: 9.5, color: MUTED });
+    }
     pdf.space(4);
     pdf.text(
       "Two dates appear throughout and they are kept apart: the notice date is the employer's; the posting date is the state's. A posting lag says nothing about the employer.",

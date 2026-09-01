@@ -34,8 +34,9 @@ export function classifyInbound(subjectRaw: string, bodyRaw: string): Intent {
   if (packMatch) return { kind: "pack", query: packMatch[1].trim().slice(0, 120) };
   if (commands.some((c) => /^monitor$/.test(c))) return { kind: "monitor" };
 
-  // A letter: long, and it talks like one.
-  if (body.length > 160 && LETTER_WORDS.test(body)) return { kind: "letter", text: body };
+  // A letter: it talks like one. "I got a letter saying my position is being
+  // eliminated. What can you tell me?" is short, and still not a company name.
+  if (body.length > 80 && LETTER_WORDS.test(body)) return { kind: "letter", text: body };
 
   // A name or an address, in the subject or on the first line.
   const query = subject || firstLine;

@@ -51,6 +51,18 @@ export default function App() {
     </a>
   );
 
+  // The tab and the bookmark say where you are, not the repository's old name.
+  useEffect(() => {
+    const titles: [boolean, string][] = [
+      [Boolean(employerMatch), `${decodeURIComponent(employerMatch?.[1] ?? "").replace(/-/g, " ")} · Notice`],
+      [Boolean(buildingMatch), "Building record · Notice"],
+      [isApp, "Receipts · Notice"],
+      [isJudge, "Tour · Notice"],
+      [isSignIn, "Sign in · Notice"],
+    ];
+    document.title = titles.find(([on]) => on)?.[1] ?? "Notice — the address that writes back";
+  }, [path]);
+
   let body;
   if (employerMatch) body = <Employer q={decodeURIComponent(employerMatch[1])} onBack={() => go("/app")} />;
   else if (buildingMatch) body = <Building bbl={decodeURIComponent(buildingMatch[1])} onBack={() => go("/app")} />;

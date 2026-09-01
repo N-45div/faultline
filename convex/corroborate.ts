@@ -46,8 +46,11 @@ interface Corroborated {
 export const check = action({
   args: { employer: v.string(), filingDate: v.string(), statedReason: v.optional(v.string()), subjectKey: v.optional(v.string()) },
   returns: v.union(
-    v.null(),
+    // "We couldn't find it" and "we didn't look" are different answers, and
+    // the page must never say the first when the truth is the second.
+    v.object({ state: v.union(v.literal("budget"), v.literal("off"), v.literal("failed")) }),
     v.object({
+      state: v.union(v.literal("found"), v.literal("none")),
       corroborated: v.boolean(),
       statementDate: v.union(v.string(), v.null()),
       employerStatement: v.union(v.string(), v.null()),
@@ -57,15 +60,18 @@ export const check = action({
       cached: v.boolean(),
     }),
   ),
-  handler: async (ctx, { employer, filingDate, statedReason, subjectKey }): Promise<(Corroborated & { cached: boolean }) | null> => {
+  handler: async (
+    ctx,
+    { employer, filingDate, statedReason, subjectKey },
+  ): Promise<{ state: "budget" | "off" | "failed" } | (Corroborated & { state: "found" | "none"; cached: boolean })> => {
     const hit: Corroborated | null = await ctx.runQuery(internal.corroborateData.cached, { employer, filingDate });
-    if (hit) return { ...hit, cached: true };
-    if (!process.env.OPENAI_API_KEY) return null;
+    if (hit) return { ...hit, state: hit.corroborated ? "found" : "none", cached: true };
+    if (!process.env.OPENAI_API_KEY) return { state: "off" };
 
     const spent = await ctx.runQuery(internal.corroborateData.callsToday, {});
     if (spent >= DAILY_SEARCH_CAP) {
       console.warn(`[corroborate] daily cap ${DAILY_SEARCH_CAP} reached`);
-      return null;
+      return { state: "budget" };
     }
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -123,7 +129,7 @@ export const check = action({
           citations: [],
         };
         await ctx.runMutation(internal.corroborateData.record, { employer, filingDate, subjectKey, ...empty, costCents: cents });
-        return { ...empty, cached: false };
+        return { ...empty, state: "none", cached: false };
       }
 
       // Second call: no tools, so the schema is free to be strict.
@@ -151,10 +157,10 @@ export const check = action({
       };
       await ctx.runMutation(internal.corroborateData.record, { employer, filingDate, subjectKey, ...out, costCents: cents });
       console.log(`[corroborate] ${employer} ${filingDate} → ${out.corroborated ? "corroborated" : "nothing found"}, ${citations.length} citations, ${cents.toFixed(3)}¢`);
-      return { ...out, cached: false };
+      return { ...out, state: out.corroborated ? "found" : "none", cached: false };
     } catch (e) {
       console.error(`[corroborate] failed: ${String(e)}`);
-      return null;
+      return { state: "failed" };
     }
   },
 });

@@ -66,6 +66,7 @@ export const status = query({
       nextRunAt: v.number(),
       lastRunAt: v.optional(v.number()),
       lastStatus: v.optional(v.string()),
+      rowCount: v.optional(v.number()),
       consecutiveFailures: v.number(),
       shadowCycles: v.number(),
     }),
@@ -79,6 +80,7 @@ export const status = query({
       nextRunAt: s.nextRunAt,
       lastRunAt: s.lastRunAt,
       lastStatus: s.lastStatus,
+      rowCount: s.rowCount,
       consecutiveFailures: s.consecutiveFailures,
       shadowCycles: s.shadowCycles,
     }));

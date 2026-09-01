@@ -250,14 +250,14 @@ are the dated proof you bring them.
 | 31 Aug (also) | Pulled forward from 1 Sep: batched ingest so a city fits; HPD out of shadow; alert proven with before/after; one digest per person per day; corroboration by web search with citations |
 | 1 Sep | Four zero-credit states: Virginia (CSV), Maryland (static HTML), North Carolina (S3 CSV with a government VersionId), Colorado (Google Sheet with stated reasons). Building page and address lookup on the web |
 | 2 Sep | The wall as a demo surface (done); judge tour (done); sign-in + FOLLOW from the web (done, pulled forward). Still needs Divij: postal address, AgentMail Developer plan + custom domain, an Outlook address, a Google OAuth client |
-| 3 Sep | Google sign-in once the client id arrives; the Monitor team (an organisation, its people, shared follows); a second adversarial review of everything shipped since 31 Aug |
-| 4 Sep | Payments dropped for the hackathon: every pack and follow stays free, and the pricing page says what paid will cost when it opens. Instead: the improvements a product review and a market scan rank highest |
-| 5 Sep | Ten receipts to ten plaintiff-side firms and tenant litigators — the thirty-day test; employer share pages; the data post; AgentMail Developer plan + custom domain, warmup starts |
-| 6 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint |
-| 7 Sep | New Jersey and Illinois (the overwritten-file states with 90/60-day laws); throwaway video take; log refresh |
-| 8–10 Sep | Evidence pack (PDF); cold-visitor landing; copy lint |
+| 3 Sep | From the product review: "Versions we hold" on every receipt and page (first read, last read, reads, row hash, the changes) — the sentence-one claim made visible; the building page's headline counts its violations and shows the class C and B descriptions instead of "no stamps"; provenance line on every receipt (the file we read, when, HTTP status, row count) beside the state's own page |
+| 4 Sep | From the market scan: the amendment chain — when a state edits a notice in place (a moved effective date, a changed headcount, a rescission), the receipt shows before → after with both capture times, because a postponement past 60 days needs a fresh notice (Messer v. Bristol) and the diff is the claim; the dated "nothing filed" receipt — "as of <time>, no notice from X in the six files we hold, snapshots hashed" — with an alert when one appears |
+| 5 Sep | The 30/90-day aggregation line per employer and site ("3rd notice from X at this address in 74 days, 61 workers cumulative") — the batching loophole workers describe, that no tracker computes; the exception line — where a state records the reason given, whether the employer named an exception (unforeseeable business circumstances, faltering company) beside their own public words; Google sign-in once the client id arrives |
+| 6 Sep | Ten receipts to ten plaintiff-side firms and tenant organisers — the thirty-day test; employer share pages; AgentMail Developer plan + custom domain, warmup starts |
+| 7 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint; a second adversarial review of everything shipped since 31 Aug |
+| 8–10 Sep | New Jersey and Illinois (90/60-day laws, overwritten files); Wisconsin (the one state that publishes revision codes — the model for the amendment chain); the NYC feeds that are provably lossy where HPD is not: restaurant inspections (closed restaurants vanish) and OATH hearings (dismissed violations are removed from the property record) |
 | 11–13 Sep | Firecrawl: HTML-only states and employer newsroom captures; share images; teaser post |
-| 14–16 Sep | Hardening: judging-week protections, redaction, chaos test with keys removed |
+| 14–16 Sep | Hardening: redaction, chaos test with keys removed, the lawyer export (employer, site, notice date, first separation, count, exception text, amendments, limitations date) |
 | 17–18 Sep | Video |
 | 19–20 Sep | This file, final; posts; submission ready |
 | 21 Sep | Freeze |

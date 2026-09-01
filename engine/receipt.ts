@@ -56,17 +56,31 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
 
   const first = scored[0];
   const totalWorkers = rows.reduce((n, r) => n + r.workers, 0);
-  const sites = new Set(rows.map((r) => r.siteAddress)).size;
+  // Count filings, not distinct addresses: two Richmond filings are two filings.
+  const filings = rows.length;
+  // Every state present, largest first — the headline and the links must name
+  // all of them, or a lawyer who checks one state's page finds the wrong count.
+  const byState = new Map<LayoffNoticeRow["jurisdiction"], number>();
+  for (const r of rows) byState.set(r.jurisdiction, (byState.get(r.jurisdiction) ?? 0) + r.workers);
+  const states = [...byState.entries()].sort((a, b) => b[1] - a[1]).map(([j]) => j);
+  const stateNames = states.map((j) => STATE[j]);
+  const stateList = stateNames.length <= 1 ? stateNames[0] : `${stateNames.slice(0, -1).join(", ")} and ${stateNames.at(-1)}`;
+  const years = rows.map((r) => r.noticeDate.slice(0, 4)).filter(Boolean).sort();
+  const span = years.length > 1 && years[0] !== years.at(-1) ? `, ${years[0]}–${years.at(-1)}` : "";
   const headline =
-    sites > 1
-      ? `${first.r.company} — ${sites} sites, ${totalWorkers} workers in ${STATE[first.r.jurisdiction]}'s layoff file.`
-      : `${first.r.company} — ${first.r.siteAddress}. ${first.r.workers} workers.`;
+    filings > 1
+      ? `${first.r.company} — ${filings} filings in ${stateList}, ${totalWorkers} workers${span}.`
+      : `${first.r.company} — ${first.r.siteAddress}. ${first.r.workers} ${first.r.workers === 1 ? "worker" : "workers"}.`;
 
   const blocks = scored.slice(0, 5).map(({ r, g }) => {
     const state = STATE[r.jurisdiction];
     const event = r.layoffOrClosure?.toLowerCase().includes("closure") ? "closure" : "layoff";
     const kind = [r.layoffOrClosure, r.reason].filter(Boolean).join(" · ");
-    const siteLine = sites > 1 ? `${r.siteAddress} — ${r.workers} workers${kind ? ` · ${kind}` : ""}` : kind;
+    const people = `${r.workers} ${r.workers === 1 ? "worker" : "workers"}`;
+    const siteLine =
+      filings > 1
+        ? `${states.length > 1 ? `${state} · ` : ""}${r.siteAddress} — ${people}${kind ? ` · ${kind}` : ""}`
+        : kind;
     const phrase = noticePhrase(g.actualDays);
     const noticeLine =
       g.verdict === "gap"
@@ -79,9 +93,13 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
     }
     return lines.filter(Boolean);
   });
-  if (scored.length > 5) blocks.push([`…and ${scored.length - 5} more sites.`]);
+  if (scored.length > 5) blocks.push([`…and ${scored.length - 5} more filings.`]);
 
-  const links: Receipt["links"] = [{ label: `Check it on the state's page`, url: STATE_PAGE[first.r.jurisdiction] }];
+  // One link per state present, so every worker count above can be checked.
+  const links: Receipt["links"] = states.map((j) => ({
+    label: states.length > 1 ? `Check it on ${STATE[j]}'s page` : "Check it on the state's page",
+    url: STATE_PAGE[j],
+  }));
   if (opts.pageUrl) links.push({ label: "This employer's page", url: opts.pageUrl });
 
   return {
@@ -129,7 +147,8 @@ export function noMatchReceipt(query: string, suggestions: string[]): Receipt {
   return {
     kind: "none",
     query,
-    headline: `We couldn't find "${query}" in the layoff files we hold, or in New York City's housing records.`,
+    // A whole pasted paragraph echoed back in quotes reads as mockery.
+    headline: `We couldn't find "${query.length > 60 ? `${query.slice(0, 57).trimEnd()}…` : query}" in the layoff files we hold, or in New York City's housing records.`,
     blocks: [
       suggestions.length > 0
         ? ["Did you mean:", ...suggestions.map((s) => `— ${s}`)]
@@ -163,7 +182,11 @@ const HOW_TO = [
  * Someone who has just said STOP is not invited to reply FOLLOW, and the last
  * line they read should be the one that tells them it is over.
  */
-const howTo = (r: Receipt) => (r.query === "stop" ? [] : HOW_TO);
+const howTo = (r: Receipt) => {
+  if (r.query === "stop") return [];
+  // "Reply FOLLOW and we'll email you if this filing changes" needs a filing.
+  return r.subjectKey ? HOW_TO : HOW_TO.slice(1);
+};
 
 export function receiptText(r: Receipt): string {
   const parts = [r.headline, ""];

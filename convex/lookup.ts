@@ -42,17 +42,19 @@ export async function findBuildings(db: DatabaseReader, q: string) {
   return rankAddresses(q, hits, (h) => h.label).map((c) => ({ subjectKey: c.item.key, label: c.item.label, score: c.score }));
 }
 
+/** Every layoff file we hold, by source slug. One place, so nothing forgets a state. */
+export const LAYOFF_STATES = {
+  "ny-warn": "US-NY",
+  "ca-warn": "US-CA",
+  "md-warn": "US-MD",
+  "co-warn": "US-CO",
+  "nc-warn": "US-NC",
+  "va-warn": "US-VA",
+} as const;
+
 export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Promise<LayoffNoticeRow[]> {
   const rows: LayoffNoticeRow[] = [];
-  const STATES = {
-    "ny-warn": "US-NY",
-    "ca-warn": "US-CA",
-    "md-warn": "US-MD",
-    "co-warn": "US-CO",
-    "nc-warn": "US-NC",
-    "va-warn": "US-VA",
-  } as const;
-  for (const [slugName, jurisdiction] of Object.entries(STATES) as [keyof typeof STATES, LayoffNoticeRow["jurisdiction"]][]) {
+  for (const [slugName, jurisdiction] of Object.entries(LAYOFF_STATES) as [keyof typeof LAYOFF_STATES, LayoffNoticeRow["jurisdiction"]][]) {
     const src = await db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slugName)).unique();
     if (!src) continue;
     for (const key of subjectKeys) {
@@ -128,6 +130,17 @@ export async function guessCompanyFromText(db: DatabaseReader, text: string): Pr
 
 export async function buildReceipt(db: DatabaseReader, q: string): Promise<{ receipt: Receipt; matches: { company: string; score: number }[] }> {
   const since = await versionsSince(db);
+
+  // The city's own parcel number — the one id on our building pages — must
+  // work when pasted back to the inbox.
+  if (/^\d{10}$/.test(q.trim())) {
+    const key = q.trim();
+    const subject = await db.query("subjects").withIndex("by_kind_key", (x) => x.eq("kind", "building").eq("key", key)).unique();
+    if (subject) {
+      const stamps = await stampsFor(db, key);
+      return { receipt: buildingReceipt(subject.label, key, subject.label, stamps, { versionsSince: since, pageUrl: `${siteUrl()}/b/${key}` }), matches: [] };
+    }
+  }
 
   if (looksLikeAddress(q)) {
     const b = await findBuildings(db, q);
