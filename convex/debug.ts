@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import type { TableNames } from "./_generated/dataModel";
 import { handleInbound } from "./inbound";
+import { groupForWall } from "../engine/wall";
 
 // Dev-only. Never exposed publicly.
 
@@ -96,5 +97,52 @@ export const clearWall = internalMutation({
     const rows = await ctx.db.query("recentChanges").take(500);
     for (const r of rows) await ctx.db.delete(r._id);
     return rows.length;
+  },
+});
+
+/**
+ * Rebuilds the public wall from the changes we actually recorded, grouped the
+ * way ingest now groups them. The wall is a cache; the changes are the truth.
+ */
+export const rebuildWall = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const old = await ctx.db.query("recentChanges").take(500);
+    for (const r of old) await ctx.db.delete(r._id);
+    const sources = await ctx.db.query("sources").collect();
+    let written = 0;
+    for (const s of sources) {
+      const changes = await ctx.db
+        .query("changes")
+        .withIndex("by_source_emit", (q) => q.eq("sourceId", s._id).eq("emit", true))
+        .order("desc")
+        .take(200);
+      // One cycle at a time, so a building's nine rows from one read group.
+      const byCycle = new Map<number, typeof changes>();
+      for (const c of changes) byCycle.set(c.detectedAt, [...(byCycle.get(c.detectedAt) ?? []), c]);
+      const sourceUrl = old.find((o) => o.sourceId === s._id)?.sourceUrl ?? "";
+      let onWall = 0;
+      for (const [at, cycle] of [...byCycle.entries()].sort((a, b) => b[0] - a[0])) {
+        if (onWall >= 50) break;
+        const rows = groupForWall(cycle.map((c) => ({ kind: c.kind, subjectKey: c.subjectKey, before: c.before, after: c.after, sentence: c.sentence })));
+        for (const row of rows) {
+          if (onWall >= 50) break;
+          await ctx.db.insert("recentChanges", {
+            sourceId: s._id,
+            changeId: cycle[row.first]._id,
+            createdAt: at,
+            sentence: row.sentence,
+            sourceUrl,
+            subjectKey: row.subjectKey,
+            count: row.count,
+            weight: row.weight,
+          });
+          onWall++;
+          written++;
+        }
+      }
+    }
+    return written;
   },
 });
