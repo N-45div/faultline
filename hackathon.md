@@ -2,7 +2,7 @@
 
 - **Project:** Notice
 - **Event:** Convex All Gas Hackathon
-- **What it does:** Email a company name or a building address and get back what they filed with the government, dated — with every version kept, because the states overwrite the files.
+- **What it does:** Email a company name or a building address and get back what they filed with the government, dated — with every version kept, because the states overwrite the files. Six state layoff files and New York City housing records.
 - **Live app:** https://spotted-elephant-420.convex.site
 - **Repo:** https://github.com/N-45div/faultline
 - **Frontend:** Convex static hosting
@@ -12,7 +12,7 @@
 - **Auth:** none
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-08-31T21:40:00Z
+- **Last updated:** 2026-09-01T10:15:00Z
 
 ## Log
 
@@ -141,6 +141,50 @@ line — often the only place a "see attached" email names the employer — neve
 reached the model. Convex features: node actions, scheduled functions, crons,
 indexes, file storage, HTTP actions (`convex/ingest/`, `convex/digest.ts`,
 `convex/corroborate.ts`, `engine/hygiene.ts`).
+
+### 2026-09-01 - e43ec43
+Four more states, and the hardest part was getting hold of the files at all.
+Virginia mints its CSV afresh on every render of its page, names it for the
+server's epoch second, and deletes the old one within hours — a URL from
+yesterday is a 404. North Carolina renames its file on every publish and
+answers the old path with 403. Both are handled by one new idea in the
+transport: a discovery step that reads the state's own page and takes today's
+link from it, falling back to the last URL we knew if the page is ever
+redesigned. It is proven live — two runs minutes apart discovered two
+different filenames — and North Carolina's link carries the government's own
+S3 version id.
+
+Virginia is the deepest file any of these states publishes: 1,123 notices back
+to 2010, where the others publish one year at a time. 479 of them gave less
+than the 60 days federal WARN sets. Maryland is an HTML table with no ETag and
+no publication date, dates that are sometimes ranges and sometimes typos, and
+worker counts written as prose ("2 (Remote workers in MD)"); it needed a small
+table reader that picks its table by the header row rather than by position,
+because the page carries a second, currently empty, federal log. Colorado is a
+Google Sheet the state hand-types and edits in place, and the only file of the
+six that says why, in the employer's own words.
+
+Virginia's file names a contact person at each employer. That column is read
+and dropped: one named private individual per row, no part of what a laid-off
+worker needs, and a record we do not keep cannot leak. The union local is
+kept — that someone was represented is exactly what a laid-off person needs —
+without the officer's name and postal address printed beside it.
+
+Getting the semantics wrong cost a cycle and was worth the lesson. In this
+engine "open_world" means a whole file whose absences are provable and
+"closed_world" means a filtered slice that cannot prove them; all four new
+states went in the wrong way round. A notice the state deleted could never
+have been detected as deleted, and the read that fetches previous versions
+fell back to one indexed lookup per row — which killed Virginia's 1,123-row
+first cycle with the same "too many system operations" that had killed the
+city the day before. Whole-file sources now read their previous versions in a
+single index scan, and each state carries a row floor so a short read cannot
+read as a mass deletion.
+
+The proof that matters: one query for Crothall Healthcare now returns four
+filings across two states, from 2018 to 2026, in one receipt. Convex features:
+node actions, crons, scheduled functions, indexes, full-text search
+(`engine/adapters/`, `engine/html.ts`, `convex/ingest/fetch.ts`).
 
 ## About
 
