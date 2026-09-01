@@ -3,12 +3,17 @@ import { httpAction } from "./_generated/server";
 import { components, internal } from "./_generated/api";
 import { registerStaticRoutes } from "@convex-dev/static-hosting";
 import { AgentMail } from "@agentmail/convex";
+import { auth } from "./auth";
 
 const agentmail = new AgentMail(components.agentmail, {
   onMessageReceived: internal.inbound.onMessageReceived,
 });
 
 const http = httpRouter();
+
+// Sign-in routes (/.well-known/*, /api/auth/*) must sit above the static
+// catch-all for the same reason the webhook does.
+auth.addHttpRoutes(http);
 
 // Exact routes first. A webhook registered below the static catch-all is
 // unreachable, and one that 200s with index.html looks exactly like

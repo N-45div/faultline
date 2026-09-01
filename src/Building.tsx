@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
+import FollowButton from "./FollowButton";
 
 // One building's record, the same words the email uses. The city's own status
 // vocabulary is quoted exactly — FALSE CERTIFICATION is their phrase, not ours.
@@ -45,6 +46,8 @@ export default function Building({ bbl, onBack }: { bbl: string; onBack: () => v
           </a>
         </p>
       </section>
+
+      <FollowButton subjectKey={bbl} label={label} />
 
       {stamps.length > 0 && (
         <section className="wall" aria-label="Every record we hold for this building">

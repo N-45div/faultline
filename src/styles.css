@@ -600,3 +600,43 @@ a {
     gap: 2px;
   }
 }
+
+.signin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+  margin: 16px 0 10px;
+}
+.signin-form input {
+  font: inherit;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+}
+.signin-form button.cta {
+  font: inherit;
+  cursor: pointer;
+}
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.fine.error {
+  color: var(--accent);
+}
+.follow {
+  margin: 0 0 28px;
+}
+.follow button.cta {
+  font: inherit;
+  cursor: pointer;
+  background: none;
+}

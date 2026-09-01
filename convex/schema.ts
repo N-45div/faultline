@@ -1,9 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 const fields = v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()));
 
 export default defineSchema({
+  // ---- sign-in (users, sessions, accounts, verification codes) --------------
+  ...authTables,
+
   // ---- the engine -----------------------------------------------------------
   sources: defineTable({
     slug: v.string(),

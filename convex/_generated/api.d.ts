@@ -8,11 +8,13 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
 import type * as corroborate from "../corroborate.js";
 import type * as corroborateData from "../corroborateData.js";
 import type * as crons from "../crons.js";
 import type * as debug from "../debug.js";
 import type * as digest from "../digest.js";
+import type * as follows from "../follows.js";
 import type * as http from "../http.js";
 import type * as inbound from "../inbound.js";
 import type * as ingest_fetch from "../ingest/fetch.js";
@@ -34,11 +36,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
   corroborate: typeof corroborate;
   corroborateData: typeof corroborateData;
   crons: typeof crons;
   debug: typeof debug;
   digest: typeof digest;
+  follows: typeof follows;
   http: typeof http;
   inbound: typeof inbound;
   "ingest/fetch": typeof ingest_fetch;

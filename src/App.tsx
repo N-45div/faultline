@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import { Authenticated, Unauthenticated } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
 import Building from "./Building";
+import SignIn from "./SignIn";
 import Employer from "./Employer";
 import Judge from "./Judge";
 import Landing from "./Landing";
@@ -31,7 +34,9 @@ export default function App() {
   const buildingMatch = /^\/b\/([^/]+)/.exec(path);
   const isApp = path === "/app" || path.startsWith("/app/");
   const isJudge = path === "/judge" || path === "/tour";
-  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge;
+  const isSignIn = path === "/signin";
+  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn;
+  const { signOut } = useAuthActions();
 
   const link = (to: string, label: string) => (
     <a
@@ -51,6 +56,7 @@ export default function App() {
   else if (buildingMatch) body = <Building bbl={decodeURIComponent(buildingMatch[1])} onBack={() => go("/app")} />;
   else if (isApp) body = <Receipts go={go} />;
   else if (isJudge) body = <Judge go={go} />;
+  else if (isSignIn) body = <SignIn onDone={() => go("/app")} />;
   else body = <Landing go={go} />;
 
   return (
@@ -61,6 +67,18 @@ export default function App() {
           <nav className="nav" aria-label="Main">
             {link("/app", "Receipts")}
             {link("/judge", "Tour")}
+            <Unauthenticated>{link("/signin", "Sign in")}</Unauthenticated>
+            <Authenticated>
+              <a
+                href="/signin"
+                onClick={(e) => {
+                  e.preventDefault();
+                  void signOut().then(() => go("/"));
+                }}
+              >
+                Sign out
+              </a>
+            </Authenticated>
             <a
               href="/#pricing"
               onClick={(e) => {
