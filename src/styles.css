@@ -536,3 +536,67 @@ a {
 .wall li.loud > span:not(.tag) {
   font-weight: 600;
 }
+
+.tour-intro {
+  margin: 0 0 40px;
+}
+.tour-step {
+  position: relative;
+  padding: 0 0 0 44px;
+  margin: 0 0 40px;
+}
+.tour-step .num {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  text-align: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 14px;
+}
+.tour-step p {
+  max-width: 640px;
+}
+.tour-card {
+  margin: 14px 0 6px;
+  max-width: 640px;
+}
+.tour-ctas {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 0;
+}
+.tour-files {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  max-width: 640px;
+}
+.tour-files li {
+  display: grid;
+  grid-template-columns: 150px 110px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+}
+@media (max-width: 560px) {
+  .tour-step {
+    padding-left: 0;
+  }
+  .tour-step .num {
+    position: static;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .tour-files li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

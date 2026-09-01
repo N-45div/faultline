@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Building from "./Building";
 import Employer from "./Employer";
+import Judge from "./Judge";
 import Landing from "./Landing";
 import Receipts from "./Receipts";
 import { INBOX, mailto } from "./Pricing";
@@ -29,7 +30,8 @@ export default function App() {
   const employerMatch = /^\/e\/([^/]+)/.exec(path);
   const buildingMatch = /^\/b\/([^/]+)/.exec(path);
   const isApp = path === "/app" || path.startsWith("/app/");
-  const isLanding = !employerMatch && !buildingMatch && !isApp;
+  const isJudge = path === "/judge" || path === "/tour";
+  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge;
 
   const link = (to: string, label: string) => (
     <a
@@ -48,6 +50,7 @@ export default function App() {
   if (employerMatch) body = <Employer q={decodeURIComponent(employerMatch[1])} onBack={() => go("/app")} />;
   else if (buildingMatch) body = <Building bbl={decodeURIComponent(buildingMatch[1])} onBack={() => go("/app")} />;
   else if (isApp) body = <Receipts go={go} />;
+  else if (isJudge) body = <Judge go={go} />;
   else body = <Landing go={go} />;
 
   return (
@@ -57,6 +60,7 @@ export default function App() {
           <div className="brand">{link("/", "Notice")}</div>
           <nav className="nav" aria-label="Main">
             {link("/app", "Receipts")}
+            {link("/judge", "Tour")}
             <a
               href="/#pricing"
               onClick={(e) => {
