@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Building from "./Building";
 import Employer from "./Employer";
 import Landing from "./Landing";
 import Receipts from "./Receipts";
@@ -26,8 +27,9 @@ function usePath(): [string, (p: string) => void] {
 export default function App() {
   const [path, go] = usePath();
   const employerMatch = /^\/e\/([^/]+)/.exec(path);
+  const buildingMatch = /^\/b\/([^/]+)/.exec(path);
   const isApp = path === "/app" || path.startsWith("/app/");
-  const isLanding = !employerMatch && !isApp;
+  const isLanding = !employerMatch && !buildingMatch && !isApp;
 
   const link = (to: string, label: string) => (
     <a
@@ -44,6 +46,7 @@ export default function App() {
 
   let body;
   if (employerMatch) body = <Employer q={decodeURIComponent(employerMatch[1])} onBack={() => go("/app")} />;
+  else if (buildingMatch) body = <Building bbl={decodeURIComponent(buildingMatch[1])} onBack={() => go("/app")} />;
   else if (isApp) body = <Receipts go={go} />;
   else body = <Landing go={go} />;
 

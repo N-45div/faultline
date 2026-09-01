@@ -161,6 +161,34 @@ const receiptValidator = v.object({
   footer: v.array(v.string()),
 });
 
+/**
+ * One building, by the city's own parcel number. Receipts already link here,
+ * so the address in an email and the page it points at say the same thing.
+ */
+export const building = query({
+  args: { key: v.string() },
+  returns: v.object({
+    receipt: receiptValidator,
+    label: v.string(),
+    stamps: v.array(v.object({ status: v.string(), date: v.string(), hazardClass: v.string(), certifiedBy: v.union(v.string(), v.null()) })),
+  }),
+  handler: async (ctx, { key }) => {
+    const clean = key.trim().slice(0, 20);
+    const subject = await ctx.db
+      .query("subjects")
+      .withIndex("by_kind_key", (q) => q.eq("kind", "building").eq("key", clean))
+      .unique();
+    if (!subject) return { receipt: noMatchReceipt(clean, []), label: clean, stamps: [] };
+    const stamps = await stampsFor(ctx.db, clean);
+    const since = await versionsSince(ctx.db);
+    return {
+      receipt: buildingReceipt(subject.label, clean, subject.label, stamps, { versionsSince: since }),
+      label: subject.label,
+      stamps,
+    };
+  },
+});
+
 /** The web version of "email us a name". */
 export const employer = query({
   args: { q: v.string() },
