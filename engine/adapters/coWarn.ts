@@ -106,7 +106,8 @@ export const coWarn: SourceAdapter<Raw> = {
     { op: "trimCase", path: "siteAddress" },
     { op: "trimCase", path: "occupations" },
   ],
-  presence: "closed_world",
+  // Whole sheet, so absence is provable; the floor guards the January reset.
+  presence: "open_world",
   render(after) {
     const r = warnNoticeGap({
       jurisdiction: "US-CO",
@@ -117,8 +118,9 @@ export const coWarn: SourceAdapter<Raw> = {
     // Colorado is the only file that says why, in its own words.
     return after.reason ? `${base} Colorado's file gives the reason as "${String(after.reason)}".` : base;
   },
-  // The sheet starts each January at a row or two and grows all year, so a row
-  // floor would mark every January as broken. The headers are the guard.
-  health: { minRows: 0, expectedKeys: ["Company", "WARN Date", "Begin Date", "CO Notifications", "Reason for Layoffs"] },
+  // The sheet starts each January at a row or two and grows all year. A floor
+  // this low still trips in early January — which is the right answer: a year
+  // rollover is not two hundred employers withdrawing their notices.
+  health: { minRows: 10, expectedKeys: ["Company", "WARN Date", "Begin Date", "CO Notifications", "Reason for Layoffs"] },
   budget: { credits: 0, maxFetchesPerDay: 12 },
 };

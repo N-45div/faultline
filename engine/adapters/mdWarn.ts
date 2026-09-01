@@ -91,7 +91,10 @@ export const mdWarn: SourceAdapter<Raw> = {
     { op: "trimCase", path: "siteAddress" },
     { op: "trimCase", path: "company" },
   ],
-  presence: "closed_world",
+  // Whole file, one calendar year at a time: a row that leaves it really has
+  // left. The row floor below is what stops a short read from reading as a
+  // mass deletion — including every January, when the page legitimately resets.
+  presence: "open_world",
   render(after) {
     const r = warnNoticeGap({
       jurisdiction: "US-MD",
@@ -100,8 +103,8 @@ export const mdWarn: SourceAdapter<Raw> = {
     });
     return noticeSentence(String(after.company), Number(after.employeesAffected) || 0, String(after.siteAddress), r, "Maryland");
   },
-  // The page holds one calendar year, so in early January the true count is a
-  // handful of rows. The header row is the integrity guard here, not a floor.
-  health: { minRows: 0, expectedKeys: ["Company", "Notice Date", "Effective Date", "Total Employees"] },
+  // The page holds one calendar year, so in early January this floor trips —
+  // correctly: the rollover is not ninety employers withdrawing their notices.
+  health: { minRows: 20, expectedKeys: ["Company", "Notice Date", "Effective Date", "Total Employees"] },
   budget: { credits: 0, maxFetchesPerDay: 8 },
 };

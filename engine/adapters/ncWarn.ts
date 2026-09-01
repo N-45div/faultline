@@ -100,7 +100,8 @@ export const ncWarn: SourceAdapter<Raw> = {
     { op: "trimCase", path: "layoffOrClosure" },
     { op: "trimCase", path: "county" },
   ],
-  presence: "closed_world",
+  // The complete list for the year, so absence is provable.
+  presence: "open_world",
   render(after) {
     const r = warnNoticeGap({
       jurisdiction: "US-NC",
@@ -109,6 +110,6 @@ export const ncWarn: SourceAdapter<Raw> = {
     });
     return noticeSentence(String(after.company), Number(after.employeesAffected) || 0, String(after.siteAddress), r, "North Carolina");
   },
-  health: { minRows: 0, expectedKeys: ["WARN Notice: WARN Notice Name", "Warn Number", "Date of Notice", "Effective Date"] },
+  health: { minRows: 20, expectedKeys: ["WARN Notice: WARN Notice Name", "Warn Number", "Date of Notice", "Effective Date"] },
   budget: { credits: 0, maxFetchesPerDay: 8 },
 };

@@ -107,7 +107,8 @@ export const vaWarn: SourceAdapter<Raw> = {
     { op: "trimCase", path: "layoffOrClosure" },
     { op: "trimCase", path: "union" },
   ],
-  presence: "closed_world",
+  // Cumulative back to 2010, so a row leaving it is a real deletion.
+  presence: "open_world",
   render(after) {
     const r = warnNoticeGap({
       jurisdiction: "US-VA",
