@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { Authenticated, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { INBOX } from "./Pricing";
 
@@ -19,6 +19,7 @@ export default function Receipts({ go }: { go: (p: string) => void }) {
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });
   const wall = useQuery(api.wall.recent, {});
   const checked = useQuery(api.wall.lastChecked, {});
+  const mine = useQuery(api.follows.mine, {});
   const [q, setQ] = useState("");
   const hero = ny?.shortest[0];
 
@@ -97,6 +98,29 @@ export default function Receipts({ go }: { go: (p: string) => void }) {
           <p className="kicker">Reading New York's layoff file…</p>
         </section>
       )}
+
+      <Authenticated>
+        {mine && mine.length > 0 && (
+          <section className="wall" aria-label="What you follow">
+            <h3>What you follow</h3>
+            <ul>
+              {mine.map((m) => {
+                const to = m.kind === "building" ? `/b/${m.subjectKey}` : `/e/${toSlug(m.label.split(" — ")[0])}`;
+                return (
+                  <li key={m.subjectKey}>
+                    <time>{when(m.since)}</time>
+                    <span>{m.label}</span>
+                    <a href={to} onClick={(e) => { e.preventDefault(); go(to); }}>
+                      open →
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="fine">When any of these changes, you get one email — at most one a day.</p>
+          </section>
+        )}
+      </Authenticated>
 
       <section className="wall" aria-label="What changed">
         <h3>What changed</h3>

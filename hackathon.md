@@ -9,10 +9,10 @@
 - **Convex deployment:** https://spotted-elephant-420.convex.cloud
 - **Components:** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex
 - **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, HTTP actions, crons, scheduled functions, file storage, realtime queries
-- **Auth:** none
+- **Auth:** Convex Auth (email + password; Google once a client id is set), optional everywhere
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-01T10:15:00Z
+- **Last updated:** 2026-09-02T01:20:00Z
 
 ## Log
 
@@ -186,6 +186,36 @@ filings across two states, from 2018 to 2026, in one receipt. Convex features:
 node actions, crons, scheduled functions, indexes, full-text search
 (`engine/adapters/`, `engine/html.ts`, `convex/ingest/fetch.ts`).
 
+### 2026-09-02 - 0e2ca6f
+The wall became a demo surface. A city cycle had moved nine violations at one
+Queens building and the wall showed nine near-identical routine lines with
+every state's news buried underneath. Changes are now grouped at write time —
+"11 violations at 773 Concourse Village East moved to NOV SENT OUT (8 class B,
+3 class A)" — and ranked: a layoff filing or the city's FALSE CERTIFICATION
+stamp outranks a status that moved, which outranks "will be reinspected". No
+one publisher may take more than eight of the thirty lines on show. The
+grouping is a pure engine function with its own test, and because the wall is
+only a cache of the changes table it can be rebuilt from the truth at any time.
+
+The judge path: `/judge` walks a reader through the product in nine steps with
+no sign-in and nothing in front of it. Every number on it is read from the
+deployment as the page is open — the seven files, their row counts, how long
+ago each was read, the statute stat — and every button sends a real email to
+the real inbox.
+
+Sign-in, pulled forward from tomorrow and optional everywhere: email and
+password through Convex Auth, with Google appearing only once the deployment
+holds a client id, because a button that exists and fails is worse than none.
+It unlocks exactly the two things a stranger cannot have — following a filing
+from the web without an email thread, and seeing what you follow. A web follow
+goes into the same subscriptions table the inbox writes to and reaches the
+person through the same one-a-day digest. Proven headlessly against the
+deployment: sign-up issues tokens, a signed-in follow lands, an anonymous
+follow is refused, a wrong password is rejected. Convex features: Convex Auth,
+auth tables, HTTP routes ahead of the static catch-all, `getAuthUserId` in
+queries and mutations (`convex/auth.ts`, `convex/follows.ts`, `engine/wall.ts`,
+`src/Judge.tsx`, `src/SignIn.tsx`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
@@ -219,8 +249,8 @@ are the dated proof you bring them.
 | 31 Aug | Evidence pack v1 (PDF: letter, every archived version with hash + capture time, statute, intervals); inbox hygiene — rate limiter, RFC 3834 auto-reply headers, skip list/bounce/auto-submitted mail, free moderation on inbound, STOP + postal footer; deliverability test to Gmail and Outlook. OpenAI: official SDK with one zod schema driving strict output and validation, a stable ≥1,024-token prefix with a cache key so every letter after the first pays the cached rate; attached PDF letters go to the model directly as file input |
 | 31 Aug (also) | Pulled forward from 1 Sep: batched ingest so a city fits; HPD out of shadow; alert proven with before/after; one digest per person per day; corroboration by web search with citations |
 | 1 Sep | Four zero-credit states: Virginia (CSV), Maryland (static HTML), North Carolina (S3 CSV with a government VersionId), Colorado (Google Sheet with stated reasons). Building page and address lookup on the web |
-| 2 Sep | Postal address in the footer and AgentMail Developer plan + custom domain (needs Divij); Outlook deliverability; the wall as a demo surface with HPD live |
-| 3 Sep | Sign-in: Google and email + password, optional everywhere — saved receipts, FOLLOW from the web, the Monitor team; a judge path that lands on a guided tour with no wall in front of the demo |
+| 2 Sep | The wall as a demo surface (done); judge tour (done); sign-in + FOLLOW from the web (done, pulled forward). Still needs Divij: postal address, AgentMail Developer plan + custom domain, an Outlook address, a Google OAuth client |
+| 3 Sep | Google sign-in once the client id arrives; the Monitor team (an organisation, its people, shared follows); a second adversarial review of everything shipped since 31 Aug |
 | 4 Sep | Paywall on Dodo Payments: $79 pack as a one-time checkout, Monitor $199/$499 as subscriptions; webhook marks the order paid, delivers the pack to the thread, activates the organisation; the PACK reply carries a real payment link |
 | 5 Sep | Ten receipts to ten plaintiff-side firms and tenant litigators — the thirty-day test; employer share pages; the data post; AgentMail Developer plan + custom domain, warmup starts |
 | 6 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint |
