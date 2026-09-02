@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { nyWarn } from "../engine/adapters/nyWarn";
 import { scoreCompany, scoreAddress, mentionsCompany, companyMentionScore } from "../engine/match";
 import { classifyInbound } from "../engine/intent";
-import { amendmentLines, buildingReceipt, layoffReceipt, noMatchReceipt, receiptText, type LayoffNoticeRow } from "../engine/receipt";
+import { aggregationLine, amendmentLines, buildingReceipt, exceptionLine, layoffReceipt, noMatchReceipt, receiptText, type LayoffNoticeRow } from "../engine/receipt";
 
 let failures = 0;
 const check = (cond: boolean, msg: string) => {
@@ -91,6 +91,43 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/Check it on Virginia's page/.test(t) && /Check it on Maryland's page/.test(t), "one link per state present");
   check(!/1 workers/.test(t), "no '1 workers'");
   check(/inside the 60 days Virginia sets/.test(t) && !/inside the 60 Virginia/.test(t), "the statute line says 'days'");
+}
+
+// Separate filings at one site inside 90 days are one event under the federal
+// rule; the state's file shows them as unrelated rows. Martin's, Richmond, 2017.
+{
+  const site = (noticeDate: string, workers: number, effectiveDate: string): LayoffNoticeRow => ({
+    company: "Martin's", siteAddress: "Richmond VA", workers, noticeDate, effectiveDate, postedDate: "", jurisdiction: "US-VA", layoffOrClosure: "Layoff",
+  });
+  const rows = [site("2017-04-11", 138, "2017-07-10"), site("2017-04-11", 99, "2017-07-10"), site("2017-04-24", 109, "2017-06-23"), site("2016-12-08", 155, "2017-02-06"), site("2016-06-14", 96, "2016-08-13")];
+  const third = aggregationLine(rows[2], rows) ?? "";
+  check(/^3rd notice at this address in 13 days; 346 workers across them\./.test(third), `aggregation: ${third}`);
+  check(/^One of 2 notices at this address dated the same day, 237 workers together\./.test(aggregationLine(rows[0], rows) ?? ""), "same-day filings are counted, not ranked");
+  check(aggregationLine(rows[4], rows) === null, "a filing with nothing inside 90 days says nothing");
+  check(aggregationLine(rows[3], rows) === null, "December's filing is outside April's window, and June's is outside December's");
+  const other = { ...rows[2], siteAddress: "Norfolk VA" };
+  check(aggregationLine(other, [...rows, other]) === null, "another address is another site");
+  const t = receiptText(layoffReceipt("Martin's", "x", rows, { versionsSince: "2026-08-29" }));
+  check(/3rd notice at this address in 13 days/.test(t) && /within any 90-day period together/.test(t), "the receipt carries the aggregation line");
+}
+
+// Short notice: the rule allows it only for a named exception and the notice
+// must state the basis. Say what the state's file records, and whether those
+// words name an exception. Never a verdict.
+{
+  const ny = (reason: string | undefined): LayoffNoticeRow => ({
+    company: "X", siteAddress: "1 Main St", workers: 60, noticeDate: "2026-05-01", effectiveDate: "2026-05-15", postedDate: "", jurisdiction: "US-NY", reason,
+  });
+  const gap = { verdict: "gap" as const, jurisdiction: "US-NY" };
+  check(
+    exceptionLine(ny("Economic"), gap) ===
+      'The reason New York recorded, "Economic", names none of the exceptions the rule allows for shorter notice (faltering company, unforeseeable business circumstances, natural disaster or strike or lockout).',
+    "a reason that names no exception",
+  );
+  check(/names the "unforeseeable business circumstances" exception\. The rule also requires the notice to state the basis/.test(exceptionLine(ny("Unforeseen Business Circumstances"), gap) ?? ""), "a reason that names one");
+  check(/^New York's file records no reason\. The rule allows shorter notice only for/.test(exceptionLine(ny(undefined), gap) ?? ""), "no reason recorded");
+  check(/^Colorado's file records no reason \("Not Specified"\)\./.test(exceptionLine({ ...ny("Not Specified"), jurisdiction: "US-CO" }, { verdict: "gap", jurisdiction: "US-CO" }) ?? ""), "'Not Specified' is no reason");
+  check(exceptionLine(ny("Economic"), { verdict: "within", jurisdiction: "US-NY" }) === null, "nothing to say when notice was within the statute");
 }
 
 // A building with live violations is not "no stamps": count them by class,

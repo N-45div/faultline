@@ -1,4 +1,5 @@
-import { noticePhrase, warnNoticeGap } from "./rules";
+import { daysBetween, foldString } from "./canon";
+import { WARN_EXCEPTIONS, noticePhrase, warnNoticeGap, type NoticeGapResult } from "./rules";
 
 // The receipt is the product. Every word here is read by someone who got a
 // letter this month, so it uses the record's own words and never a verdict.
@@ -126,6 +127,64 @@ const STATE_PAGE = {
 
 const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
 
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
+
+/**
+ * Federal rules count separate layoffs at one site within any 90-day period
+ * together (29 U.S.C. § 2102(d)); a state's file shows them as unrelated rows.
+ * This is the line that puts them back side by side: which notice this is at
+ * the address, over how many days, and the workers across all of them. Rows
+ * are matched by state and address as the state wrote them — no fuzzing, so
+ * two spellings of one site stay two sites and the count is never inflated.
+ */
+export function aggregationLine(row: LayoffNoticeRow, rows: LayoffNoticeRow[]): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(row.noticeDate)) return null;
+  const site = foldString(row.siteAddress);
+  const window = rows.filter(
+    (r) =>
+      r !== row &&
+      r.jurisdiction === row.jurisdiction &&
+      foldString(r.siteAddress) === site &&
+      /^\d{4}-\d{2}-\d{2}$/.test(r.noticeDate) &&
+      r.noticeDate <= row.noticeDate &&
+      daysBetween(r.noticeDate, row.noticeDate) <= 90,
+  );
+  if (window.length === 0) return null;
+  const all = [...window, row];
+  const workers = all.reduce((n, r) => n + r.workers, 0);
+  const earliest = all.map((r) => r.noticeDate).sort()[0];
+  const span = daysBetween(earliest, row.noticeDate);
+  const rule = "Federal rules count separate layoffs at one site within any 90-day period together; whether that changes the notice owed is a question for a lawyer.";
+  if (span === 0) return `One of ${all.length} notices at this address dated the same day, ${workers} workers together. ${rule}`;
+  return `${ordinal(all.length)} notice at this address in ${span} days; ${workers} workers across them. ${rule}`;
+}
+
+/**
+ * When notice fell short of the statute, the rule allows it only for a named
+ * exception, and requires the notice to state the basis. The state's file
+ * either records a reason or it does not; this line says which, and whether
+ * the words it recorded name an exception. What the notice itself said is on
+ * the notice — this is the record, not a verdict.
+ */
+export function exceptionLine(row: LayoffNoticeRow, gap: Pick<NoticeGapResult, "verdict" | "jurisdiction">): string | null {
+  if (gap.verdict !== "gap") return null;
+  const state = STATE[row.jurisdiction];
+  const exceptions = WARN_EXCEPTIONS[gap.jurisdiction] ?? WARN_EXCEPTIONS["US"];
+  const list = `${exceptions.slice(0, -1).join(", ")} or ${exceptions.at(-1)}`;
+  const reason = (row.reason ?? "").trim();
+  if (!reason || /^(not specified|n\/a|none|unknown|other)$/i.test(reason)) {
+    return `${state}'s file records no reason${reason ? ` ("${reason}")` : ""}. The rule allows shorter notice only for ${list}, and requires the notice itself to state the basis.`;
+  }
+  const named = exceptions.find((e) => {
+    const stem = e.split(/[ (]/)[0].toLowerCase();
+    return reason.toLowerCase().includes(stem) || (stem === "unforeseeable" && /unforeseen|unforeseeable/i.test(reason));
+  });
+  if (named) {
+    return `The reason ${state} recorded, "${reason}", names the "${named}" exception. The rule also requires the notice to state the basis for it; the state's file holds only these words.`;
+  }
+  return `The reason ${state} recorded, "${reason}", names none of the exceptions the rule allows for shorter notice (${list}).`;
+}
+
 export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNoticeRow[], opts: ReceiptOpts): Receipt {
   const scored = rows
     .map((r) => ({ r, g: warnNoticeGap({ jurisdiction: r.jurisdiction, noticeDate: r.noticeDate, effectiveDate: r.effectiveDate, postedDate: r.postedDate || undefined }) }))
@@ -164,6 +223,10 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
         ? `${phrase[0].toUpperCase()}${phrase.slice(1)}. ${state}'s WARN Act sets ${g.statutoryDays} days.`
         : `${phrase[0].toUpperCase()}${phrase.slice(1)} — inside the ${g.statutoryDays} days ${state} sets.`;
     const lines = [siteLine, `Notice dated ${r.noticeDate}. ${event === "closure" ? "Closure" : "Layoff"} started ${r.effectiveDate}.`, noticeLine];
+    const exception = exceptionLine(r, g);
+    if (exception) lines.push(exception);
+    const together = aggregationLine(r, rows);
+    if (together) lines.push(together);
     if (g.postingLagDays !== null) {
       const posted = `${state} put this online on ${r.postedDate}, ${days(g.postingLagDays)} after the notice`;
       lines.push(g.postedAfterEffective ? `${posted} — after the ${event} had started.` : `${posted}.`);
