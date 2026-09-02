@@ -53,10 +53,11 @@ const stamp = (ms: number) => new Date(ms).toISOString().replace("T", " ").slice
  */
 function heldLines(opts: ReceiptOpts): string[] {
   const out: string[] = [];
-  if (opts.held && opts.held.rows > 0 && opts.held.since) {
-    const h = opts.held;
+  const h = opts.held;
+  if (h && h.rows > 0 && h.since !== null) {
+    const since = h.since;
     out.push(
-      `We hold ${h.rows} ${h.rows === 1 ? "row" : "rows"} for this, in ${h.versions} ${h.versions === 1 ? "version" : "versions"}, and have read the file ${h.reads} ${h.reads === 1 ? "time" : "times"} since ${stamp(h.since).slice(0, 10)}.`,
+      `We hold ${h.rows} ${h.rows === 1 ? "row" : "rows"} for this, in ${h.versions} ${h.versions === 1 ? "version" : "versions"}, and have read the file ${h.reads} ${h.reads === 1 ? "time" : "times"} since ${stamp(since).slice(0, 10)}.`,
     );
   }
   for (const p of opts.provenance ?? []) {

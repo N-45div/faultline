@@ -11,7 +11,17 @@ import {
   type BuildingStamp,
   type LayoffNoticeRow,
   type Receipt,
+  type ReceiptOpts,
 } from "../engine/receipt";
+
+/** What versionsFor returns. Named, so the query's type cannot chase its own tail. */
+export interface Held {
+  rows: { identityKey: string; label: string; firstSeen: number; lastSeen: number; versions: number; hash: string }[];
+  changes: { at: number; sentence: string; kind: string }[];
+  since: number | null;
+  reads: number;
+  lastRead: number | null;
+}
 
 // Turning a name or an address into a receipt. Deterministic, database-only,
 // callable from a query (the web page) and a mutation (the inbox).
@@ -110,16 +120,9 @@ export async function stampsFor(db: DatabaseReader, bbl: string): Promise<Buildi
  * the row's hash, and the changes we recorded. Nothing here is asserted; it
  * is all read back from what ingest wrote.
  */
-export async function versionsFor(db: DatabaseReader, subjectKeys: string[]) {
-  const rows: {
-    identityKey: string;
-    label: string;
-    firstSeen: number;
-    lastSeen: number;
-    versions: number;
-    hash: string;
-  }[] = [];
-  const changes: { at: number; sentence: string; kind: string }[] = [];
+export async function versionsFor(db: DatabaseReader, subjectKeys: string[]): Promise<Held> {
+  const rows: Held["rows"] = [];
+  const changes: Held["changes"] = [];
   let earliest = Number.POSITIVE_INFINITY;
   const sourceIds = new Set<string>();
   for (const key of subjectKeys.slice(0, 12)) {
@@ -179,7 +182,7 @@ const versionsValidator = v.object({
 export const versions = query({
   args: { subjectKey: v.string(), q: v.optional(v.string()) },
   returns: versionsValidator,
-  handler: async (ctx, { subjectKey, q }) => {
+  handler: async (ctx, { subjectKey, q }): Promise<Held> => {
     let keys = [subjectKey];
     if (q && !/^\d{10}$/.test(subjectKey)) {
       const sites = await findEmployerSites(ctx.db, q.replace(/-/g, " "));
@@ -368,10 +371,23 @@ export const building = query({
     if (!subject) return { receipt: noMatchReceipt(clean, []), label: clean, stamps: [] };
     const stamps = await stampsFor(ctx.db, clean);
     const since = await versionsSince(ctx.db);
+    const held = await versionsFor(ctx.db, [clean]);
     return {
-      receipt: buildingReceipt(subject.label, clean, subject.label, stamps, { versionsSince: since }),
+      receipt: buildingReceipt(subject.label, clean, subject.label, stamps, {
+        versionsSince: since,
+        provenance: await provenanceFor(ctx.db, ["nyc-hpd"]),
+        held: { rows: held.rows.length, versions: held.rows.reduce((n, r) => n + r.versions, 0), reads: held.reads, since: held.since },
+      }),
       label: subject.label,
-      stamps,
+      stamps: stamps.map((s) => ({
+        status: s.status,
+        date: s.date,
+        hazardClass: s.hazardClass,
+        certifiedBy: s.certifiedBy,
+        violationId: s.violationId ?? "",
+        description: s.description ?? null,
+        inspected: s.inspected ?? null,
+      })),
     };
   },
 });
