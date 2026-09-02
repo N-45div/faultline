@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import FollowButton from "./FollowButton";
+import Versions from "./Versions";
 
 // The web version of the receipt. Same words the email uses.
 
@@ -80,6 +81,7 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
         ))}
       </section>
       {r.subjectKey && <FollowButton subjectKey={r.subjectKey} label={r.headline} />}
+      {r.subjectKey && r.kind !== "none" && <Versions subjectKey={r.subjectKey} q={q} />}
 
       {result.filing && (
         <section className="said" aria-label="What they said in public">

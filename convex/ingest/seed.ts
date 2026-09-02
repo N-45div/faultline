@@ -61,7 +61,13 @@ export const resolveAddress = internalAction({
     if (bbls.length === 0) return { bbls };
 
     await ctx.runMutation(internal.ingest.write.addTargets, { slug: "nyc-hpd", subjectKeys: bbls, addedBy: "case" });
-    if (inboxId) await ctx.runMutation(internal.ingest.write.markInboxSubject, { inboxId, subjectKey: bbls[0] });
+    if (inboxId) {
+      await ctx.runMutation(internal.ingest.write.markInboxSubject, { inboxId, subjectKey: bbls[0] });
+      // The person was told "we're pulling this now". Once the city has
+      // answered, send the real receipt into the same thread — twice if the
+      // first pass is early — rather than asking them to remember to ask again.
+      await ctx.scheduler.runAfter(2 * 60_000, internal.inbound.deliverAddress, { inboxId, subjectKey: bbls[0], attempt: 1 });
+    }
     await ctx.runMutation(internal.sources.runNow, { slug: "nyc-hpd" });
     return { bbls };
   },

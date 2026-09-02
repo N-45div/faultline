@@ -272,6 +272,33 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   return { intent: intent.kind, query, kind: receipt.kind, text: delivered.text, sent: delivered.sent };
 }
 
+/**
+ * Second half of the address path: the city has been asked for a building we
+ * did not hold, and now we may hold it. Send the real receipt into the thread
+ * that asked; if the pull is not in yet, try once more a few minutes later.
+ */
+export const deliverAddress = internalMutation({
+  args: { inboxId: v.id("inbox"), subjectKey: v.string(), attempt: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { inboxId, subjectKey, attempt }) => {
+    const row = await ctx.db.get(inboxId);
+    if (!row) return null;
+    const { receipt } = await buildReceipt(ctx.db, subjectKey);
+    if (receipt.kind === "building" && receipt.blocks.length > 0) {
+      await deliver(ctx, { inboxId, messageId: row.messageId, agentInboxId: row.inboxId, threadId: row.threadId }, receipt, [
+        "Here is the receipt for the building you asked about, now that the city has answered.",
+      ]);
+      return null;
+    }
+    if (attempt < 3) {
+      await ctx.scheduler.runAfter(3 * 60_000, internal.inbound.deliverAddress, { inboxId, subjectKey, attempt: attempt + 1 });
+    } else {
+      console.warn(`[inbound] building ${subjectKey} still empty after ${attempt} tries; no receipt sent`);
+    }
+    return null;
+  },
+});
+
 /** Second half of the letter path: the model (or the cache) has spoken. */
 export const finishLetter = internalMutation({
   args: { inboxId: v.id("inbox"), text: v.string(), extraction: v.any(), note: v.string() },

@@ -20,6 +20,10 @@ export interface BuildingStamp {
   date: string;
   hazardClass: string;
   certifiedBy: string | null;
+  violationId?: string;
+  /** The city's own words for what was wrong. */
+  description?: string | null;
+  inspected?: string | null;
 }
 
 export interface Receipt {
@@ -35,6 +39,30 @@ export interface Receipt {
 export interface ReceiptOpts {
   versionsSince: string;
   pageUrl?: string;
+  /** The last full read of each file this receipt draws on. */
+  provenance?: { publisher: string; url: string; at: number; status: number; rows: number; lastChecked: number }[];
+  /** What we hold for this subject: rows, versions of them, reads of the file since. */
+  held?: { rows: number; versions: number; reads: number; since: number | null };
+}
+
+const stamp = (ms: number) => new Date(ms).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+
+/**
+ * The two lines that turn "we keep every version" from a claim into a count,
+ * and say where the rows came from. Shared by every receipt.
+ */
+function heldLines(opts: ReceiptOpts): string[] {
+  const out: string[] = [];
+  if (opts.held && opts.held.rows > 0 && opts.held.since) {
+    const h = opts.held;
+    out.push(
+      `We hold ${h.rows} ${h.rows === 1 ? "row" : "rows"} for this, in ${h.versions} ${h.versions === 1 ? "version" : "versions"}, and have read the file ${h.reads} ${h.reads === 1 ? "time" : "times"} since ${stamp(h.since).slice(0, 10)}.`,
+    );
+  }
+  for (const p of opts.provenance ?? []) {
+    out.push(`Read from ${p.publisher}'s file on ${stamp(p.at)} (HTTP ${p.status}, ${p.rows.toLocaleString()} rows); last checked ${stamp(p.lastChecked)}. ${p.url}`);
+  }
+  return out;
 }
 
 const STATE = { "US-NY": "New York", "US-CA": "California", "US-MD": "Maryland", "US-CO": "Colorado", "US-NC": "North Carolina", "US-VA": "Virginia" } as const;
@@ -112,20 +140,47 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
     footer: [
       "Employers can claim exceptions. This is a question for a lawyer; this receipt is the dated proof you bring them.",
       `We have kept every version of this file since ${opts.versionsSince}. The state overwrites it.`,
+      ...heldLines(opts),
     ],
   };
 }
 
+/** "3 class C, 5 class B" — the city's scale, worst first. */
+export function classMix(stamps: { hazardClass: string }[]): string {
+  const counts = new Map<string, number>();
+  for (const s of stamps) if (s.hazardClass) counts.set(s.hazardClass, (counts.get(s.hazardClass) ?? 0) + 1);
+  return ["C", "B", "A"]
+    .filter((c) => counts.has(c))
+    .map((c) => `${counts.get(c)} class ${c}`)
+    .join(", ");
+}
+
+const STAMPED = new Set(["FALSE CERTIFICATION", "INVALID CERTIFICATION"]);
+const CLASS_RANK: Record<string, number> = { C: 0, B: 1, A: 2 };
+
 export function buildingReceipt(query: string, subjectKey: string, label: string, stamps: BuildingStamp[], opts: ReceiptOpts): Receipt {
-  const stamped = stamps.filter((s) => s.status === "FALSE CERTIFICATION" || s.status === "INVALID CERTIFICATION");
+  const stamped = stamps.filter((s) => STAMPED.has(s.status));
+  const n = stamps.length;
+  // A building with twelve live violations is not "no stamps". Count what the
+  // city holds, by the city's own scale, and say when it stamped an owner's
+  // "it's fixed" as false.
+  const mix = classMix(stamps);
   const headline =
-    stamped.length > 0
-      ? `${label} — HPD has stamped ${stamped.length} ${stamped.length === 1 ? "violation" : "violations"} ${stamped.length === 1 ? stamped[0].status : "FALSE or INVALID CERTIFICATION"}.`
-      : `${label} — no certification stamps in the records we hold.`;
-  const blocks = stamped.slice(0, 8).map((s) => [
-    `${s.status} on ${s.date}${s.hazardClass ? ` (class ${s.hazardClass})` : ""}${s.certifiedBy ? ` — the owner had certified it corrected by ${s.certifiedBy}.` : "."}`,
-  ]);
-  if (stamped.length > 8) blocks.push([`…and ${stamped.length - 8} more.`]);
+    n === 0
+      ? `${label} — no violations in the records we hold.`
+      : `${label} — ${n} ${n === 1 ? "violation" : "violations"} on record${mix ? ` (${mix})` : ""}${
+          stamped.length > 0 ? `; ${stamped.length} stamped ${stamped.length === 1 ? stamped[0].status : "FALSE or INVALID CERTIFICATION"}` : ""
+        }.`;
+  // The stamps first, then the most hazardous open ones, each in the city's words.
+  const shown = [
+    ...stamped,
+    ...stamps.filter((s) => !STAMPED.has(s.status)).sort((a, b) => (CLASS_RANK[a.hazardClass] ?? 3) - (CLASS_RANK[b.hazardClass] ?? 3) || (a.date < b.date ? 1 : -1)),
+  ].slice(0, 6);
+  const blocks = shown.map((s) => {
+    const head = `${s.status} on ${s.date}${s.hazardClass ? ` (class ${s.hazardClass})` : ""}${s.certifiedBy ? ` — the owner had certified it corrected by ${s.certifiedBy}.` : "."}`;
+    return s.description ? [head, s.description.length > 220 ? `${s.description.slice(0, 217).trimEnd()}…` : s.description] : [head];
+  });
+  if (n > shown.length) blocks.push([`…and ${n - shown.length} more on the building's page.`]);
   return {
     kind: "building",
     query,
@@ -139,6 +194,7 @@ export function buildingReceipt(query: string, subjectKey: string, label: string
     footer: [
       "Class C is immediately hazardous, B is hazardous, A is non-hazardous — the city's own scale.",
       `The city may correct a record after we read it. We keep every version, dated, since ${opts.versionsSince}.`,
+      ...heldLines(opts),
     ],
   };
 }

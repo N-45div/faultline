@@ -1,6 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import FollowButton from "./FollowButton";
+import Versions from "./Versions";
 
 // One building's record, the same words the email uses. The city's own status
 // vocabulary is quoted exactly — FALSE CERTIFICATION is their phrase, not ours.
@@ -54,14 +55,20 @@ export default function Building({ bbl, onBack }: { bbl: string; onBack: () => v
           <h3>Every record we hold</h3>
           <ul>
             {stamps.map((s) => (
-              <li key={`${s.date}-${s.status}-${s.hazardClass}`}>
+              <li key={s.violationId || `${s.date}-${s.status}-${s.hazardClass}`}>
                 <time>{s.date}</time>
                 <span>
                   <strong>{s.status}</strong>
                   {s.hazardClass ? ` · class ${s.hazardClass}` : ""}
                   {s.certifiedBy ? ` · the owner had certified it corrected by ${s.certifiedBy}` : ""}
+                  {s.description && (
+                    <>
+                      <br />
+                      <span className="muted">{s.description}</span>
+                    </>
+                  )}
                 </span>
-                <span className="muted">{STAMPED.has(s.status) ? "stamped" : ""}</span>
+                <span className="muted">{STAMPED.has(s.status) ? "stamped" : s.violationId ? `#${s.violationId}` : ""}</span>
               </li>
             ))}
           </ul>
@@ -74,6 +81,8 @@ export default function Building({ bbl, onBack }: { bbl: string; onBack: () => v
           records from the city.
         </p>
       )}
+
+      <Versions subjectKey={bbl} />
 
       <footer className="foot">
         <p className="fine">

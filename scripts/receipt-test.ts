@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { nyWarn } from "../engine/adapters/nyWarn";
 import { scoreCompany, scoreAddress, mentionsCompany, companyMentionScore } from "../engine/match";
 import { classifyInbound } from "../engine/intent";
-import { layoffReceipt, receiptText, type LayoffNoticeRow } from "../engine/receipt";
+import { buildingReceipt, layoffReceipt, receiptText, type LayoffNoticeRow } from "../engine/receipt";
 
 let failures = 0;
 const check = (cond: boolean, msg: string) => {
@@ -91,6 +91,23 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/Check it on Virginia's page/.test(t) && /Check it on Maryland's page/.test(t), "one link per state present");
   check(!/1 workers/.test(t), "no '1 workers'");
   check(/inside the 60 days Virginia sets/.test(t) && !/inside the 60 Virginia/.test(t), "the statute line says 'days'");
+}
+
+// A building with live violations is not "no stamps": count them by class,
+// in the city's own words, and name the stamps only when there are some.
+{
+  const b = buildingReceipt("773 Concourse Village East", "2024430170", "773 CONCOURSE VILLAGE EAST, Bronx", [
+    { status: "NOV SENT OUT", date: "2026-08-31", hazardClass: "B", certifiedBy: null, violationId: "1", description: "§ 27-2005 ADM CODE REPAIR THE BROKEN OR DEFECTIVE PLASTERED SURFACES" },
+    { status: "NOV SENT OUT", date: "2026-08-31", hazardClass: "C", certifiedBy: null, violationId: "2", description: "§ 27-2026 ADM CODE PROVIDE HOT WATER" },
+    { status: "VIOLATION OPEN", date: "2026-08-30", hazardClass: "A", certifiedBy: null, violationId: "3", description: null },
+  ], { versionsSince: "2026-08-29", held: { rows: 3, versions: 4, reads: 41, since: Date.UTC(2026, 7, 29) }, provenance: [{ publisher: "New York City", url: "https://data.cityofnewyork.us/resource/wvxf-dwi5.json", at: Date.UTC(2026, 8, 2, 3, 12), status: 200, rows: 3382, lastChecked: Date.UTC(2026, 8, 2, 3, 12) }] });
+  const t = receiptText(b);
+  check(/3 violations on record \(1 class C, 1 class B, 1 class A\)\./.test(b.headline), `building headline: ${b.headline}`);
+  check(!/no certification stamps/.test(b.headline), "never 'no stamps' over live violations");
+  check(/PROVIDE HOT WATER/.test(t), "the city's own description is in the receipt");
+  check(t.indexOf("class C") < t.indexOf("class B"), "class C shown before class B");
+  check(/We hold 3 rows for this, in 4 versions, and have read the file 41 times since 2026-08-29\./.test(t), "the held line counts");
+  check(/Read from New York City's file on 2026-09-02 03:12 UTC \(HTTP 200, 3,382 rows\)/.test(t), "the provenance line is dated");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

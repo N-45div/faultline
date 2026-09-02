@@ -841,3 +841,48 @@ a {
 .signin .or {
   margin: 10px 0 0;
 }
+
+.versions {
+  margin: 0 0 32px;
+}
+.versions h3 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.versions > p {
+  max-width: 640px;
+  margin: 0 0 12px;
+}
+.versions ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+}
+.versions li {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+}
+.versions time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.versions code {
+  font-size: 13px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+@media (max-width: 560px) {
+  .versions li {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
