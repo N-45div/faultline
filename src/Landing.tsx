@@ -189,7 +189,11 @@ export default function Landing({ go }: { go: (p: string) => void }) {
       <footer className="band foot-band">
         <div className="container foot-row">
           <span>Notice · {INBOX}</span>
-          <span className="muted">Built on Convex, AgentMail, Firecrawl and OpenAI. Reply STOP to any email to stop.</span>
+          <span className="muted">
+            Built on Convex, AgentMail, Firecrawl and OpenAI. Reply STOP to any email to stop.{" "}
+            <a href="/privacy" onClick={(e) => { e.preventDefault(); go("/privacy"); }}>Privacy</a> ·{" "}
+            <a href="/terms" onClick={(e) => { e.preventDefault(); go("/terms"); }}>Terms</a>
+          </span>
         </div>
       </footer>
     </>

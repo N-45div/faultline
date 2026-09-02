@@ -6,6 +6,7 @@ import SignIn from "./SignIn";
 import Employer from "./Employer";
 import Judge from "./Judge";
 import Landing from "./Landing";
+import { Privacy, Terms } from "./Legal";
 import Receipts from "./Receipts";
 import { INBOX, mailto } from "./Pricing";
 import "./styles.css";
@@ -35,7 +36,9 @@ export default function App() {
   const isApp = path === "/app" || path.startsWith("/app/");
   const isJudge = path === "/judge" || path === "/tour";
   const isSignIn = path === "/signin";
-  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn;
+  const isPrivacy = path === "/privacy";
+  const isTerms = path === "/terms";
+  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms;
   const { signOut } = useAuthActions();
 
   const link = (to: string, label: string) => (
@@ -59,6 +62,8 @@ export default function App() {
       [isApp, "Receipts · Notice"],
       [isJudge, "Tour · Notice"],
       [isSignIn, "Sign in · Notice"],
+      [isPrivacy, "Privacy · Notice"],
+      [isTerms, "Terms · Notice"],
     ];
     document.title = titles.find(([on]) => on)?.[1] ?? "Notice — the address that writes back";
   }, [path]);
@@ -69,6 +74,8 @@ export default function App() {
   else if (isApp) body = <Receipts go={go} />;
   else if (isJudge) body = <Judge go={go} />;
   else if (isSignIn) body = <SignIn onDone={() => go("/app")} />;
+  else if (isPrivacy) body = <Privacy />;
+  else if (isTerms) body = <Terms />;
   else body = <Landing go={go} />;
 
   return (
