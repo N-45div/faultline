@@ -27,6 +27,7 @@ const bodies: Record<string, FetchBody> = {
   "co-warn": { kind: "text", text: readFileSync(join(dir, "co-warn.csv"), "utf8"), status: 200, url: "fixture", fetchedAt: now },
   "nc-warn": { kind: "text", text: readFileSync(join(dir, "nc-warn.csv"), "utf8"), status: 200, url: "fixture", fetchedAt: now },
   "va-warn": { kind: "text", text: readFileSync(join(dir, "va-warn.csv"), "utf8"), status: 200, url: "fixture", fetchedAt: now },
+  "nj-warn": { kind: "bytes", bytes: new Uint8Array(readFileSync(join(dir, "nj-warn.xlsx"))), status: 200, url: "fixture", fetchedAt: now },
 };
 
 let failures = 0;

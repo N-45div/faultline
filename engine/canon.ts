@@ -114,6 +114,20 @@ export function secondUsDate(raw: string): string {
   return all && all.length > 1 ? usDate(all[1]) : "";
 }
 
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * "2026-02" → "February 2026". For the one state that publishes the month it
+ * posted a notice and never the day: the receipt must show that precision and
+ * not a day nobody wrote down.
+ */
+export function monthName(iso: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec((iso ?? "").trim());
+  if (!m) return "";
+  const name = MONTHS[Number(m[2]) - 1];
+  return name ? `${name} ${m[1]}` : "";
+}
+
 /** "2 (Remote workers in MD)" is two workers. */
 export function leadingInt(raw: string): number {
   const m = /-?\d[\d,]*/.exec(raw ?? "");

@@ -1,4 +1,4 @@
-import { daysBetween, foldString } from "./canon";
+import { daysBetween, foldString, monthName } from "./canon";
 import { WARN_EXCEPTIONS, noticePhrase, warnNoticeGap, type NoticeGapResult } from "./rules";
 
 // The receipt is the product. Every word here is read by someone who got a
@@ -22,7 +22,12 @@ export interface LayoffNoticeRow {
   noticeDate: string;
   effectiveDate: string;
   postedDate: string;
-  jurisdiction: "US-NY" | "US-CA" | "US-MD" | "US-CO" | "US-NC" | "US-VA";
+  jurisdiction: "US-NY" | "US-CA" | "US-MD" | "US-CO" | "US-NC" | "US-VA" | "US-NJ";
+  /**
+   * "2026-02", when the state publishes only the month it posted the notice
+   * and never the day. New Jersey is the only one so far.
+   */
+  noticeMonth?: string;
   layoffOrClosure?: string;
   reason?: string;
   amendments?: Amendment[];
@@ -115,7 +120,7 @@ function heldLines(opts: ReceiptOpts): string[] {
   return out;
 }
 
-const STATE = { "US-NY": "New York", "US-CA": "California", "US-MD": "Maryland", "US-CO": "Colorado", "US-NC": "North Carolina", "US-VA": "Virginia" } as const;
+const STATE = { "US-NY": "New York", "US-CA": "California", "US-MD": "Maryland", "US-CO": "Colorado", "US-NC": "North Carolina", "US-VA": "Virginia", "US-NJ": "New Jersey" } as const;
 const STATE_PAGE = {
   "US-NY": "https://dol.ny.gov/warn-notices",
   "US-CA": "https://edd.ca.gov/en/jobs_and_training/Layoff_Services_WARN/",
@@ -123,9 +128,17 @@ const STATE_PAGE = {
   "US-CO": "https://cdle.colorado.gov/employers/layoff-separations/layoff-warn-list",
   "US-NC": "https://www.commerce.nc.gov/data-tools-reports/labor-market-data-tools/workforce-warn-reports/report-workforce-warn-summary-list-2026",
   "US-VA": "https://virginiaworks.gov/im-an-employer/retain-and-grow/warn-notices/",
+  "US-NJ": "https://www.nj.gov/labor/business-services/layoffs-and-closing/file-warn-notice/",
 } as const;
 
+
+
 const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+
+/** The rule in the state's own name, for receipts that cannot count against it. */
+const OWN_ACT_LINE: Partial<Record<LayoffNoticeRow["jurisdiction"], string>> = {
+  "US-NJ": "New Jersey's own WARN Act sets 90 days, and since April 2023 severance of a week per year worked.",
+};
 
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
 
@@ -188,7 +201,13 @@ export function exceptionLine(row: LayoffNoticeRow, gap: Pick<NoticeGapResult, "
 export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNoticeRow[], opts: ReceiptOpts): Receipt {
   const scored = rows
     .map((r) => ({ r, g: warnNoticeGap({ jurisdiction: r.jurisdiction, noticeDate: r.noticeDate, effectiveDate: r.effectiveDate, postedDate: r.postedDate || undefined }) }))
-    .sort((a, b) => a.g.actualDays - b.g.actualDays || b.r.workers - a.r.workers);
+    // Shortest notice first — that is what a person opens the receipt for. A
+    // filing whose notice period cannot be counted sorts last: an uncountable
+    // gap is not a zero-day one.
+    .sort((a, b) => {
+      const unknown = (x: { g: { verdict: string } }) => (x.g.verdict === "unknown" ? 1 : 0);
+      return unknown(a) - unknown(b) || a.g.actualDays - b.g.actualDays || b.r.workers - a.r.workers;
+    });
 
   const first = scored[0];
   const totalWorkers = rows.reduce((n, r) => n + r.workers, 0);
@@ -201,13 +220,18 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
   const states = [...byState.entries()].sort((a, b) => b[1] - a[1]).map(([j]) => j);
   const stateNames = states.map((j) => STATE[j]);
   const stateList = stateNames.length <= 1 ? stateNames[0] : `${stateNames.slice(0, -1).join(", ")} and ${stateNames.at(-1)}`;
-  const years = rows.map((r) => r.noticeDate.slice(0, 4)).filter(Boolean).sort();
+  const years = rows.map((r) => (r.noticeDate || r.noticeMonth || "").slice(0, 4)).filter(Boolean).sort();
   const span = years.length > 1 && years[0] !== years.at(-1) ? `, ${years[0]}–${years.at(-1)}` : "";
   const headline =
     filings > 1
       ? `${first.r.company} — ${filings} filings in ${stateList}, ${totalWorkers} workers${span}.`
       : `${first.r.company} — ${first.r.siteAddress}. ${first.r.workers} ${first.r.workers === 1 ? "worker" : "workers"}.`;
 
+  // The sentence explaining why a state's file carries no notice date is long,
+  // and true of every one of that state's filings. Once is information; on
+  // eleven blocks in a row it is wallpaper, and a reader skips the line that
+  // matters most. Said on that state's first block, and not again.
+  const explained = new Set<string>();
   const blocks = scored.slice(0, 5).map(({ r, g }) => {
     const state = STATE[r.jurisdiction];
     const event = r.layoffOrClosure?.toLowerCase().includes("closure") ? "closure" : "layoff";
@@ -218,11 +242,24 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
         ? `${states.length > 1 ? `${state} · ` : ""}${r.siteAddress} — ${people}${kind ? ` · ${kind}` : ""}`
         : kind;
     const phrase = noticePhrase(g.actualDays);
+    // A state that publishes no notice date gets no notice count. The rule is
+    // still named, because the rule is the state's; the number would be ours.
+    const firstOfState = g.verdict === "unknown" && !explained.has(r.jurisdiction);
+    if (g.verdict === "unknown") explained.add(r.jurisdiction);
     const noticeLine =
-      g.verdict === "gap"
-        ? `${phrase[0].toUpperCase()}${phrase.slice(1)}. ${state}'s WARN Act sets ${g.statutoryDays} days.`
-        : `${phrase[0].toUpperCase()}${phrase.slice(1)} — inside the ${g.statutoryDays} days ${state} sets.`;
-    const lines = [siteLine, `Notice dated ${r.noticeDate}. ${event === "closure" ? "Closure" : "Layoff"} started ${r.effectiveDate}.`, noticeLine];
+      g.verdict === "unknown"
+        ? firstOfState
+          ? `${state} publishes the month it posted a notice, not the date the employer gave it, so the notice period cannot be counted from the state's file. ${OWN_ACT_LINE[r.jurisdiction] ?? `${state} follows the federal ${g.statutoryDays} days.`}`
+          : ""
+        : g.verdict === "gap"
+          ? `${phrase[0].toUpperCase()}${phrase.slice(1)}. ${state}'s WARN Act sets ${g.statutoryDays} days.`
+          : `${phrase[0].toUpperCase()}${phrase.slice(1)} — inside the ${g.statutoryDays} days ${state} sets.`;
+    const started = r.effectiveDate ? `${event === "closure" ? "Closure" : "Layoff"} started ${r.effectiveDate}.` : `${state}'s file gives no start date.`;
+    const dateLine =
+      g.verdict === "unknown"
+        ? `${monthName(r.noticeMonth ?? "") ? `Posted by ${state} in ${monthName(r.noticeMonth ?? "")}` : `${state} gives no notice date`}. ${started}`
+        : `Notice dated ${r.noticeDate}. ${started}`;
+    const lines = [siteLine, dateLine, noticeLine].filter(Boolean);
     const exception = exceptionLine(r, g);
     if (exception) lines.push(exception);
     const together = aggregationLine(r, rows);
@@ -340,7 +377,9 @@ export function noMatchReceipt(query: string, suggestions: string[], opts?: { pr
     headline: `We couldn't find "${shown}" in the layoff files we hold, or in New York City's housing records.`,
     blocks,
     links: [],
-    footer: ["We hold every layoff notice New York, California, Virginia, Maryland, Colorado and North Carolina have published, and the housing records for hundreds of New York City buildings."],
+    footer: [
+      "We hold every layoff notice New York, California, Virginia, New Jersey, Maryland, Colorado and North Carolina have published, and the housing records for hundreds of New York City buildings.",
+    ],
   };
 }
 

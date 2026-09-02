@@ -99,6 +99,7 @@ const STATE: Record<string, string> = {
   "ny-warn": "New York",
   "ca-warn": "California",
   "va-warn": "Virginia",
+  "nj-warn": "New Jersey",
   "md-warn": "Maryland",
   "nc-warn": "North Carolina",
   "co-warn": "Colorado",
@@ -107,12 +108,13 @@ const JURIS: Record<string, string> = {
   "ny-warn": "US-NY",
   "ca-warn": "US-CA",
   "va-warn": "US-VA",
+  "nj-warn": "US-NJ",
   "md-warn": "US-MD",
   "nc-warn": "US-NC",
   "co-warn": "US-CO",
 };
 /** States with a WARN act of their own; the rest are federal 60 days only. */
-const OWN_ACT: Record<string, string> = { "US-NY": "New York's WARN Act", "US-CA": "Cal-WARN", "US-MD": "Maryland's Economic Stabilization Act" };
+const OWN_ACT: Record<string, string> = { "US-NY": "New York's WARN Act", "US-CA": "Cal-WARN", "US-MD": "Maryland's Economic Stabilization Act", "US-NJ": "New Jersey's WARN Act" };
 
 const iso = (ms: number) => new Date(ms).toISOString().replace("T", " ").slice(0, 19) + " UTC";
 
@@ -180,6 +182,16 @@ function renderPack(pdf: Pdf, d: PackData) {
             `The state put this online ${g.postingLagDays} days after the notice date${g.postedAfterEffective ? " - after the layoff had started. That lag is the state's, not the employer's." : "."}`,
             { indent: 12, size: 9.5, color: MUTED },
           );
+      } else if (f.noticeMonth) {
+        // New Jersey publishes the month it posted a notice and never the day,
+        // so this pack states the rule and leaves the count out rather than
+        // putting a number in a lawyer's hands that the file cannot support.
+        const days = WARN_STATUTORY_DAYS[JURIS[c.sourceSlug as keyof typeof JURIS] ?? "US"] ?? WARN_STATUTORY_DAYS["US"];
+        pdf.space(3);
+        pdf.text(
+          `${state} publishes the month it posted this notice (${String(f.noticeMonth)}) and not the date the employer gave, so the notice period cannot be counted from the state's file. ${OWN_ACT[JURIS[c.sourceSlug as keyof typeof JURIS] ?? ""] ?? "The federal rule"} sets ${days} days.`,
+          { indent: 12, size: 10, bold: true, color: INK },
+        );
       }
     } else {
       const f = c.fields;

@@ -61,6 +61,7 @@ export const LAYOFF_STATES = {
   "co-warn": "US-CO",
   "nc-warn": "US-NC",
   "va-warn": "US-VA",
+  "nj-warn": "US-NJ",
 } as const;
 
 export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Promise<LayoffNoticeRow[]> {
@@ -87,7 +88,9 @@ export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Pro
           company: String(f.company),
           siteAddress: String(f.siteAddress),
           workers: Number(f.employeesAffected) || 0,
-          noticeDate: String(f.noticeDate),
+          noticeDate: String(f.noticeDate ?? ""),
+          // New Jersey publishes the month it posted a notice and no day.
+          noticeMonth: f.noticeMonth ? String(f.noticeMonth) : undefined,
           effectiveDate: String(f.effectiveDate),
           postedDate: String(f.postedDate ?? f.processedDate ?? ""),
           jurisdiction,
@@ -242,6 +245,7 @@ const PUBLISHER_NAME: Record<string, string> = {
   "ny-warn": "New York",
   "ca-warn": "California",
   "va-warn": "Virginia",
+  "nj-warn": "New Jersey",
   "md-warn": "Maryland",
   "nc-warn": "North Carolina",
   "co-warn": "Colorado",

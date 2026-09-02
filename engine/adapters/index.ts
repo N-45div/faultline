@@ -6,6 +6,7 @@ import { mdWarn } from "./mdWarn";
 import { coWarn } from "./coWarn";
 import { ncWarn } from "./ncWarn";
 import { vaWarn } from "./vaWarn";
+import { njWarn } from "./njWarn";
 
 // One more state is one more file in this folder and one more line here.
 export const adapters: Record<string, SourceAdapter<any>> = {
@@ -16,4 +17,5 @@ export const adapters: Record<string, SourceAdapter<any>> = {
   [coWarn.id]: coWarn,
   [ncWarn.id]: ncWarn,
   [vaWarn.id]: vaWarn,
+  [njWarn.id]: njWarn,
 };

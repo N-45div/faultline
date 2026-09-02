@@ -10,6 +10,7 @@ const PUBLISHER: Record<string, string> = {
   "ny-warn": "New York",
   "ca-warn": "California",
   "va-warn": "Virginia",
+  "nj-warn": "New Jersey",
   "md-warn": "Maryland",
   "nc-warn": "North Carolina",
   "co-warn": "Colorado",
@@ -121,9 +122,11 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         <span className="num">2</span>
         <h2 className="h2">Every version is kept, because the states overwrite theirs.</h2>
         <p>
-          Seven government files are read on a schedule. Each row is hashed on the fields that matter and diffed
+          {files.length > 0 ? `${files.length} government files are` : "Government files are"} read on a schedule. Each
+          row is hashed on the fields that matter and diffed
           against the last version, so a page that reshuffles its HTML produces zero false changes — and a date that
-          moves produces exactly one.
+          moves produces exactly one. New Jersey publishes the month it posted a notice and never the day, so its
+          receipts say so instead of counting a notice period the file cannot support.
         </p>
         {sources && (
           <ul className="tour-files">

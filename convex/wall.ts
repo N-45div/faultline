@@ -9,6 +9,7 @@ export const PUBLISHER: Record<string, string> = {
   "ny-warn": "New York",
   "ca-warn": "California",
   "va-warn": "Virginia",
+  "nj-warn": "New Jersey",
   "md-warn": "Maryland",
   "nc-warn": "North Carolina",
   "co-warn": "Colorado",

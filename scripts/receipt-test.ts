@@ -134,6 +134,40 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(exceptionLine(ny("Economic"), { verdict: "within", jurisdiction: "US-NY" }) === null, "nothing to say when notice was within the statute");
 }
 
+// New Jersey publishes the month it posted a notice and never the day, so no
+// notice period can be counted from its file. The receipt must say that and
+// never put a number there — and a filing we cannot count must not sort as if
+// it were the worst one.
+{
+  const nj: LayoffNoticeRow = {
+    company: "Bristol Myers Squibb", siteAddress: "Lawrence Twp NJ", workers: 67, noticeDate: "", noticeMonth: "2025-02",
+    effectiveDate: "2025-04-24", postedDate: "", jurisdiction: "US-NJ",
+  };
+  const one = receiptText(layoffReceipt("Bristol Myers Squibb", "x", [nj], { versionsSince: "2026-08-29" }));
+  check(/Posted by New Jersey in February 2025\. Layoff started 2025-04-24\./.test(one), "the month is shown, and no day is invented");
+  check(
+    /New Jersey publishes the month it posted a notice, not the date the employer gave it, so the notice period cannot be counted from the state's file\. New Jersey's own WARN Act sets 90 days, and since April 2023 severance of a week per year worked\./.test(one),
+    "the rule is named and never scored",
+  );
+  // "90 days" is the statute and belongs here; a count of notice GIVEN does not.
+  check(!/days' notice/.test(one) && !/Dated the day the layoff began/.test(one) && !/-\d+ day/.test(one), "no notice count reaches a New Jersey receipt");
+  check(!/Notice dated \./.test(one) && !/Notice dated \s*$/m.test(one), "no empty 'Notice dated' line");
+  // Mixed states: the uncountable filing must not sort above a real short-notice one.
+  const ny: LayoffNoticeRow = {
+    company: "Bristol Myers Squibb", siteAddress: "1 Main St", workers: 40, noticeDate: "2026-05-01", effectiveDate: "2026-05-15",
+    postedDate: "", jurisdiction: "US-NY", reason: "Economic",
+  };
+  const both = layoffReceipt("Bristol Myers Squibb", "x", [nj, ny], { versionsSince: "2026-08-29" });
+  const t = receiptText(both);
+  check(t.indexOf("14 days' notice") < t.indexOf("New Jersey publishes the month"), "a countable short notice sorts above an uncountable one");
+  // Said once per state, however many of that state's filings are shown.
+  const many = receiptText(layoffReceipt("Bristol Myers Squibb", "x", [nj, { ...nj, siteAddress: "Plainsboro NJ", effectiveDate: "2025-06-01" }, { ...nj, siteAddress: "Princeton NJ", effectiveDate: "2025-07-01" }], { versionsSince: "2026-08-29" }));
+  check((many.match(/publishes the month it posted a notice/g) ?? []).length === 1, "the explanation is given once, not once per filing");
+  check((many.match(/Posted by New Jersey in February 2025/g) ?? []).length === 3, "but every filing still says which month it was posted");
+  check(/2 filings in New Jersey and New York, 107 workers, 2025–2026/.test(both.headline), `mixed headline: ${both.headline}`);
+  check(/Check it on New Jersey's page/.test(t), "New Jersey's own page is linked");
+}
+
 // A building with live violations is not "no stamps": count them by class,
 // in the city's own words, and name the stamps only when there are some.
 {

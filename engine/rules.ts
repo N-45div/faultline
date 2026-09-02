@@ -1,4 +1,4 @@
-import { daysBetween } from "./canon";
+import { dateOnly, daysBetween } from "./canon";
 
 /**
  * Deterministic, jurisdiction-parameterised. The verdict word is "gap", never
@@ -19,6 +19,11 @@ export const WARN_STATUTORY_DAYS: Record<string, number> = {
   "US-NC": 60,
   // Virginia has no state WARN act either; federal 60 days is the whole rule.
   "US-VA": 60,
+  // New Jersey's own act (the Millville Dallas Airmotive Plant Job Loss
+  // Notification Act) went to 90 days in April 2023, and added severance of a
+  // week per year of service. Its file publishes no notice date, so we can
+  // state the rule and never a count against it.
+  "US-NJ": 90,
 };
 
 export const WARN_EXCEPTIONS: Record<string, string[]> = {
@@ -29,6 +34,10 @@ export const WARN_EXCEPTIONS: Record<string, string[]> = {
   "US-CO": ["faltering company", "unforeseeable business circumstances", "natural disaster"],
   "US-NC": ["faltering company", "unforeseeable business circumstances", "natural disaster"],
   "US-VA": ["faltering company", "unforeseeable business circumstances", "natural disaster"],
+  // Never reached today: New Jersey's file carries no notice date, so a gap is
+  // never computed for it. Here so the fallback is the federal list and not a
+  // silent default if that ever changes.
+  "US-NJ": ["faltering company", "unforeseeable business circumstances", "natural disaster"],
 };
 
 export interface NoticeGapInput {
@@ -50,11 +59,35 @@ export interface NoticeGapResult {
   /** Posted after the layoff had already started. */
   postedAfterEffective: boolean | null;
   exceptionsThatMayApply: string[];
-  verdict: "gap" | "within";
+  /**
+   * "unknown" when the state publishes no notice date. New Jersey lists only
+   * the month it posted a notice, so the days between the employer's notice
+   * and the layoff cannot be counted from its file — and a receipt that put a
+   * number there would be inventing one.
+   */
+  verdict: "gap" | "within" | "unknown";
 }
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function warnNoticeGap(input: NoticeGapInput): NoticeGapResult {
   const statutoryDays = WARN_STATUTORY_DAYS[input.jurisdiction] ?? WARN_STATUTORY_DAYS["US"];
+  // Without both dates there is no arithmetic to do. Returning zeros with a
+  // "gap" verdict would read as "0 days' notice", which is a claim about the
+  // employer that the state's file does not make.
+  if (!ISO_DATE.test(dateOnly(input.noticeDate ?? "")) || !ISO_DATE.test(dateOnly(input.effectiveDate ?? ""))) {
+    return {
+      ruleId: "warn.notice_gap",
+      jurisdiction: input.jurisdiction,
+      statutoryDays,
+      actualDays: 0,
+      gapDays: 0,
+      postingLagDays: null,
+      postedAfterEffective: null,
+      exceptionsThatMayApply: WARN_EXCEPTIONS[input.jurisdiction] ?? WARN_EXCEPTIONS["US"],
+      verdict: "unknown",
+    };
+  }
   const actualDays = daysBetween(input.noticeDate, input.effectiveDate);
   const gapDays = Math.max(0, statutoryDays - actualDays);
   const postingLagDays = input.postedDate ? daysBetween(input.noticeDate, input.postedDate) : null;
