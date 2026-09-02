@@ -829,3 +829,15 @@ a {
     display: flex;
   }
 }
+
+.signin .cta.google {
+  display: inline-block;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--card);
+  margin-top: 14px;
+}
+.signin .or {
+  margin: 10px 0 0;
+}

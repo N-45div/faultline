@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { api } from "../convex/_generated/api";
 
 // Email and password, nothing else asked. Google appears here once the
 // deployment holds a client id; until then the button does not exist.
@@ -9,6 +11,7 @@ export default function SignIn({ onDone }: { onDone: () => void }) {
   const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const google = useQuery(api.follows.googleEnabled, {});
 
   return (
     <section className="hero signin" aria-label="Sign in">
@@ -18,6 +21,14 @@ export default function SignIn({ onDone }: { onDone: () => void }) {
         Nothing on this site needs an account. Signing in only lets you follow a filing without an email thread, and
         see what you follow. We never sell information about anyone.
       </p>
+      {google && (
+        <>
+          <button type="button" className="cta google" onClick={() => void signIn("google")}>
+            Continue with Google
+          </button>
+          <p className="fine or">or with email</p>
+        </>
+      )}
       <form
         className="signin-form"
         onSubmit={async (e) => {

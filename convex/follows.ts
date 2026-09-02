@@ -50,6 +50,13 @@ export const unfollow = mutation({
   },
 });
 
+/** Whether the deployment holds a Google client; the button exists only then. */
+export const googleEnabled = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async () => Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET),
+});
+
 /** Who is signed in, for the bar. Null when nobody is. */
 export const me = query({
   args: {},
