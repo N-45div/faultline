@@ -306,8 +306,9 @@ const HOW_TO = [
  */
 const howTo = (r: Receipt) => {
   if (r.query === "stop") return [];
-  // "Reply FOLLOW and we'll email you if this filing changes" needs a filing.
-  return r.subjectKey ? HOW_TO : HOW_TO.slice(1);
+  // "Reply FOLLOW and we'll email you if this filing changes" needs a filing;
+  // the nothing-filed receipt carries its own FOLLOW line, worded for absence.
+  return r.subjectKey && r.kind !== "none" ? HOW_TO : HOW_TO.slice(1);
 };
 
 export function receiptText(r: Receipt): string {

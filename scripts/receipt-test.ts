@@ -140,6 +140,7 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/As of 2026-09-03 01:00 UTC, "Initech" appears in none of the files we hold/.test(t), "the absence is dated");
   check(/— Virginia: 2026-09-02 20:00 UTC \(1,123 rows\)/.test(t), "each file's last read is listed");
   check(none.subjectKey === "q:initech" && /Reply FOLLOW and we'll email you if a notice under this name appears/.test(t), "the absence can be followed");
+  check((t.match(/Reply FOLLOW/g) ?? []).length === 1, "and is asked to follow only once");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
