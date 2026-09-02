@@ -313,6 +313,16 @@ one URL for bookmarks and shares. And the "Close matches" links use the same
 slug helper as every other link (`convex/corroborateData.ts`,
 `convex/corroborate.ts`, `convex/lookup.ts`, `src/Employer.tsx`).
 
+### 2026-09-03 - 1c32581
+Pulled forward from 6 September. A link to an employer or a building pasted
+into a chat is unfurled by a crawler that runs no JavaScript, so `/e/` and
+`/b/` are now HTTP routes that fetch the app shell from the static host and
+put the receipt's own words in the head: the headline as the title, the
+first lines as the description, the canonical slug as the URL. Same shell,
+same app, no second build; a miss falls back to the plain page. Convex
+features: HTTP actions above the static catch-all, running the same public
+queries the page uses (`convex/http.ts`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
@@ -350,7 +360,7 @@ are the dated proof you bring them.
 | 3 Sep | Done: "Versions we hold" on every page; the held and provenance lines on every receipt; the building headline counts by class with the city's own words; the address pull writes back |
 | 4 Sep | Done a day early: the amendment chain — when a state edits a notice in place (a moved effective date, a changed headcount, a rescission), the receipt shows before → after with both capture times, because a postponement past 60 days needs a fresh notice (Messer v. Bristol) and the diff is the claim; the dated "nothing filed" receipt — "as of <time>, no notice from X in the six files we hold, snapshots hashed" — with an alert when one appears |
 | 5 Sep | Done two days early: the 30/90-day aggregation line per employer and site ("3rd notice from X at this address in 74 days, 61 workers cumulative") — the batching loophole workers describe, that no tracker computes; the exception line — where a state records the reason given, whether the employer named an exception (unforeseeable business circumstances, faltering company) beside their own public words; Google sign-in once the client id arrives |
-| 6 Sep | Ten receipts to ten plaintiff-side firms and tenant organisers — the thirty-day test; employer share pages; AgentMail Developer plan + custom domain, warmup starts |
+| 6 Sep | Ten receipts to ten plaintiff-side firms and tenant organisers — the thirty-day test; employer share pages (done 3 Sep); AgentMail Developer plan + custom domain, warmup starts |
 | 7 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint; a second adversarial review of everything shipped since 31 Aug |
 | 8–10 Sep | New Jersey and Illinois (90/60-day laws, overwritten files); Wisconsin (the one state that publishes revision codes — the model for the amendment chain); the NYC feeds that are provably lossy where HPD is not: restaurant inspections (closed restaurants vanish) and OATH hearings (dismissed violations are removed from the property record) |
 | 11–13 Sep | Firecrawl: HTML-only states and employer newsroom captures; share images; teaser post |
