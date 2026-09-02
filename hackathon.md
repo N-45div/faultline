@@ -293,6 +293,15 @@ FOLLOW line on the nothing-filed receipt instead of two. All three are pure
 engine functions with fixture tests (`engine/receipt.ts`,
 `scripts/receipt-test.ts`).
 
+### 2026-09-03 - fe30c6d
+Found while checking the aggregation line on production: "Martin's" — eleven
+Virginia filings — came back as nothing filed. The full-text index splits an
+apostrophe into "martin" and "s"; our query joined it to "martins", so the
+state's own spelling never matched. The index now gets the terms the way it
+tokenises them, plus the stem of a possessive typed without its apostrophe
+("McDonalds" finds McDonald's Corporation). Recall only — ranking still scores
+the raw query against the raw label (`engine/match.ts`, `convex/lookup.ts`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

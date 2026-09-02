@@ -17,6 +17,22 @@ export function companyTokens(s: string): string[] {
     .filter((t) => t && !LEGAL.has(t));
 }
 
+/**
+ * What we hand the full-text index. The index splits "Martin's" into "martin"
+ * and "s", so the query must too, or the state's own spelling never comes
+ * back. A possessive typed without its apostrophe ("McDonalds") gets its stem
+ * beside it. Recall only: ranking still scores the raw query against the raw
+ * label.
+ */
+export function searchTerms(q: string): string {
+  const out = new Set<string>();
+  for (const t of companyTokens(q.replace(/['’]/g, " "))) {
+    out.add(t);
+    if (t.length > 3 && t.endsWith("s")) out.add(t.slice(0, -1));
+  }
+  return [...out].join(" ");
+}
+
 export interface Candidate<T> {
   item: T;
   score: number;

@@ -5,7 +5,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { nyWarn } from "../engine/adapters/nyWarn";
-import { scoreCompany, scoreAddress, mentionsCompany, companyMentionScore } from "../engine/match";
+import { scoreCompany, scoreAddress, mentionsCompany, companyMentionScore, searchTerms } from "../engine/match";
 import { classifyInbound } from "../engine/intent";
 import { aggregationLine, amendmentLines, buildingReceipt, exceptionLine, layoffReceipt, noMatchReceipt, receiptText, type LayoffNoticeRow } from "../engine/receipt";
 
@@ -29,6 +29,10 @@ for (const [q, label, min] of pairs) {
   const s = scoreCompany(q, label);
   check(s >= min && (min > 0 || s === 0), `"${q}" vs "${label}" → ${s.toFixed(2)} (want ≥ ${min})`);
 }
+
+check(searchTerms("Martin's") === "martin s", `index terms for Martin's: ${searchTerms("Martin's")}`);
+check(searchTerms("McDonalds") === "mcdonalds mcdonald", "a possessive typed without its apostrophe carries its stem");
+check(searchTerms("Spirit Airlines, LLC") === "spirit airlines airline", "legal words dropped, plural stem added");
 
 console.log("== address matching");
 check(scoreAddress("249 East 37 St, Brooklyn", "249 EAST 37 STREET, Brooklyn") >= 0.9, "249 East 37 St → 249 EAST 37 STREET");

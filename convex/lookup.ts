@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { DatabaseReader } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { addressTokens, companyMentionScore, companyTokens, looksLikeAddress, rankAddresses, rankCompanies } from "../engine/match";
+import { addressTokens, companyMentionScore, companyTokens, looksLikeAddress, rankAddresses, rankCompanies, searchTerms } from "../engine/match";
 import { foldString, slug } from "../engine/canon";
 import {
   buildingReceipt,
@@ -29,7 +29,7 @@ export interface Held {
 const companyOf = (label: string) => label.split(" — ")[0];
 
 export async function findEmployerSites(db: DatabaseReader, q: string) {
-  const terms = companyTokens(q).join(" ");
+  const terms = searchTerms(q);
   if (!terms) return [];
   const hits = await db
     .query("subjects")
