@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { components, internal } from "./_generated/api";
+import { api, components, internal } from "./_generated/api";
 import { registerStaticRoutes } from "@convex-dev/static-hosting";
 import { AgentMail } from "@agentmail/convex";
 import { auth } from "./auth";
@@ -53,6 +53,48 @@ http.route({
     });
   }),
 });
+
+// Share pages. A link to an employer or a building pasted into a chat is
+// unfurled by a crawler that runs no JavaScript, so the page's own words —
+// the receipt headline and its first lines — go into the HTML head here,
+// before the same app shell the static host serves everywhere else. The
+// shell is fetched from the static host, so a new build needs no change.
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const meta = (html: string, title: string, description: string, url: string) =>
+  html
+    .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
+    .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/, `$1${esc(description)}$2`)
+    .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/, `$1${esc(title)}$2`)
+    .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/, `$1${esc(description)}$2`)
+    .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/, `$1${esc(url)}$2`)
+    .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/, `$1${esc(title)}$2`)
+    .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/, `$1${esc(description)}$2`);
+
+const share = (kind: "e" | "b") =>
+  httpAction(async (ctx, req) => {
+    const u = new URL(req.url);
+    const shell = await fetch(`${u.origin}/index.html`, { headers: { accept: "text/html" } });
+    let html = await shell.text();
+    try {
+      const id = decodeURIComponent(u.pathname.split("/").filter(Boolean)[1] ?? "");
+      if (id) {
+        const r = kind === "e" ? await ctx.runQuery(api.lookup.employer, { q: id }) : await ctx.runQuery(api.lookup.building, { key: id });
+        const receipt = r.receipt;
+        const lead = receipt.blocks[0]?.slice(0, 3).join(" ") ?? "";
+        const description = (lead || "Every version kept, dated, because the state overwrites its file.").slice(0, 280);
+        const path = kind === "e" && "canonical" in r && r.canonical ? `/e/${r.canonical}` : u.pathname;
+        html = meta(html, `${receipt.headline} · Notice`, description, `${u.origin}${path}`);
+      }
+    } catch (e) {
+      console.warn(`[share] ${u.pathname}: ${(e as Error).message}`);
+    }
+    return new Response(html, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300" },
+    });
+  });
+http.route({ pathPrefix: "/e/", method: "GET", handler: share("e") });
+http.route({ pathPrefix: "/b/", method: "GET", handler: share("b") });
 
 // Static site last: SPA fallback for everything nothing above claimed.
 registerStaticRoutes(http, components.staticHosting);
