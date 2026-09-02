@@ -264,7 +264,7 @@ told to ask again. Convex features: queries over observation and snapshot
 indexes, scheduled functions with retry (`convex/lookup.ts`,
 `src/Versions.tsx`, `engine/receipt.ts`, `convex/inbound.ts`).
 
-### 2026-09-03 - working tree
+### 2026-09-03 - cecb314
 Pulled forward from 4 September: the two things no tracker does. The
 amendment chain — states edit notices in place, and the receipt now spells out
 which field moved, from what to what, the day we caught it, and that the
@@ -277,6 +277,21 @@ matches every newly added row's employer against it. Convex features: change
 events with before/after read back into receipts, name-keyed subscriptions
 matched at ingest (`engine/receipt.ts`, `convex/lookup.ts`,
 `convex/ingest/write.ts`).
+
+### 2026-09-03 - e7baf7c
+Pulled forward from 5 September. The aggregation line: federal rules count
+separate layoffs at one site within any 90-day period together, and every
+state file shows them as unrelated rows — the receipt now says "3rd notice at
+this address in 13 days; 346 workers across them", matched by state and
+address exactly as the state wrote them, so the count is never inflated. And
+the exception line, only when notice fell short of the statute: what reason
+the state's file records, whether those words name an exception the rule
+allows ("Bankruptcy Economic" names none; "Unforeseen Business Circumstances"
+names one, and the rule also requires the notice to state the basis), or that
+the file records no reason at all — the record, never a verdict. Also one
+FOLLOW line on the nothing-filed receipt instead of two. All three are pure
+engine functions with fixture tests (`engine/receipt.ts`,
+`scripts/receipt-test.ts`).
 
 ## About
 
@@ -314,7 +329,7 @@ are the dated proof you bring them.
 | 2 Sep | The wall as a demo surface (done); judge tour (done); sign-in + FOLLOW from the web (done, pulled forward). Still needs Divij: postal address, AgentMail Developer plan + custom domain, an Outlook address, a Google OAuth client |
 | 3 Sep | Done: "Versions we hold" on every page; the held and provenance lines on every receipt; the building headline counts by class with the city's own words; the address pull writes back |
 | 4 Sep | Done a day early: the amendment chain — when a state edits a notice in place (a moved effective date, a changed headcount, a rescission), the receipt shows before → after with both capture times, because a postponement past 60 days needs a fresh notice (Messer v. Bristol) and the diff is the claim; the dated "nothing filed" receipt — "as of <time>, no notice from X in the six files we hold, snapshots hashed" — with an alert when one appears |
-| 5 Sep | The 30/90-day aggregation line per employer and site ("3rd notice from X at this address in 74 days, 61 workers cumulative") — the batching loophole workers describe, that no tracker computes; the exception line — where a state records the reason given, whether the employer named an exception (unforeseeable business circumstances, faltering company) beside their own public words; Google sign-in once the client id arrives |
+| 5 Sep | Done two days early: the 30/90-day aggregation line per employer and site ("3rd notice from X at this address in 74 days, 61 workers cumulative") — the batching loophole workers describe, that no tracker computes; the exception line — where a state records the reason given, whether the employer named an exception (unforeseeable business circumstances, faltering company) beside their own public words; Google sign-in once the client id arrives |
 | 6 Sep | Ten receipts to ten plaintiff-side firms and tenant organisers — the thirty-day test; employer share pages; AgentMail Developer plan + custom domain, warmup starts |
 | 7 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint; a second adversarial review of everything shipped since 31 Aug |
 | 8–10 Sep | New Jersey and Illinois (90/60-day laws, overwritten files); Wisconsin (the one state that publishes revision codes — the model for the amendment chain); the NYC feeds that are provably lossy where HPD is not: restaurant inspections (closed restaurants vanish) and OATH hearings (dismissed violations are removed from the property record) |
