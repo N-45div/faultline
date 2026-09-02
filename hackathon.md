@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth (email + password; Google once a client id is set), optional everywhere
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-02T01:20:00Z
+- **Last updated:** 2026-09-03T00:35:00Z
 
 ## Log
 
@@ -216,6 +216,54 @@ auth tables, HTTP routes ahead of the static catch-all, `getAuthUserId` in
 queries and mutations (`convex/auth.ts`, `convex/follows.ts`, `engine/wall.ts`,
 `src/Judge.tsx`, `src/SignIn.tsx`).
 
+### 2026-09-02 - 617faf6
+Two research passes and the fixes they forced. A product review from the seats
+of a lawyer, a tenant organiser and a five-minute judge found twelve defects;
+the ones a reader would hit first are fixed: a multi-state employer's receipt
+named one state and linked to one state's page while listing another's
+workers (Crothall Healthcare now reads "4 filings in Virginia and Maryland,
+884 workers, 2018–2026", each filing prefixed with its state, one link per
+state); the evidence pack silently covered only New York and California and
+printed those two statutes for everyone (now all six files, one statute
+paragraph per state the employer filed in); the tour showed "California 0
+rows" after every 304 (the source now carries its last full count); every
+tab said "Faultline"; the wall said "1 workers" and spent its lines on one
+employer's seven sites; "Search what they said" reported nothing found when
+the truth was the daily allowance. A market scan of everything adjacent —
+WARNTracker at $250 a month, WARN Firehose, Layoff Lookout, JustFix — found
+nothing that keeps versions or diffs, computes the state statute gap, or
+touches New York City, and rewrote the rest of the plan around three things
+none of them do: the amendment chain, the dated "nothing filed" receipt, and
+the 30/90-day aggregation line.
+
+Google sign-in is live: Divij created the client in the console (the IAP
+OAuth Admin API that used to allow this from the CLI was shut down in March
+2026), the button appears only because the deployment holds the client, and
+the flow was traced to Google's door — correct client id, correct callback,
+scopes openid profile email. Privacy and terms pages, in plain words, because
+Google requires them and a product that reads termination letters should have
+had them anyway. The navigation bar became three zones — where you are, what
+you can look up, who you are and how to reach us — with a search that works
+from any page, an address that copies itself, an account menu, and a phone
+sheet. Payments are dropped for the hackathon.
+
+### 2026-09-03 - ec05bfa
+The sentence-one claim, made countable. Every employer and building page now
+carries "Versions we hold": each row, when it was first and last captured,
+how many versions, its current hash, and the changes recorded — all read back
+from what ingest wrote. Every receipt ends with two lines a lawyer forwarding
+it would otherwise have to ask for: "We hold 1 row for this, in 1 version,
+and have read the file 97 times since 2026-08-29", and "Read from New York's
+file on 2026-09-02 18:30 UTC (HTTP 200, 193 rows)" with the URL. A building
+with seventeen live violations was headlined "no certification stamps"; it
+now reads "17 violations on record (2 class C, 12 class B, 3 class A)", the
+stamps first when there are any, each violation in the city's own words for
+what was wrong. And a person who asked about a building we did not hold gets
+the real receipt into the same thread once the city answers, instead of being
+told to ask again. Convex features: queries over observation and snapshot
+indexes, scheduled functions with retry (`convex/lookup.ts`,
+`src/Versions.tsx`, `engine/receipt.ts`, `convex/inbound.ts`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
@@ -250,7 +298,7 @@ are the dated proof you bring them.
 | 31 Aug (also) | Pulled forward from 1 Sep: batched ingest so a city fits; HPD out of shadow; alert proven with before/after; one digest per person per day; corroboration by web search with citations |
 | 1 Sep | Four zero-credit states: Virginia (CSV), Maryland (static HTML), North Carolina (S3 CSV with a government VersionId), Colorado (Google Sheet with stated reasons). Building page and address lookup on the web |
 | 2 Sep | The wall as a demo surface (done); judge tour (done); sign-in + FOLLOW from the web (done, pulled forward). Still needs Divij: postal address, AgentMail Developer plan + custom domain, an Outlook address, a Google OAuth client |
-| 3 Sep | From the product review: "Versions we hold" on every receipt and page (first read, last read, reads, row hash, the changes) — the sentence-one claim made visible; the building page's headline counts its violations and shows the class C and B descriptions instead of "no stamps"; provenance line on every receipt (the file we read, when, HTTP status, row count) beside the state's own page |
+| 3 Sep | Done: "Versions we hold" on every page; the held and provenance lines on every receipt; the building headline counts by class with the city's own words; the address pull writes back |
 | 4 Sep | From the market scan: the amendment chain — when a state edits a notice in place (a moved effective date, a changed headcount, a rescission), the receipt shows before → after with both capture times, because a postponement past 60 days needs a fresh notice (Messer v. Bristol) and the diff is the claim; the dated "nothing filed" receipt — "as of <time>, no notice from X in the six files we hold, snapshots hashed" — with an alert when one appears |
 | 5 Sep | The 30/90-day aggregation line per employer and site ("3rd notice from X at this address in 74 days, 61 workers cumulative") — the batching loophole workers describe, that no tracker computes; the exception line — where a state records the reason given, whether the employer named an exception (unforeseeable business circumstances, faltering company) beside their own public words; Google sign-in once the client id arrives |
 | 6 Sep | Ten receipts to ten plaintiff-side firms and tenant organisers — the thirty-day test; employer share pages; AgentMail Developer plan + custom domain, warmup starts |
