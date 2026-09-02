@@ -13,4 +13,8 @@ crons.interval("tick sources", { minutes: 1 }, internal.ingest.write.tick, {});
 // is what stops a city file from becoming a hundred emails.
 crons.interval("flush digests", { minutes: 1 }, internal.digest.flush, {});
 
+// Evidence packs are built from what we hold and can be built again; the PDF
+// itself goes after thirty days so storage holds versions, not copies.
+crons.daily("expire packs", { hourUTC: 4, minuteUTC: 20 }, internal.packs.expire, {});
+
 export default crons;

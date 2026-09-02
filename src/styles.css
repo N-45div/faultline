@@ -886,3 +886,8 @@ a {
     gap: 4px;
   }
 }
+
+/* A file that has not been verified lately says so, in the one colour that means it. */
+.stale {
+  color: #b42318;
+}

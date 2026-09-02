@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { paused } from "./guard";
 
 // Outbound mail. The AgentMail component handles inbound (webhook, threads,
 // storage); sending goes straight to AgentMail's API from the app, because a
@@ -40,6 +41,22 @@ function wire(attachments?: { filename: string; content: string; contentType?: s
 }
 
 /** Answer in the same thread. Marks the inbox row and receipt on success. */
+/**
+ * Paused by hand, or the provider's breaker is open: the message goes back
+ * to the queue when it came from one, and is not attempted.
+ */
+async function held(ctx: { runQuery: (ref: any, args: any) => Promise<any> }, what: string): Promise<boolean> {
+  if (paused("mail")) {
+    console.warn(`[mail] ${what} held: NOTICE_PAUSE`);
+    return true;
+  }
+  if (await ctx.runQuery(internal.breaker.open, { provider: "agentmail" })) {
+    console.warn(`[mail] ${what} held: agentmail breaker open`);
+    return true;
+  }
+  return false;
+}
+
 export const reply = internalAction({
   args: {
     agentInboxId: v.string(),
@@ -53,6 +70,10 @@ export const reply = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, a) => {
+    if (await held(ctx, "reply")) {
+      if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: false });
+      return null;
+    }
     try {
       const r = await call(`/inboxes/${encodeURIComponent(a.agentInboxId)}/messages/${encodeURIComponent(a.parentMessageId)}/reply`, {
         text: a.text,
@@ -61,9 +82,11 @@ export const reply = internalAction({
         headers: { "Auto-Submitted": "auto-replied" },
       });
       await ctx.runMutation(internal.mail.markSent, { receiptId: a.receiptId, inboxId: a.inboxId, outboundId: r.message_id });
+      await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: true });
       console.log(`[mail] replied in thread ${r.thread_id}`);
     } catch (e) {
       console.error(`[mail] reply failed: ${String(e)}`);
+      await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: false, error: String(e) });
       // A thread can go stale — the message aged out, or the person deleted it.
       // Put the news back and forget the thread, so the retry starts a new one.
       if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: true });
@@ -85,6 +108,10 @@ export const send = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, a) => {
+    if (await held(ctx, "send")) {
+      if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: false });
+      return null;
+    }
     try {
       const r = await call(`/inboxes/${encodeURIComponent(a.agentInboxId)}/messages/send`, {
         to: [a.to],
@@ -94,9 +121,11 @@ export const send = internalAction({
         attachments: wire(a.attachments),
         headers: { "Auto-Submitted": "auto-generated" },
       });
+      await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: true });
       console.log(`[mail] sent ${r.message_id} to ${a.to}`);
     } catch (e) {
       console.error(`[mail] send failed: ${String(e)}`);
+      await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: false, error: String(e) });
       if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: false });
     }
     return null;

@@ -23,6 +23,11 @@ const rowsOf = (s: { rowCount?: number; lastStatus?: string }) => {
   return m ? Number(m[1].replace(/,/g, "")) : 0;
 };
 const unchanged = (s: { lastStatus?: string }) => /304/.test(s.lastStatus ?? "");
+// "Last verified" means something only if it can also say "not lately".
+// A file not read in six hours, or whose last read failed, is marked so.
+const STALE_MS = 6 * 3_600_000;
+const stale = (s: { lastRunAt?: number; lastStatus?: string; consecutiveFailures: number }) =>
+  !s.lastRunAt || Date.now() - s.lastRunAt > STALE_MS || s.consecutiveFailures > 0;
 
 function ago(ms?: number): string {
   if (!ms) return "not yet";
@@ -35,6 +40,7 @@ function ago(ms?: number): string {
 
 export default function Judge({ go }: { go: (p: string) => void }) {
   const sources = useQuery(api.sources.status, {});
+  const guard = useQuery(api.breaker.status, {});
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });
   const b = useQuery(api.wall.buildings, {});
   const sample = useQuery(api.lookup.employer, { q: "spirit airlines" });
@@ -46,6 +52,15 @@ export default function Judge({ go }: { go: (p: string) => void }) {
 
   return (
     <>
+      {guard && (guard.paused.length > 0 || guard.breakers.some((b) => b.openUntil)) && (
+        <p className="fine error" role="status">
+          {guard.paused.length > 0 && `Paused by hand: ${guard.paused.join(", ")}. `}
+          {guard.breakers
+            .filter((b) => b.openUntil)
+            .map((b) => `${b.provider === "openai" ? "The model" : "Outgoing mail"} is switched off until ${new Date(b.openUntil!).toUTCString().slice(17, 22)} UTC after repeated failures. `)}
+          Nothing is dropped: mail waits in the queue and receipts say when we didn't look.
+        </p>
+      )}
       <p className="crumbs">
         <a href="/" onClick={(e) => { e.preventDefault(); go("/"); }}>← Notice</a>
       </p>
@@ -116,9 +131,10 @@ export default function Judge({ go }: { go: (p: string) => void }) {
               <li key={s.slug}>
                 <strong>{PUBLISHER[s.slug] ?? s.slug}</strong>
                 <span>{rowsOf(s) > 0 ? `${rowsOf(s).toLocaleString()} rows` : "—"}</span>
-                <span className="muted">
+                <span className={stale(s) ? "stale" : "muted"}>
                   {unchanged(s) ? "checked" : "read"} {ago(s.lastRunAt)}
                   {unchanged(s) ? ", unchanged" : ""}
+                  {stale(s) ? " · not verified lately" : " · verified"}
                 </span>
               </li>
             ))}

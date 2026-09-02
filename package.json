@@ -8,6 +8,7 @@
     "preview": "vite preview",
     "convex": "convex dev",
     "typecheck": "tsc -p tsconfig.json",
+    "lint:copy": "tsx scripts/copy-lint.ts",
     "deploy": "npx @convex-dev/static-hosting deploy"
   },
   "keywords": [],

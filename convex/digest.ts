@@ -3,6 +3,7 @@ import { internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { complianceLines } from "../engine/receipt";
+import { paused } from "./guard";
 
 // One email per person per day, at most — and the first one goes out within a
 // minute of the change that caused it. Ingest never sends; it queues. This runs
@@ -22,6 +23,8 @@ export const flush = internalMutation({
   handler: async (ctx) => {
     const inbox = process.env.AGENTMAIL_INBOX_ID;
     if (!inbox || !process.env.AGENTMAIL_API_KEY) return { sent: 0, held: 0 };
+    // Paused mail waits in the queue; nothing is dropped.
+    if (paused("mail")) return { sent: 0, held: 0 };
 
     const pending = await ctx.db
       .query("alertQueue")

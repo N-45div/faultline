@@ -7,6 +7,7 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { MODEL, PROMPT_VERSION, DAILY_CALL_CAP, costCents, type Usage } from "./llm";
+import { paused } from "./guard";
 
 // The only file that talks to OpenAI. One job: read a termination letter —
 // pasted text or an attached PDF — and pull out what it states, so it can sit
@@ -140,6 +141,11 @@ export const extractLetter = internalAction({
       await ctx.runMutation(internal.inbound.finishLetter, { inboxId, text, extraction: cached, note: "cache" });
       return null;
     }
+    if (paused("llm") || (await ctx.runQuery(internal.breaker.open, { provider: "openai" }))) {
+      console.warn(`[llm] skipped: ${paused("llm") ? "NOTICE_PAUSE" : "openai breaker open"}`);
+      await ctx.runMutation(internal.inbound.finishLetter, { inboxId, text, extraction: null, note: "nokey" });
+      return null;
+    }
     const calls = await ctx.runQuery(internal.llm.callsToday, {});
     if (!process.env.OPENAI_API_KEY || calls >= DAILY_CALL_CAP) {
       console.warn(`[llm] skipped: ${!process.env.OPENAI_API_KEY ? "no key" : `daily cap ${DAILY_CALL_CAP} reached`}`);
@@ -204,8 +210,10 @@ export const extractLetter = internalAction({
         costCents: cents,
       });
       console.log(`[llm] ${model} in=${u.input_tokens} cached=${u.input_tokens_details?.cached_tokens} out=${u.output_tokens} → ${cents}¢`);
+      await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: true });
     } catch (e) {
       console.error(`[llm] failed: ${String(e)}`);
+      await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: false, error: String(e) });
     }
     await ctx.runMutation(internal.inbound.finishLetter, { inboxId, text, extraction, note });
     return null;

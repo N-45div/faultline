@@ -7,6 +7,7 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { MODEL, costCents, type Usage } from "./llm";
+import { paused } from "./guard";
 
 // The state's file says a company laid people off, and why. This asks what the
 // company was saying in public the same week, and puts the two side by side —
@@ -67,6 +68,7 @@ export const check = action({
     const hit: Corroborated | null = await ctx.runQuery(internal.corroborateData.cached, { employer, filingDate });
     if (hit) return { ...hit, state: hit.corroborated ? "found" : "none", cached: true };
     if (!process.env.OPENAI_API_KEY) return { state: "off" };
+    if (paused("llm") || (await ctx.runQuery(internal.breaker.open, { provider: "openai" }))) return { state: "off" };
     // Only for a filing we hold. Anyone can call this; only the page's own
     // employer + notice date pairs cost money.
     const known: boolean = await ctx.runQuery(internal.corroborateData.isFiling, { employer, filingDate });
@@ -164,9 +166,11 @@ export const check = action({
       };
       await ctx.runMutation(internal.corroborateData.record, { employer, filingDate, subjectKey, ...out, costCents: cents });
       console.log(`[corroborate] ${employer} ${filingDate} → ${out.corroborated ? "corroborated" : "nothing found"}, ${citations.length} citations, ${cents.toFixed(3)}¢`);
+      await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: true });
       return { ...out, state: out.corroborated ? "found" : "none", cached: false };
     } catch (e) {
       console.error(`[corroborate] failed: ${String(e)}`);
+      await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: false, error: String(e) });
       return { state: "failed" };
     }
   },

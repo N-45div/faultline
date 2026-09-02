@@ -323,6 +323,27 @@ same app, no second build; a miss falls back to the plain page. Convex
 features: HTTP actions above the static catch-all, running the same public
 queries the page uses (`convex/http.ts`).
 
+### 2026-09-03 - 16af582
+Pulled forward from 7 September, because a demo that dies during judging
+week is the only failure that counts. A kill switch: one deployment
+variable, `NOTICE_PAUSE=mail|ingest|llm|all`, read at the top of every path
+that sends or spends — paused mail waits in the queue, a paused read is
+picked up at the next tick, a paused model answers "we didn't look". Circuit
+breakers for the two paid providers: three failures in a row open the
+breaker for fifteen minutes, callers do not try while it is open and say so,
+one success closes it. "Last verified" on the tour now also says "not
+verified lately" in red when a file has not been read in six hours or its
+last read failed, and a banner names anything switched off. Evidence-pack
+PDFs expire after thirty days (the rows behind them do not; a fresh PACK
+rebuilds it). And a copy lint over every string a person can read, which
+found two "you watch" on its first run. Chaos test on the dev deployment:
+model name pointed at nothing, three letters in, breaker open, corroboration
+answers "off", one success and it is closed again. Convex features: a
+breakers table behind internal query/mutation, daily cron for GC, env read
+per execution as the switch (`convex/guard.ts`, `convex/breaker.ts`,
+`convex/packs.ts`, `convex/crons.ts`, `src/Judge.tsx`,
+`scripts/copy-lint.ts`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
@@ -361,7 +382,7 @@ are the dated proof you bring them.
 | 4 Sep | Done a day early: the amendment chain — when a state edits a notice in place (a moved effective date, a changed headcount, a rescission), the receipt shows before → after with both capture times, because a postponement past 60 days needs a fresh notice (Messer v. Bristol) and the diff is the claim; the dated "nothing filed" receipt — "as of <time>, no notice from X in the six files we hold, snapshots hashed" — with an alert when one appears |
 | 5 Sep | Done two days early: the 30/90-day aggregation line per employer and site ("3rd notice from X at this address in 74 days, 61 workers cumulative") — the batching loophole workers describe, that no tracker computes; the exception line — where a state records the reason given, whether the employer named an exception (unforeseeable business circumstances, faltering company) beside their own public words; Google sign-in once the client id arrives |
 | 6 Sep | Ten receipts to ten plaintiff-side firms and tenant organisers — the thirty-day test; employer share pages (done 3 Sep); AgentMail Developer plan + custom domain, warmup starts |
-| 7 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint; a second adversarial review of everything shipped since 31 Aug |
+| 7 Sep | Judging-week protections done 3 Sep (breakers, "last verified" badges, kill switch, chaos test, pack GC, copy lint); left: a second adversarial review of everything shipped since 31 Aug |
 | 8–10 Sep | New Jersey and Illinois (90/60-day laws, overwritten files); Wisconsin (the one state that publishes revision codes — the model for the amendment chain); the NYC feeds that are provably lossy where HPD is not: restaurant inspections (closed restaurants vanish) and OATH hearings (dismissed violations are removed from the property record) |
 | 11–13 Sep | Firecrawl: HTML-only states and employer newsroom captures; share images; teaser post |
 | 14–16 Sep | Hardening: redaction, chaos test with keys removed, the lawyer export (employer, site, notice date, first separation, count, exception text, amendments, limitations date) |

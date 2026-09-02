@@ -353,11 +353,21 @@ export default defineSchema({
     threadId: v.optional(v.string()),
     downloadToken: v.string(),
     storageId: v.optional(v.id("_storage")),
-    status: v.union(v.literal("building"), v.literal("ready"), v.literal("failed")),
+    /** "expired": the PDF was removed after thirty days; the receipt it was built from is kept. */
+    status: v.union(v.literal("building"), v.literal("ready"), v.literal("failed"), v.literal("expired")),
     pages: v.optional(v.number()),
     bytes: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_download_token", ["downloadToken"])
     .index("by_subject", ["subjectKey", "createdAt"]),
+
+  /** One row per provider: failures in a row, and until when the breaker is open. */
+  breakers: defineTable({
+    provider: v.string(),
+    failures: v.number(),
+    openedUntil: v.number(),
+    lastError: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_provider", ["provider"]),
 });

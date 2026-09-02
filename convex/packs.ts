@@ -170,3 +170,25 @@ export const byToken = internalQuery({
     return pack ? { status: pack.status, storageId: pack.storageId, query: pack.query } : null;
   },
 });
+
+/**
+ * Thirty days on, the PDF goes and the row says "expired". The receipt it
+ * was built from, and every version behind it, stay; a fresh PACK reply
+ * builds it again from the same rows. Storage holds versions, not copies.
+ */
+export const expire = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const cutoff = Date.now() - 30 * 86_400_000;
+    const old = (await ctx.db.query("packs").withIndex("by_creation_time", (q) => q.lt("_creationTime", cutoff)).take(100)).filter(
+      (p) => p.status === "ready" && p.storageId,
+    );
+    for (const p of old) {
+      await ctx.storage.delete(p.storageId!);
+      await ctx.db.patch(p._id, { storageId: undefined, status: "expired" });
+    }
+    if (old.length > 0) console.log(`[packs] expired ${old.length}`);
+    return old.length;
+  },
+});

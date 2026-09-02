@@ -44,7 +44,7 @@ export default function Pricing() {
             <li>A weekly digest of what changed, packs included</li>
             <li>$499 with CSV and API access across every state we cover</li>
           </ul>
-          <a className="cta" href={mailto("MONITOR", "Your organisation, and the employers or buildings you watch:")}>
+          <a className="cta" href={mailto("MONITOR", "Your organisation, and the employers or buildings you follow:")}>
             Email MONITOR
           </a>
         </div>

@@ -4,6 +4,7 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { groupForWall } from "../../engine/wall";
 import { scoreCompany } from "../../engine/match";
+import { paused } from "../guard";
 const MAX_ALERTS_PER_BATCH = 200;
 /** Every active follow is read into memory per batch; this bounds that read. */
 const MAX_TRACKED_SUBSCRIPTIONS = 2000;
@@ -27,6 +28,7 @@ export const tick = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
+    if (paused("ingest")) return 0;
     const now = Date.now();
     const due = await ctx.db
       .query("sources")

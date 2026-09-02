@@ -244,7 +244,7 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
         query: "monitor",
         headline: "Monitor: unlimited follows for your team, a weekly digest of what changed, packs included.",
         blocks: [
-          ["$199 a month for an organisation, up to five people. $499 with CSV and API access across every state we cover.", "Reply with your organisation's name and the employers or buildings you watch, and we'll set it up and email this thread."],
+          ["$199 a month for an organisation, up to five people. $499 with CSV and API access across every state we cover.", "Reply with your organisation's name and the employers or buildings you follow, and we'll set it up and email this thread."],
         ],
         links: [],
         footer: ["No card needed to ask. Reply STOP to withdraw the request."],
