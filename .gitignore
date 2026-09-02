@@ -19,5 +19,9 @@ build/
 # convex login log
 .convex-login.log
 
-# Scratch files from review runs; never part of the repo.
+# Scratch from review and agent runs; never part of the repo.
 scripts/.tmp/
+scripts/_*.ts
+scripts/zz-*.ts
+.tmpcheck/
+scratch-*.ts
