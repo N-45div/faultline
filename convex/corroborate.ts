@@ -67,6 +67,13 @@ export const check = action({
     const hit: Corroborated | null = await ctx.runQuery(internal.corroborateData.cached, { employer, filingDate });
     if (hit) return { ...hit, state: hit.corroborated ? "found" : "none", cached: true };
     if (!process.env.OPENAI_API_KEY) return { state: "off" };
+    // Only for a filing we hold. Anyone can call this; only the page's own
+    // employer + notice date pairs cost money.
+    const known: boolean = await ctx.runQuery(internal.corroborateData.isFiling, { employer, filingDate });
+    if (!known) {
+      console.warn(`[corroborate] refused: not a filing we hold (${employer.slice(0, 60)} / ${filingDate})`);
+      return { state: "failed" };
+    }
 
     const spent = await ctx.runQuery(internal.corroborateData.callsToday, {});
     if (spent >= DAILY_SEARCH_CAP) {

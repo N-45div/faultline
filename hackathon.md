@@ -302,6 +302,17 @@ tokenises them, plus the stem of a possessive typed without its apostrophe
 ("McDonalds" finds McDonald's Corporation). Recall only — ranking still scores
 the raw query against the raw label (`engine/match.ts`, `convex/lookup.ts`).
 
+### 2026-09-03 - b884261
+Three items from the 2 September review. The corroboration search costs
+money and its action is public, so it now buys only for a filing we hold —
+the employer and notice date exactly as a state's file has them; a stranger
+with the URL cannot spend the day's budget on names of their own. One page
+per employer: the employer query returns the canonical slug and the page
+settles on it, so "spirit", "spirit-airlines" and "spirit-airlines-llc" are
+one URL for bookmarks and shares. And the "Close matches" links use the same
+slug helper as every other link (`convex/corroborateData.ts`,
+`convex/corroborate.ts`, `convex/lookup.ts`, `src/Employer.tsx`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

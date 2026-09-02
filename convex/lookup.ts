@@ -416,16 +416,19 @@ export const employer = query({
     matches: v.array(v.object({ company: v.string(), score: v.number() })),
     /** The filing in fields, so the page can go and ask what they said in public. */
     filing: v.optional(v.object({ employer: v.string(), filingDate: v.string(), statedReason: v.optional(v.string()) })),
+    /** The one slug this employer's page lives at, so two spellings share one URL. */
+    canonical: v.optional(v.string()),
   }),
   handler: async (ctx, { q }) => {
     type Filing = { employer: string; filingDate: string; statedReason?: string } | undefined;
     const clean = q.replace(/-/g, " ").trim().slice(0, 120);
-    if (!clean) return { receipt: noMatchReceipt("", []), matches: [], filing: undefined as Filing };
+    if (!clean) return { receipt: noMatchReceipt("", []), matches: [], filing: undefined as Filing, canonical: undefined as string | undefined };
     const built = await buildReceipt(ctx.db, clean);
-    if (built.receipt.kind !== "layoff" || !built.receipt.subjectKey) return { ...built, filing: undefined as Filing };
+    if (built.receipt.kind !== "layoff" || !built.receipt.subjectKey) return { ...built, filing: undefined as Filing, canonical: undefined as string | undefined };
     const rows = await noticesFor(ctx.db, [built.receipt.subjectKey]);
     const first = [...rows].sort((a, b) => (a.noticeDate < b.noticeDate ? 1 : -1))[0];
     const filing: Filing = first ? { employer: first.company, filingDate: first.noticeDate, statedReason: first.reason } : undefined;
-    return { ...built, filing };
+    const canonical: string | undefined = first ? slug(first.company) : undefined;
+    return { ...built, filing, canonical };
   },
 });

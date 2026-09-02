@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAction, useQuery } from "convex/react";
+import { toSlug } from "./Receipts";
 import { api } from "../convex/_generated/api";
 import FollowButton from "./FollowButton";
 import Versions from "./Versions";
@@ -28,6 +29,15 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
     api.corroborateData.shown,
     result?.filing ? { employer: result.filing.employer, filingDate: result.filing.filingDate } : "skip",
   );
+  // One page per employer: a query typed as "spirit" or "spirit-airlines-llc"
+  // settles on the slug the receipt links to, so bookmarks and shares agree.
+  useEffect(() => {
+    const canonical = result?.canonical;
+    if (canonical && canonical !== q && window.location.pathname === `/e/${q}`) {
+      window.history.replaceState({}, "", `/e/${canonical}`);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+  }, [result?.canonical, q]);
   useEffect(() => {
     if (bought && !asked) {
       setSaid({ ...bought, state: "found" });
@@ -161,7 +171,7 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
           {result.matches.map((m, i) => (
             <span key={m.company}>
               {i > 0 && " · "}
-              <a href={`/e/${m.company.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>{m.company}</a>
+              <a href={`/e/${toSlug(m.company)}`}>{m.company}</a>
             </span>
           ))}
         </p>

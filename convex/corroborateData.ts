@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, query } from "./_generated/server";
+import { findEmployerSites, noticesFor } from "./lookup";
 
 // The database half of the corroboration path. The search itself lives in
 // corroborate.ts, which needs the Node runtime; this side is what remembers,
@@ -34,6 +35,24 @@ export const cached = internalQuery({
       confidence: row.confidence,
       citations: row.citations,
     };
+  },
+});
+
+/**
+ * The search is paid for, and the action that buys it is public. It buys
+ * only for a filing we hold — the employer's name and notice date exactly as
+ * a state's file has them — so a stranger with the URL cannot spend the day's
+ * budget on names of their own.
+ */
+export const isFiling = internalQuery({
+  args: { employer: v.string(), filingDate: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { employer, filingDate }) => {
+    const sites = await findEmployerSites(ctx.db, employer);
+    const keys = sites.filter((s) => s.company === employer).map((s) => s.subjectKey);
+    if (keys.length === 0) return false;
+    const rows = await noticesFor(ctx.db, keys);
+    return rows.some((r) => r.company === employer && r.noticeDate === filingDate);
   },
 });
 
