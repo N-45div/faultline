@@ -3,6 +3,17 @@ import { noticePhrase, warnNoticeGap } from "./rules";
 // The receipt is the product. Every word here is read by someone who got a
 // letter this month, so it uses the record's own words and never a verdict.
 
+/**
+ * One in-place edit the state made to a notice, as we saw it: which fields
+ * moved, from what to what, and when we caught it. The version before is kept.
+ */
+export interface Amendment {
+  at: number;
+  changed: string[];
+  before: Record<string, string | number | boolean | null>;
+  after: Record<string, string | number | boolean | null>;
+}
+
 export interface LayoffNoticeRow {
   company: string;
   siteAddress: string;
@@ -13,6 +24,43 @@ export interface LayoffNoticeRow {
   jurisdiction: "US-NY" | "US-CA" | "US-MD" | "US-CO" | "US-NC" | "US-VA";
   layoffOrClosure?: string;
   reason?: string;
+  amendments?: Amendment[];
+}
+
+const FIELD_WORDS: Record<string, string> = {
+  effectiveDate: "the layoff start date",
+  noticeDate: "the notice date",
+  employeesAffected: "the number of workers",
+  reason: "the stated reason",
+  layoffOrClosure: "the type of action",
+};
+
+/**
+ * The amendment chain, in words. States edit notices in place; the diff
+ * between versions is the thing a lawyer asks for, so it is spelled out with
+ * both values and the day we caught it. A later start date gets the federal
+ * rule beside it — the rule, never a verdict.
+ */
+export function amendmentLines(a: Amendment): string[] {
+  const parts: string[] = [];
+  for (const path of a.changed.filter((p) => FIELD_WORDS[p])) {
+    const from = String(a.before[path] ?? "—");
+    const to = String(a.after[path] ?? "—");
+    if (from === to) continue;
+    parts.push(`${FIELD_WORDS[path]} from ${from} to ${to}`);
+  }
+  if (parts.length === 0) return [];
+  const seen = new Date(a.at).toISOString().slice(0, 10);
+  const lines = [`Amended by the state: ${parts.join("; ")}. We saw the change on ${seen}; the version before it is kept.`];
+  const b = String(a.before.effectiveDate ?? "");
+  const c = String(a.after.effectiveDate ?? "");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(b) && /^\d{4}-\d{2}-\d{2}$/.test(c) && c > b) {
+    const moved = Math.round((Date.parse(c) - Date.parse(b)) / 86_400_000);
+    lines.push(
+      `The start moved ${moved} ${moved === 1 ? "day" : "days"} later. Federal rules say a postponement of more than 60 days needs a fresh notice; whether one was given is a question for a lawyer.`,
+    );
+  }
+  return lines;
 }
 
 export interface BuildingStamp {
@@ -120,6 +168,7 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
       const posted = `${state} put this online on ${r.postedDate}, ${days(g.postingLagDays)} after the notice`;
       lines.push(g.postedAfterEffective ? `${posted} — after the ${event} had started.` : `${posted}.`);
     }
+    for (const a of r.amendments ?? []) lines.push(...amendmentLines(a));
     return lines.filter(Boolean);
   });
   if (scored.length > 5) blocks.push([`…and ${scored.length - 5} more filings.`]);
@@ -200,17 +249,33 @@ export function buildingReceipt(query: string, subjectKey: string, label: string
   };
 }
 
-export function noMatchReceipt(query: string, suggestions: string[]): Receipt {
+/**
+ * "Nothing filed" is an answer too — the one workers wait months for and every
+ * tracker gives as "no results". Dated, with each file's last read, and it
+ * can be followed: reply FOLLOW and we say the moment a notice appears.
+ */
+export function noMatchReceipt(query: string, suggestions: string[], opts?: { provenance?: ReceiptOpts["provenance"]; followKey?: string; at?: number }): Receipt {
+  // A whole pasted paragraph echoed back in quotes reads as mockery.
+  const shown = query.length > 60 ? `${query.slice(0, 57).trimEnd()}…` : query;
+  const at = opts?.at ?? Date.now();
+  const files = opts?.provenance ?? [];
+  const blocks: string[][] = [];
+  if (suggestions.length > 0) blocks.push(["Did you mean:", ...suggestions.map((s) => `— ${s}`)]);
+  if (files.length > 0) {
+    blocks.push([
+      `As of ${stamp(at)}, "${shown}" appears in none of the files we hold. Each was last read:`,
+      ...files.map((p) => `— ${p.publisher}: ${stamp(p.lastChecked)} (${p.rows.toLocaleString()} rows)`),
+    ]);
+    blocks.push(["Every read is kept as a dated, hashed copy, so this absence is itself on the record.", "Reply FOLLOW and we'll email you if a notice under this name appears in any of them."]);
+  } else {
+    blocks.push(["Try the company's legal name as it appears on your paperwork, or a street address with the house number."]);
+  }
   return {
     kind: "none",
     query,
-    // A whole pasted paragraph echoed back in quotes reads as mockery.
-    headline: `We couldn't find "${query.length > 60 ? `${query.slice(0, 57).trimEnd()}…` : query}" in the layoff files we hold, or in New York City's housing records.`,
-    blocks: [
-      suggestions.length > 0
-        ? ["Did you mean:", ...suggestions.map((s) => `— ${s}`)]
-        : ["Try the company's legal name as it appears on your paperwork, or a street address with the house number."],
-    ],
+    subjectKey: opts?.followKey,
+    headline: `We couldn't find "${shown}" in the layoff files we hold, or in New York City's housing records.`,
+    blocks,
     links: [],
     footer: ["We hold every layoff notice New York, California, Virginia, Maryland, Colorado and North Carolina have published, and the housing records for hundreds of New York City buildings."],
   };

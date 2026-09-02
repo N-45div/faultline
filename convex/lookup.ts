@@ -73,8 +73,16 @@ export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Pro
         .query("current")
         .withIndex("by_source_subject", (q) => q.eq("sourceId", src._id).eq("subjectKey", key))
         .collect();
+      // The state's in-place edits to these rows, oldest first, so a receipt
+      // can spell out the chain.
+      const edits = (await db.query("changes").withIndex("by_subject", (q) => q.eq("subjectKey", key)).order("asc").take(50)).filter(
+        (c) => c.kind === "changed" && c.before && c.after,
+      );
       for (const c of cur) {
         const f = c.fields;
+        const amendments = edits
+          .filter((e) => e.identityKey === c.identityKey)
+          .map((e) => ({ at: e.detectedAt, changed: e.changed, before: e.before!, after: e.after! }));
         rows.push({
           company: String(f.company),
           siteAddress: String(f.siteAddress),
@@ -85,6 +93,7 @@ export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Pro
           jurisdiction,
           layoffOrClosure: f.layoffOrClosure ? String(f.layoffOrClosure) : undefined,
           reason: f.reason ? String(f.reason) : undefined,
+          amendments: amendments.length > 0 ? amendments : undefined,
         });
       }
     }
@@ -328,7 +337,14 @@ export async function buildReceipt(db: DatabaseReader, q: string): Promise<{ rec
       };
     }
   }
-  return { receipt: noMatchReceipt(q, matches.slice(0, 3).map((m) => m.company)), matches: matches.slice(0, 5) };
+  // Nothing filed: say so with a date and each file's last read, and make it
+  // followable — the subject key is the question itself.
+  const provenance = await provenanceFor(db, [...Object.keys(LAYOFF_STATES), "nyc-hpd"]);
+  const followKey = companyTokens(q).length > 0 ? `q:${slug(q)}` : undefined;
+  return {
+    receipt: noMatchReceipt(q, matches.slice(0, 3).map((m) => m.company), { provenance, followKey }),
+    matches: matches.slice(0, 5),
+  };
 }
 
 const receiptValidator = v.object({

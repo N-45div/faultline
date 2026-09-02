@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { nyWarn } from "../engine/adapters/nyWarn";
 import { scoreCompany, scoreAddress, mentionsCompany, companyMentionScore } from "../engine/match";
 import { classifyInbound } from "../engine/intent";
-import { buildingReceipt, layoffReceipt, receiptText, type LayoffNoticeRow } from "../engine/receipt";
+import { amendmentLines, buildingReceipt, layoffReceipt, noMatchReceipt, receiptText, type LayoffNoticeRow } from "../engine/receipt";
 
 let failures = 0;
 const check = (cond: boolean, msg: string) => {
@@ -108,6 +108,38 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(t.indexOf("class C") < t.indexOf("class B"), "class C shown before class B");
   check(/We hold 3 rows for this, in 4 versions, and have read the file 41 times since 2026-08-29\./.test(t), "the held line counts");
   check(/Read from New York City's file on 2026-09-02 03:12 UTC \(HTTP 200, 3,382 rows\)/.test(t), "the provenance line is dated");
+}
+
+// The amendment chain: a state moved a start date in place. Both values, the
+// day we caught it, the kept version, and the federal rule beside it.
+{
+  const lines = amendmentLines({
+    at: Date.UTC(2026, 8, 5),
+    changed: ["effectiveDate"],
+    before: { effectiveDate: "2026-10-31", employeesAffected: 545 },
+    after: { effectiveDate: "2027-01-15", employeesAffected: 545 },
+  });
+  check(/Amended by the state: the layoff start date from 2026-10-31 to 2027-01-15\. We saw the change on 2026-09-05; the version before it is kept\./.test(lines[0] ?? ""), `amendment line: ${lines[0]}`);
+  check(/The start moved 76 days later\. Federal rules say a postponement of more than 60 days needs a fresh notice; whether one was given is a question for a lawyer\./.test(lines[1] ?? ""), `postponement line: ${lines[1]}`);
+  check(amendmentLines({ at: 0, changed: ["county"], before: { county: "Howard" }, after: { county: "Howard County" } }).length === 0, "a change nobody cares about says nothing");
+  const withAmend = layoffReceipt("Crothall", "x", [{ company: "Crothall Healthcare", siteAddress: "Richmond VA", workers: 545, noticeDate: "2026-08-28", effectiveDate: "2027-01-15", postedDate: "", jurisdiction: "US-VA", amendments: [{ at: Date.UTC(2026, 8, 5), changed: ["effectiveDate"], before: { effectiveDate: "2026-10-31" }, after: { effectiveDate: "2027-01-15" } }] }], { versionsSince: "2026-08-29" });
+  check(/Amended by the state/.test(receiptText(withAmend)), "the receipt carries the amendment");
+}
+
+// Nothing filed is an answer: dated, per file, followable.
+{
+  const none = noMatchReceipt("Initech", [], {
+    at: Date.UTC(2026, 8, 3, 1, 0),
+    followKey: "q:initech",
+    provenance: [
+      { publisher: "New York", url: "u", at: 1, status: 200, rows: 193, lastChecked: Date.UTC(2026, 8, 2, 18, 30) },
+      { publisher: "Virginia", url: "u", at: 1, status: 200, rows: 1123, lastChecked: Date.UTC(2026, 8, 2, 20, 0) },
+    ],
+  });
+  const t = receiptText(none);
+  check(/As of 2026-09-03 01:00 UTC, "Initech" appears in none of the files we hold/.test(t), "the absence is dated");
+  check(/— Virginia: 2026-09-02 20:00 UTC \(1,123 rows\)/.test(t), "each file's last read is listed");
+  check(none.subjectKey === "q:initech" && /Reply FOLLOW and we'll email you if a notice under this name appears/.test(t), "the absence can be followed");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

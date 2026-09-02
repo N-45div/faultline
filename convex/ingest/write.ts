@@ -3,6 +3,7 @@ import { internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { groupForWall } from "../../engine/wall";
+import { scoreCompany } from "../../engine/match";
 const MAX_ALERTS_PER_BATCH = 200;
 /** Every active follow is read into memory per batch; this bounds that read. */
 const MAX_TRACKED_SUBSCRIPTIONS = 2000;
@@ -428,7 +429,7 @@ export const markInboxSubject = internalMutation({
  */
 async function enqueueAlerts(
   ctx: { db: any },
-  changes: { subjectKey: string; sentence: string }[],
+  changes: { subjectKey: string; sentence: string; kind: "added" | "changed" | "removed"; after?: Record<string, string | number | boolean | null> }[],
   sourceUrl: string,
 ) {
   const subs: Doc<"subscriptions">[] = await ctx.db
@@ -437,18 +438,26 @@ async function enqueueAlerts(
     .take(MAX_TRACKED_SUBSCRIPTIONS);
   if (subs.length === 0) return;
   const followers = new Map<string, Doc<"subscriptions">[]>();
+  // A follow on a NAME, not a filing: "tell me if anything appears under
+  // Amazon". Matched against each newly added row's employer.
+  const nameWatches: { query: string; sub: Doc<"subscriptions"> }[] = [];
   for (const s of subs) {
     if (!s.active) continue;
-    followers.set(s.subjectKey, [...(followers.get(s.subjectKey) ?? []), s]);
+    if (s.subjectKey.startsWith("q:")) nameWatches.push({ query: s.subjectKey.slice(2).replace(/-/g, " "), sub: s });
+    else followers.set(s.subjectKey, [...(followers.get(s.subjectKey) ?? []), s]);
   }
-  if (followers.size === 0) return;
+  if (followers.size === 0 && nameWatches.length === 0) return;
 
   const now = Date.now();
   let queued = 0;
   const seen = new Set<string>();
   for (const c of changes) {
-    const watchers = followers.get(c.subjectKey);
-    if (!watchers) continue;
+    const byName =
+      c.kind === "added" && c.after?.company && nameWatches.length > 0
+        ? nameWatches.filter((w) => scoreCompany(w.query, String(c.after!.company)) >= 0.8).map((w) => w.sub)
+        : [];
+    const watchers = [...(followers.get(c.subjectKey) ?? []), ...byName];
+    if (watchers.length === 0) continue;
     for (const w of watchers) {
       // One line per follower per sentence, however many rows carried it.
       const key = `${w.email}|${c.sentence}`;
