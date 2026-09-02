@@ -50,6 +50,16 @@ export const unfollow = mutation({
   },
 });
 
+/** Who is signed in, for the bar. Null when nobody is. */
+export const me = query({
+  args: {},
+  returns: v.union(v.null(), v.object({ email: v.string() })),
+  handler: async (ctx) => {
+    const email = await emailOf(ctx);
+    return email ? { email } : null;
+  },
+});
+
 /** Everything the signed-in person follows, with a label to show. */
 export const mine = query({
   args: {},

@@ -48,7 +48,8 @@ export default function Receipts({ go }: { go: (p: string) => void }) {
         <section className="hero" aria-label="A filing as it stands today">
           <p className="kicker">In New York's layoff file today</p>
           <h2>
-            {hero.company} filed a layoff notice for {hero.workers} workers and gave them {days(hero.actualDays)}.
+            {hero.company} filed a layoff notice for {hero.workers} workers
+            {hero.actualDays <= 0 ? ", dated the day the layoff began" : hero.actualDays === 1 ? " and gave them one day" : ` and gave them ${days(hero.actualDays)}`}.
           </h2>
           <p className="gap">
             <strong>

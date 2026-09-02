@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
-import { Authenticated, Unauthenticated } from "convex/react";
-import { useAuthActions } from "@convex-dev/auth/react";
 import Building from "./Building";
 import SignIn from "./SignIn";
 import Employer from "./Employer";
 import Judge from "./Judge";
 import Landing from "./Landing";
 import { Privacy, Terms } from "./Legal";
+import Nav from "./Nav";
 import Receipts from "./Receipts";
-import { INBOX, mailto } from "./Pricing";
 import "./styles.css";
 
 // Every string on these pages is read by a person who got a letter this month.
@@ -39,21 +37,6 @@ export default function App() {
   const isPrivacy = path === "/privacy";
   const isTerms = path === "/terms";
   const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms;
-  const { signOut } = useAuthActions();
-
-  const link = (to: string, label: string) => (
-    <a
-      href={to}
-      className={path === to ? "active" : undefined}
-      onClick={(e) => {
-        e.preventDefault();
-        go(to);
-      }}
-    >
-      {label}
-    </a>
-  );
-
   // The tab and the bookmark say where you are, not the repository's old name.
   useEffect(() => {
     const titles: [boolean, string][] = [
@@ -80,40 +63,7 @@ export default function App() {
 
   return (
     <>
-      <header className="topbar">
-        <div className="container bar">
-          <div className="brand">{link("/", "Notice")}</div>
-          <nav className="nav" aria-label="Main">
-            {link("/app", "Receipts")}
-            {link("/judge", "Tour")}
-            <Unauthenticated>{link("/signin", "Sign in")}</Unauthenticated>
-            <Authenticated>
-              <a
-                href="/signin"
-                onClick={(e) => {
-                  e.preventDefault();
-                  void signOut().then(() => go("/"));
-                }}
-              >
-                Sign out
-              </a>
-            </Authenticated>
-            <a
-              href="/#pricing"
-              onClick={(e) => {
-                e.preventDefault();
-                go("/");
-                setTimeout(() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" }), 60);
-              }}
-            >
-              Pricing
-            </a>
-            <a className="nav-cta" href={mailto("Spirit Airlines")}>
-              {INBOX}
-            </a>
-          </nav>
-        </div>
-      </header>
+      <Nav path={path} go={go} />
       <main className={isLanding ? "landing" : "container narrow"}>{body}</main>
     </>
   );
