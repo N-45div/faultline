@@ -264,6 +264,20 @@ told to ask again. Convex features: queries over observation and snapshot
 indexes, scheduled functions with retry (`convex/lookup.ts`,
 `src/Versions.tsx`, `engine/receipt.ts`, `convex/inbound.ts`).
 
+### 2026-09-03 - working tree
+Pulled forward from 4 September: the two things no tracker does. The
+amendment chain — states edit notices in place, and the receipt now spells out
+which field moved, from what to what, the day we caught it, and that the
+version before is kept; when a start date moves later, the federal rule sits
+beside it as a rule, never a verdict. Proven with a real diff over real bytes.
+And the receipt for nothing filed: dated to the minute, each file's last read
+and row count, a note that every read is a hashed copy so the absence is
+itself on the record, and followable — reply FOLLOW to a name and ingest
+matches every newly added row's employer against it. Convex features: change
+events with before/after read back into receipts, name-keyed subscriptions
+matched at ingest (`engine/receipt.ts`, `convex/lookup.ts`,
+`convex/ingest/write.ts`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
@@ -299,7 +313,7 @@ are the dated proof you bring them.
 | 1 Sep | Four zero-credit states: Virginia (CSV), Maryland (static HTML), North Carolina (S3 CSV with a government VersionId), Colorado (Google Sheet with stated reasons). Building page and address lookup on the web |
 | 2 Sep | The wall as a demo surface (done); judge tour (done); sign-in + FOLLOW from the web (done, pulled forward). Still needs Divij: postal address, AgentMail Developer plan + custom domain, an Outlook address, a Google OAuth client |
 | 3 Sep | Done: "Versions we hold" on every page; the held and provenance lines on every receipt; the building headline counts by class with the city's own words; the address pull writes back |
-| 4 Sep | From the market scan: the amendment chain — when a state edits a notice in place (a moved effective date, a changed headcount, a rescission), the receipt shows before → after with both capture times, because a postponement past 60 days needs a fresh notice (Messer v. Bristol) and the diff is the claim; the dated "nothing filed" receipt — "as of <time>, no notice from X in the six files we hold, snapshots hashed" — with an alert when one appears |
+| 4 Sep | Done a day early: the amendment chain — when a state edits a notice in place (a moved effective date, a changed headcount, a rescission), the receipt shows before → after with both capture times, because a postponement past 60 days needs a fresh notice (Messer v. Bristol) and the diff is the claim; the dated "nothing filed" receipt — "as of <time>, no notice from X in the six files we hold, snapshots hashed" — with an alert when one appears |
 | 5 Sep | The 30/90-day aggregation line per employer and site ("3rd notice from X at this address in 74 days, 61 workers cumulative") — the batching loophole workers describe, that no tracker computes; the exception line — where a state records the reason given, whether the employer named an exception (unforeseeable business circumstances, faltering company) beside their own public words; Google sign-in once the client id arrives |
 | 6 Sep | Ten receipts to ten plaintiff-side firms and tenant organisers — the thirty-day test; employer share pages; AgentMail Developer plan + custom domain, warmup starts |
 | 7 Sep | Judging-week protections: provider circuit breakers, "last verified" badges, kill switch, chaos test with keys revoked, storage GC, copy lint; a second adversarial review of everything shipped since 31 Aug |
