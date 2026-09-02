@@ -344,6 +344,29 @@ per execution as the switch (`convex/guard.ts`, `convex/breaker.ts`,
 `convex/packs.ts`, `convex/crons.ts`, `src/Judge.tsx`,
 `scripts/copy-lint.ts`).
 
+### 2026-09-03 - 600a688
+The eighth file, and the most revealing one. New Jersey publishes its whole
+WARN archive as a single spreadsheet, one sheet per year back to 2004,
+overwritten in place — 2,367 filings. It also publishes no notice date. Every
+other state prints the date the employer's notice bears; New Jersey prints
+the month it posted the notice, "September", and nothing else. So the one
+number this product exists to compute cannot be computed there, and the
+receipt says exactly that: "Posted by New Jersey in February 2025. Layoff
+started 2025-04-24. New Jersey publishes the month it posted a notice, not
+the date the employer gave it, so the notice period cannot be counted from
+the state's file. New Jersey's own WARN Act sets 90 days, and since April
+2023 severance of a week per year worked." The rule is named, never scored.
+The gap rule itself now returns "unknown" rather than zero when a date is
+missing, because zero days' notice is a claim about an employer; a filing
+that cannot be counted sorts last, not first; and the explanation is given
+once per state rather than on all eleven of an employer's filings. The
+effective-date cell is a date, or a range, or a list of twelve dates, or
+"Rolling basis beginning on 6/4" — the first real date is kept and the cell
+as written is kept beside it. A sheet footnote that named no place, no date
+and nobody is no longer ingested as an employer. Brought up on production
+through the same shadow-mode gate as the other seven: two cycles, second one
+zero changes, then promoted. Eight files, 8,026 rows.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
