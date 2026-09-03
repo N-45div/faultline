@@ -51,7 +51,12 @@ export const runNow = internalMutation({
   handler: async (ctx, { slug }) => {
     const s = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
     if (!s) throw new Error(`no source ${slug}`);
-    await ctx.db.patch(s._id, { nextRunAt: 0, lockedUntil: undefined });
+    // The lock is deliberately left alone. Clearing it here let a second
+    // cycle of the same source start while the first was still committing,
+    // and every row both cycles considered new was written twice — two
+    // observations, two changes, two alerts. Making a source due is enough;
+    // the tick will pick it up when the running cycle releases.
+    await ctx.db.patch(s._id, { nextRunAt: 0 });
     return null;
   },
 });

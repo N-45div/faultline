@@ -7,7 +7,12 @@ import { scoreCompany } from "../../engine/match";
 import { paused } from "../guard";
 const MAX_ALERTS_PER_BATCH = 200;
 /** Every active follow is read into memory per batch; this bounds that read. */
-const MAX_TRACKED_SUBSCRIPTIONS = 2000;
+/** Followers of one subject, read per subject rather than table-wide. */
+const MAX_FOLLOWERS_PER_SUBJECT = 200;
+/** Name follows ("tell me if anything appears under Amazon"), read as a group. */
+const MAX_NAME_WATCHES = 500;
+/** No one person's busy building may consume a whole batch's alerts. */
+const MAX_ALERTS_PER_EMAIL_PER_BATCH = 20;
 
 // Everything in this file runs in the V8 runtime and imports no adapter: the
 // Node action parses, hashes, diffs and renders; this side only writes.
@@ -434,24 +439,34 @@ async function enqueueAlerts(
   changes: { subjectKey: string; sentence: string; kind: "added" | "changed" | "removed"; after?: Record<string, string | number | boolean | null> }[],
   sourceUrl: string,
 ) {
-  const subs: Doc<"subscriptions">[] = await ctx.db
-    .query("subscriptions")
-    .withIndex("by_subject")
-    .take(MAX_TRACKED_SUBSCRIPTIONS);
-  if (subs.length === 0) return;
+  // Followers are looked up per subject this batch actually touched. Reading
+  // the whole table and filtering in memory looked cheaper, but the read was
+  // capped: past that many rows, whoever sorted late simply stopped being
+  // told, silently, and inactive rows spent the budget too.
   const followers = new Map<string, Doc<"subscriptions">[]>();
+  for (const key of new Set(changes.map((c) => c.subjectKey))) {
+    const rows: Doc<"subscriptions">[] = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_subject", (q: any) => q.eq("subjectKey", key).eq("active", true))
+      .take(MAX_FOLLOWERS_PER_SUBJECT);
+    if (rows.length > 0) followers.set(key, rows);
+  }
   // A follow on a NAME, not a filing: "tell me if anything appears under
-  // Amazon". Matched against each newly added row's employer.
+  // Amazon". These have no subject to look up, so they are read as a group —
+  // there is no index that finds "every q: key" any other way.
   const nameWatches: { query: string; sub: Doc<"subscriptions"> }[] = [];
-  for (const s of subs) {
-    if (!s.active) continue;
-    if (s.subjectKey.startsWith("q:")) nameWatches.push({ query: s.subjectKey.slice(2).replace(/-/g, " "), sub: s });
-    else followers.set(s.subjectKey, [...(followers.get(s.subjectKey) ?? []), s]);
+  if (changes.some((c) => c.kind === "added")) {
+    const watches: Doc<"subscriptions">[] = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_subject", (q: any) => q.gte("subjectKey", "q:").lt("subjectKey", "q;"))
+      .take(MAX_NAME_WATCHES);
+    for (const s of watches) if (s.active) nameWatches.push({ query: s.subjectKey.slice(2).replace(/-/g, " "), sub: s });
   }
   if (followers.size === 0 && nameWatches.length === 0) return;
 
   const now = Date.now();
   let queued = 0;
+  const perEmail = new Map<string, number>();
   const seen = new Set<string>();
   for (const c of changes) {
     const byName =
@@ -465,6 +480,17 @@ async function enqueueAlerts(
       const key = `${w.email}|${c.sentence}`;
       if (seen.has(key)) continue;
       seen.add(key);
+      // The cap is per person. Returning here abandoned the rest of the batch
+      // for everybody, so one busy building silenced a follower of a quiet
+      // employer whose change happened to sort after it — and because the
+      // changes commit in this same transaction, that alert was never
+      // re-derived.
+      const mine = (perEmail.get(w.email) ?? 0) + 1;
+      perEmail.set(w.email, mine);
+      if (mine > MAX_ALERTS_PER_EMAIL_PER_BATCH) {
+        if (mine === MAX_ALERTS_PER_EMAIL_PER_BATCH + 1) console.warn(`[alerts] ${w.email} hit the ${MAX_ALERTS_PER_EMAIL_PER_BATCH}-line cap for this batch`);
+        continue;
+      }
       if (queued >= MAX_ALERTS_PER_BATCH) {
         // Never silently: an alert dropped here is a person not told.
         console.warn(`[alerts] batch cap ${MAX_ALERTS_PER_BATCH} reached; the rest of this batch is not queued`);

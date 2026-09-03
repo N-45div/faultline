@@ -3,6 +3,7 @@ import { Authenticated, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { urlSlug } from "../engine/canon";
 import { INBOX } from "./Pricing";
+import { noticePhrase } from "../engine/rules";
 
 // The tool: look something up, see what moved, see when we last read each file.
 
@@ -52,11 +53,17 @@ export default function Receipts({ go }: { go: (p: string) => void }) {
           <p className="kicker">In New York's layoff file today</p>
           <h2>
             {hero.company} filed a layoff notice for {hero.workers} workers
-            {hero.actualDays <= 0 ? ", dated the day the layoff began" : hero.actualDays === 1 ? " and gave them one day" : ` and gave them ${days(hero.actualDays)}`}.
+            {hero.actualDays === 0
+              ? ", dated the day the layoff began"
+              : hero.actualDays < 0
+                ? `, dated ${noticePhrase(hero.actualDays).replace(/^dated /, "")}`
+                : hero.actualDays === 1
+                  ? " and gave them one day"
+                  : ` and gave them ${days(hero.actualDays)}`}.
           </h2>
           <p className="gap">
             <strong>
-              {days(hero.actualDays)}. New York's WARN Act sets {ny.statutoryDays}.
+              {noticePhrase(hero.actualDays)}. New York's WARN Act sets {ny.statutoryDays} days.
             </strong>
           </p>
           <dl className="facts">

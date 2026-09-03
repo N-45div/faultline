@@ -432,6 +432,43 @@ only fires where the state publishes an actual street address, not a
 workforce region; and the employer page remounts per employer, so one
 company's public statement can never appear under another's filing.
 
+### 2026-09-03 - e0c1ec1
+The rest of what the six reviews found, verified one at a time.
+
+A 13-worker filing was being scored against the statute — "Maryland's
+Economic Stabilization Act sets 60 days", then a paragraph about which
+exceptions the rule allows. Maryland's own log says it lists dislocations
+that meet no threshold at all, so that read as an accusation the record
+cannot support. Below the federal headcount the receipt now says so and
+withholds the statutory paragraph.
+
+Alerts were being read table-wide and capped: past the cap, whoever sorted
+late simply stopped being told, and a busy building could silence a follower
+of a quiet employer for good, because the changes commit in the same
+transaction and are never re-derived. Followers are now looked up per subject
+and the cap is per person. The digest had the same shape of bug: one
+recipient with a backlog larger than the window owned the whole window
+forever, so nobody else was ever looked at.
+
+`sources.runNow` cleared the per-source lock, which is how two cycles of one
+source could overlap and write every row twice — the incident already in this
+log on 31 August. It now only makes a source due. A 200 that parses to zero
+rows is treated as a failed read instead of updating the timestamp and
+keeping the old row count, which had let a broken file read as "97 rows,
+verified" on the tour. And the kill switch now covers the on-demand city
+pull, and rejects a token it does not recognise instead of announcing a pause
+that is not in effect.
+
+Smaller: "read 97 times since" had lost its date; a notice dated after the
+layoff began no longer renders as "-37 days" on the wall or the landing page;
+Google sign-in failure says something instead of looking like a dead button;
+the tour describes what its example page shows rather than promising a
+particular search result.
+
+Not fixed, and why: making `FIRECRAWL_API_KEY` optional breaks the build —
+the component itself requires it — so the right fix is removing a component
+nothing uses, which is not a thing to do during judging week.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

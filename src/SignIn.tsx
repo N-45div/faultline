@@ -23,7 +23,15 @@ export default function SignIn({ onDone }: { onDone: () => void }) {
       </p>
       {google && (
         <>
-          <button type="button" className="cta google" onClick={() => void signIn("google")}>
+          {/* A rejected sign-in must say so: discarded, it reads as a dead button. */}
+          <button
+            type="button"
+            className="cta google"
+            onClick={() => {
+              setError(null);
+              signIn("google").catch(() => setError("Couldn't start Google sign-in. Use an email and password instead."));
+            }}
+          >
             Continue with Google
           </button>
           <p className="fine or">or with email</p>

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { addressTokens } from "../../engine/match";
+import { paused } from "../guard";
 
 const HEADERS = { "User-Agent": "Notice/0.1", Accept: "application/json" };
 const HPD = "https://data.cityofnewyork.us/resource/wvxf-dwi5.json";
@@ -15,6 +16,7 @@ export const standingHpdCohort = internalAction({
   args: { limit: v.optional(v.number()) },
   returns: v.object({ fetched: v.number(), added: v.number() }),
   handler: async (ctx, { limit }) => {
+    if (paused("ingest")) return { fetched: 0, added: 0 };
     const n = Math.min(limit ?? 300, 1000);
     const url = encodeURI(`${HPD}?$select=bbl,count(1) as n&$where=violationstatus='Open'&$group=bbl&$order=n DESC&$limit=${n}`);
     const res = await fetch(url, { headers: HEADERS });
@@ -46,6 +48,9 @@ export const resolveAddress = internalAction({
   args: { q: v.string(), inboxId: v.optional(v.id("inbox")) },
   returns: v.object({ bbls: v.array(v.string()) }),
   handler: async (ctx, { q, inboxId }) => {
+    // This is a read of the city's file, started by a stranger's email. With
+    // ingest paused it must not run either, or the switch is not a switch.
+    if (paused("ingest")) return { bbls: [] };
     const tokens = addressTokens(q);
     if (tokens.length < 2) return { bbls: [] };
     const house = tokens[0].toUpperCase().replace(/'/g, "''");

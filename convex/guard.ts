@@ -12,13 +12,16 @@
 
 export type Pausable = "mail" | "ingest" | "llm";
 
+const PAUSABLE = new Set(["all", "mail", "ingest", "llm"]);
+
 export function pausedSet(): Set<string> {
-  return new Set(
-    (process.env.NOTICE_PAUSE ?? "")
-      .toLowerCase()
-      .split(/[,\s]+/)
-      .filter(Boolean),
-  );
+  const asked = (process.env.NOTICE_PAUSE ?? "").toLowerCase().split(/[,\s]+/).filter(Boolean);
+  const known = asked.filter((t) => PAUSABLE.has(t));
+  // A misspelt token pauses nothing. Saying so matters: the page reports what
+  // is paused, and "NOTICE_PAUSE=email" would otherwise announce a pause that
+  // is not in effect while mail keeps going out.
+  for (const t of asked) if (!PAUSABLE.has(t)) console.error(`[guard] NOTICE_PAUSE: "${t}" is not one of ${[...PAUSABLE].join(", ")} — ignored`);
+  return new Set(known);
 }
 
 export function paused(what: Pausable): boolean {

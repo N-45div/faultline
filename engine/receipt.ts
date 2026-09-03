@@ -1,5 +1,5 @@
 import { daysBetween, foldString, monthName } from "./canon";
-import { OWN_ACT, WARN_EXCEPTIONS, noticePhrase, statuteName, warnNoticeGap, type NoticeGapResult } from "./rules";
+import { FEDERAL_WARN_THRESHOLD, OWN_ACT, WARN_EXCEPTIONS, noticePhrase, statuteName, warnNoticeGap, type NoticeGapResult } from "./rules";
 
 // The receipt is the product. Every word here is read by someone who got a
 // letter this month, so it uses the record's own words and never a verdict.
@@ -298,8 +298,18 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
         ? `${monthName(r.noticeMonth ?? "") ? `Posted by ${state} in ${monthName(r.noticeMonth ?? "")}` : `${state} gives no notice date`}. ${started}`
         : `Notice dated ${r.noticeDate}. ${started}`;
     const lines = [siteLine, dateLine, noticeLine].filter(Boolean);
-    const exception = exceptionLine(r, g);
-    if (exception) lines.push(exception);
+    // Below the federal headcount, the statutory paragraph is withheld: the
+    // state lists filings its own act does not reach, and scoring one of those
+    // against the rule reads as an accusation the record cannot support.
+    const small = r.workers > 0 && r.workers < FEDERAL_WARN_THRESHOLD;
+    if (small && g.verdict === "gap") {
+      lines.push(
+        `${r.workers} ${r.workers === 1 ? "worker" : "workers"} — below the ${FEDERAL_WARN_THRESHOLD} the federal act normally requires notice for at one site. States list filings their own statutes do not reach, so whether notice was owed here is a question for a lawyer.`,
+      );
+    } else {
+      const exception = exceptionLine(r, g);
+      if (exception) lines.push(exception);
+    }
     const together = aggregationLine(r, rows);
     if (together) lines.push(together);
     if (g.postingLagDays !== null) {

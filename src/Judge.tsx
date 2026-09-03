@@ -196,8 +196,9 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         <h2 className="h2">What they said in public, beside what they filed.</h2>
         <p>
           On any employer's page, one button runs a single capped web search and returns the employer's own dated
-          words with clickable citations. For Spirit Airlines: the state's file says "Bankruptcy Economic" on 2 May;
-          three weeks earlier the company issued a release celebrating being named the best airline of 2026.
+          words with clickable citations, beside the reason the state recorded — for Spirit Airlines, "Bankruptcy
+          Economic" on a notice dated the day the closure began. If the search finds nothing the page says so, because
+          "we didn't look" and "we looked and found nothing" are different answers.
         </p>
         <p className="tour-ctas">
           <a className="cta" href="/e/spirit-airlines" onClick={(e) => { e.preventDefault(); go("/e/spirit-airlines"); }}>

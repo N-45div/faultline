@@ -84,7 +84,7 @@ export const forceChange = internalMutation({
       });
       if (!subjectKeys.includes(c.subjectKey)) subjectKeys.push(c.subjectKey);
     }
-    await ctx.db.patch(src._id, { nextRunAt: 0, lockedUntil: undefined });
+    await ctx.db.patch(src._id, { nextRunAt: 0, lockedUntil: undefined /* dev only: forceChange runs against a quiet source */ });
     return { rewound: current.length, subjectKeys };
   },
 });

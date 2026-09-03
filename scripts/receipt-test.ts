@@ -154,6 +154,12 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/^New York's file records no reason\. The rule allows shorter notice only for/.test(exceptionLine(ny(undefined), gap) ?? ""), "no reason recorded");
   check(/^Colorado's file records no reason \("Not Specified"\)\./.test(exceptionLine({ ...ny("Not Specified"), jurisdiction: "US-CO" }, { verdict: "gap", jurisdiction: "US-CO" }) ?? ""), "'Not Specified' is no reason");
   check(exceptionLine(ny("Economic"), { verdict: "within", jurisdiction: "US-NY" }) === null, "nothing to say when notice was within the statute");
+  // A filing below the federal headcount gets the threshold, not a verdict.
+  const small = receiptText(
+    layoffReceipt("Z", "z", [{ company: "Z", siteAddress: "1 Main St", workers: 13, noticeDate: "2026-05-04", effectiveDate: "2026-05-02", postedDate: "", jurisdiction: "US-MD" }], { versionsSince: "2026-08-29" }),
+  );
+  check(/13 workers — below the 50 the federal act normally requires notice for at one site\./.test(small), "a sub-threshold filing says so");
+  check(!/records no reason\. The rule allows shorter notice only for/.test(small), "and is not given the exception paragraph");
   // A word inside a reason is not a legal exception. Colorado writes free text.
   const co = (reason: string) => exceptionLine({ ...ny(reason), jurisdiction: "US-CO" }, { verdict: "gap", jurisdiction: "US-CO" }) ?? "";
   check(/names none of the exceptions/.test(co("Natural gas plant shutdown")), "'natural gas' does not name the natural-disaster exception");

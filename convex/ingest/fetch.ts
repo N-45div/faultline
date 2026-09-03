@@ -67,6 +67,17 @@ export const runSource = internalAction({
       const observations = await toObservations(adapter, fetched.body, fetched.bodySha256, startedAt);
       next.lastStatus = `${fetched.status} · ${observations.length} rows`;
 
+      // A 200 that parses to nothing is a broken read, not an empty file: a
+      // state redesigned its page, a header row moved, a sheet lost its public
+      // sharing. Recorded as a failure, so the tour shows it — otherwise the
+      // source keeps its old row count and its fresh timestamp and reads as
+      // "97 rows, verified" while it has ingested nothing for days.
+      if (observations.length === 0) {
+        // Thrown, so it takes the same backoff and the same failure counter as
+        // any other broken read.
+        throw new Error(`HTTP ${fetched.status} parsed to 0 rows`);
+      }
+
       // The "before" side, read in slices — a city asks about thousands of rows.
       const prev: PrevIndex = {};
       const mode = adapter.presence === "open_world" ? "all" : "keys";

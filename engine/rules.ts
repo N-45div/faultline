@@ -45,6 +45,15 @@ export function statuteName(jurisdiction: string): string {
   return OWN_ACT[jurisdiction] ?? "federal WARN";
 }
 
+/**
+ * The headcount the federal act normally needs before notice is owed at a
+ * single site. States publish more than their own statute reaches — Maryland
+ * says so itself: its log lists dislocations that meet no threshold at all.
+ * A row is evidence that a notice was filed, never evidence that one was
+ * required, and a 13-worker filing must not be scored as if it were.
+ */
+export const FEDERAL_WARN_THRESHOLD = 50;
+
 export const WARN_EXCEPTIONS: Record<string, string[]> = {
   "US": ["faltering company", "unforeseeable business circumstances", "natural disaster"],
   "US-NY": ["faltering company", "unforeseeable business circumstances", "natural disaster", "strike or lockout"],

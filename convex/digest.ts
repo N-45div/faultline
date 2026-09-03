@@ -14,6 +14,10 @@ const NL = String.fromCharCode(10);
 const DAY_MS = 86_400_000;
 /** Nobody hears from us more often than this, however much moves. */
 const MIN_GAP_MS = DAY_MS;
+/** How far down the queue one run looks, and how much of it one person may own. */
+const SCAN_PER_RUN = 1000;
+/** How many of one person's queued lines a single run will claim. */
+const MAX_CLAIMED_PER_EMAIL = 40;
 const MAX_RECIPIENTS_PER_RUN = 20;
 const MAX_LINES_PER_EMAIL = 12;
 
@@ -26,15 +30,24 @@ export const flush = internalMutation({
     // Paused mail waits in the queue; nothing is dropped.
     if (paused("mail")) return { sent: 0, held: 0 };
 
+    // Oldest first, but bounded per person. One recipient with a backlog
+    // larger than this window used to fill it entirely — and because a gated
+    // recipient's rows are held rather than claimed, the same rows came back
+    // every minute and nobody else's alert was ever looked at.
     const pending = await ctx.db
       .query("alertQueue")
       .withIndex("by_status_created", (q) => q.eq("status", "pending"))
       .order("asc")
-      .take(400);
+      .take(SCAN_PER_RUN);
     if (pending.length === 0) return { sent: 0, held: 0 };
 
     const byEmail = new Map<string, Doc<"alertQueue">[]>();
-    for (const a of pending) byEmail.set(a.email, [...(byEmail.get(a.email) ?? []), a]);
+    for (const a of pending) {
+      const rows = byEmail.get(a.email) ?? [];
+      if (rows.length >= MAX_CLAIMED_PER_EMAIL) continue;
+      rows.push(a);
+      byEmail.set(a.email, rows);
+    }
 
     const now = Date.now();
     let sent = 0;

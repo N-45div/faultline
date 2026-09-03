@@ -18,8 +18,8 @@ export default function Versions({ subjectKey, q }: { subjectKey: string; q?: st
       <h3>Versions we hold</h3>
       <p>
         {v.rows.length} {v.rows.length === 1 ? "row" : "rows"} in {totalVersions} {totalVersions === 1 ? "version" : "versions"}, first
-        captured {day(v.since)}. The file has been read {v.reads.toLocaleString()} {v.reads === 1 ? "time" : "times"} since
-        {v.lastRead ? `, most recently ${when(v.lastRead)}` : ""}. Each version is hashed at capture; the hash below is
+        captured {day(v.since)}. The file has been read {v.reads.toLocaleString()} {v.reads === 1 ? "time" : "times"} since{" "}
+        {day(v.since)}{v.lastRead ? `, most recently ${when(v.lastRead)}` : ""}. Each version is hashed at capture; the hash below is
         the current one.
       </p>
       <ul>
