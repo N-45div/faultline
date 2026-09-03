@@ -90,13 +90,14 @@ export default function Landing({ go }: { go: (p: string) => void }) {
                 <p className="muted">were put online by the state after the layoff had already started</p>
               </div>
               <div>
-                <p className="big">{hero.actualDays > 0 ? days(hero.actualDays) : "None"}</p>
+                <p className="big">{hero.actualDays > 0 ? days(hero.actualDays) : "0 days"}</p>
                 <p className="muted">
-                  {hero.actualDays > 0
-                    ? "the shortest notice in the file"
-                    : hero.actualDays === 0
-                      ? "notice at all: the shortest was dated the day the layoff began"
-                      : `notice at all: the shortest was dated ${-hero.actualDays} days after the layoff began`}{" "}
+                  the shortest notice in the file
+                  {hero.actualDays === 0
+                    ? ", dated the day the layoff began"
+                    : hero.actualDays < 0
+                      ? `, dated ${-hero.actualDays} ${-hero.actualDays === 1 ? "day" : "days"} after the layoff began`
+                      : ""}{" "}
                   — {hero.company}, {hero.workers} workers
                 </p>
               </div>
