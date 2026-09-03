@@ -469,6 +469,16 @@ Not fixed, and why: making `FIRECRAWL_API_KEY` optional breaks the build —
 the component itself requires it — so the right fix is removing a component
 nothing uses, which is not a thing to do during judging week.
 
+### 2026-09-03 - 45663ed
+The last of the money findings. The daily search cap was read in an action and
+written ten seconds later, once the call returned — so any number of
+concurrent callers all read zero and all spent. A slot is now claimed in a
+mutation before anything is bought, which Convex serialises, and released
+again if the call fails. And corroboration no longer counts against the
+letter-reading budget: a burst of public search calls could take the thing
+people actually email us for offline for a day (`convex/corroborateData.ts`,
+`convex/corroborate.ts`, `convex/llm.ts`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

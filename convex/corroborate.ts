@@ -79,8 +79,9 @@ export const check = action({
       return { state: "failed" };
     }
 
-    const spent = await ctx.runQuery(internal.corroborateData.callsToday, {});
-    if (spent >= DAILY_SEARCH_CAP) {
+    // Claimed in one transaction before anything is bought.
+    const reservationId = await ctx.runMutation(internal.corroborateData.reserve, { cap: DAILY_SEARCH_CAP });
+    if (!reservationId) {
       console.warn(`[corroborate] daily cap ${DAILY_SEARCH_CAP} reached`);
       return { state: "budget" };
     }
@@ -172,12 +173,13 @@ export const check = action({
         confidence: parsed?.confidence ?? "low",
         citations,
       };
-      await ctx.runMutation(internal.corroborateData.record, { employer, filingDate, subjectKey, ...out, costCents: cents });
+      await ctx.runMutation(internal.corroborateData.record, { employer, filingDate, subjectKey, ...out, costCents: cents, reservationId });
       console.log(`[corroborate] ${employer} ${filingDate} → ${out.corroborated ? "corroborated" : "nothing found"}, ${citations.length} citations, ${cents.toFixed(3)}¢`);
       await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: true });
       return { ...out, state: out.corroborated ? "found" : "none", cached: false };
     } catch (e) {
       console.error(`[corroborate] failed: ${String(e)}`);
+      await ctx.runMutation(internal.corroborateData.release, { id: reservationId });
       // Only a provider fault trips the breaker. A 400 is our request's fault,
       // and counting it would let three bad calls switch the model off for
       // everyone for fifteen minutes.

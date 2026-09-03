@@ -42,7 +42,10 @@ export const callsToday = internalQuery({
   handler: async (ctx) => {
     const start = Date.now() - 86_400_000;
     const rows = await ctx.db.query("llmUsage").withIndex("by_created", (q) => q.gte("createdAt", start)).collect();
-    return rows.length;
+    // Letters only. Counting corroboration here meant a burst of public search
+    // calls could take letter-reading — the thing people actually email us
+    // for — offline for a day.
+    return rows.filter((r) => r.purpose !== "corroborate").length;
   },
 });
 

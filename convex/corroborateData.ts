@@ -70,8 +70,44 @@ export const callsToday = internalQuery({
   },
 });
 
+/**
+ * Claim one of the day's searches before buying it. The cap used to be read in
+ * an action and written ten seconds later, after the call returned — so any
+ * number of concurrent callers all read zero and all spent. A mutation reads
+ * and writes in one transaction, and Convex serialises the racers.
+ */
+export const reserve = internalMutation({
+  args: { cap: v.number() },
+  returns: v.union(v.null(), v.id("llmUsage")),
+  handler: async (ctx, { cap }) => {
+    const since = Date.now() - 86_400_000;
+    const rows = await ctx.db.query("llmUsage").withIndex("by_created", (q) => q.gte("createdAt", since)).collect();
+    if (rows.filter((r) => r.purpose === "corroborate").length >= cap) return null;
+    return await ctx.db.insert("llmUsage", {
+      model: "reserved",
+      purpose: "corroborate",
+      inputTokens: 0,
+      cachedTokens: 0,
+      outputTokens: 0,
+      costCents: 0,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+/** The reservation was not spent — a failure before the call, or a refusal. */
+export const release = internalMutation({
+  args: { id: v.id("llmUsage") },
+  returns: v.null(),
+  handler: async (ctx, { id }) => {
+    const row = await ctx.db.get(id);
+    if (row && row.model === "reserved") await ctx.db.delete(id);
+    return null;
+  },
+});
+
 export const record = internalMutation({
-  args: { employer: v.string(), filingDate: v.string(), subjectKey: v.optional(v.string()), costCents: v.number(), ...result },
+  args: { employer: v.string(), filingDate: v.string(), subjectKey: v.optional(v.string()), costCents: v.number(), reservationId: v.optional(v.id("llmUsage")), ...result },
   returns: v.null(),
   handler: async (ctx, a) => {
     const now = Date.now();
@@ -94,7 +130,9 @@ export const record = internalMutation({
     };
     if (existing) await ctx.db.patch(existing._id, doc);
     else await ctx.db.insert("corroborations", doc);
-    await ctx.db.insert("llmUsage", {
+    // Fill the reservation this call already claimed, rather than adding a
+    // second row for the same search.
+    const usage = {
       model: "gpt-5.6-luna+web_search",
       purpose: "corroborate",
       inputTokens: 0,
@@ -102,7 +140,9 @@ export const record = internalMutation({
       outputTokens: 0,
       costCents: a.costCents,
       createdAt: now,
-    });
+    };
+    if (a.reservationId && (await ctx.db.get(a.reservationId))) await ctx.db.patch(a.reservationId, usage);
+    else await ctx.db.insert("llmUsage", usage);
     return null;
   },
 });
