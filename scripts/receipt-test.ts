@@ -132,6 +132,12 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/^New York's file records no reason\. The rule allows shorter notice only for/.test(exceptionLine(ny(undefined), gap) ?? ""), "no reason recorded");
   check(/^Colorado's file records no reason \("Not Specified"\)\./.test(exceptionLine({ ...ny("Not Specified"), jurisdiction: "US-CO" }, { verdict: "gap", jurisdiction: "US-CO" }) ?? ""), "'Not Specified' is no reason");
   check(exceptionLine(ny("Economic"), { verdict: "within", jurisdiction: "US-NY" }) === null, "nothing to say when notice was within the statute");
+  // A word inside a reason is not a legal exception. Colorado writes free text.
+  const co = (reason: string) => exceptionLine({ ...ny(reason), jurisdiction: "US-CO" }, { verdict: "gap", jurisdiction: "US-CO" }) ?? "";
+  check(/names none of the exceptions/.test(co("Natural gas plant shutdown")), "'natural gas' does not name the natural-disaster exception");
+  check(/names none of the exceptions/.test(co("Physical inventory consolidation")), "'physical inventory' does not name a physical calamity");
+  check(/names the "natural disaster" exception/.test(co("Closure after flood damage")), "but a flood does");
+  check(/names the "faltering company" exception/.test(co("Faltering company, financing withdrawn")), "and a faltering company does");
 }
 
 // New Jersey publishes the month it posted a notice and never the day, so no

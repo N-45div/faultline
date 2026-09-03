@@ -15,6 +15,8 @@ async function emailOf(ctx: { db: any; auth: any }): Promise<string | null> {
   return email || null;
 }
 
+const MAX_FOLLOWS = 500;
+
 export const follow = mutation({
   args: { subjectKey: v.string(), label: v.string() },
   returns: v.union(v.literal("following"), v.literal("sign-in")),
@@ -27,6 +29,18 @@ export const follow = mutation({
       .unique();
     if (existing) {
       if (!existing.active) await ctx.db.patch(existing._id, { active: true });
+      return "following";
+    }
+    // A signed-in person can follow as much as they like, up to a ceiling that
+    // exists so one account cannot fill the table. Nobody watching filings for
+    // a living needs more than this, and the digest is one email a day either
+    // way.
+    const held = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .take(MAX_FOLLOWS + 1);
+    if (held.filter((s) => s.active).length >= MAX_FOLLOWS) {
+      console.warn(`[follows] ${email} is at the ${MAX_FOLLOWS} ceiling`);
       return "following";
     }
     await ctx.db.insert("subscriptions", { subjectKey, email, createdAt: Date.now(), active: true });

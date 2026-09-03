@@ -173,6 +173,22 @@ export function aggregationLine(row: LayoffNoticeRow, rows: LayoffNoticeRow[]): 
 }
 
 /**
+ * What a state's recorded reason has to say to count as naming an exception.
+ * Matched on the phrase, never on its first word: Colorado writes its reasons
+ * in free text, and "natural gas plant shutdown" contains "natural" without
+ * naming a natural disaster. Claiming an employer invoked a legal exception
+ * they never invoked is the worst thing this receipt could do.
+ */
+const EXCEPTION_PATTERNS: Record<string, RegExp> = {
+  "faltering company": /\bfaltering\b/i,
+  "unforeseeable business circumstances": /\bunforesee(?:n|able)\b/i,
+  "natural disaster": /\bnatural disaster\b|\b(?:hurricane|flood|earthquake|wildfire|tornado)\b/i,
+  "strike or lockout": /\bstrike\b|\block[- ]?out\b/i,
+  "physical calamity or act of war": /\bphysical calamity\b|\bact of war\b/i,
+  "faltering company seeking capital (closures only)": /\bfaltering\b/i,
+};
+
+/**
  * When notice fell short of the statute, the rule allows it only for a named
  * exception, and requires the notice to state the basis. The state's file
  * either records a reason or it does not; this line says which, and whether
@@ -188,10 +204,7 @@ export function exceptionLine(row: LayoffNoticeRow, gap: Pick<NoticeGapResult, "
   if (!reason || /^(not specified|n\/a|none|unknown|other)$/i.test(reason)) {
     return `${state}'s file records no reason${reason ? ` ("${reason}")` : ""}. The rule allows shorter notice only for ${list}, and requires the notice itself to state the basis.`;
   }
-  const named = exceptions.find((e) => {
-    const stem = e.split(/[ (]/)[0].toLowerCase();
-    return reason.toLowerCase().includes(stem) || (stem === "unforeseeable" && /unforeseen|unforeseeable/i.test(reason));
-  });
+  const named = exceptions.find((e) => EXCEPTION_PATTERNS[e]?.test(reason) ?? false);
   if (named) {
     return `The reason ${state} recorded, "${reason}", names the "${named}" exception. The rule also requires the notice to state the basis for it; the state's file holds only these words.`;
   }

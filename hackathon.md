@@ -367,6 +367,21 @@ and nobody is no longer ingested as an employer. Brought up on production
 through the same shadow-mode gate as the other seven: two cycles, second one
 zero changes, then promoted. Eight files, 8,026 rows.
 
+### 2026-09-03 - 9380681
+A pass back over everything shipped today, hunting the receipt's own honesty
+first. One real bug: the exception line matched a state's recorded reason on
+the first word of each statutory exception, so Colorado's free text — "natural
+gas plant shutdown" — would have been reported as naming the natural-disaster
+exception. Claiming an employer invoked a legal exception they never invoked
+is the worst thing this receipt could do; matching is now on the phrase, with
+the disasters named, and the cases are in the tests. Two smaller ones: the
+public status query returned the provider's own error text to anyone who
+asked — that is diagnostics, it belongs in the logs — and a signed-in account
+could follow without limit, now capped at 500. And New Jersey's month is no
+longer listed as a significant field, because it is part of the row's
+identity and could never have emitted a change from there (`engine/receipt.ts`,
+`convex/breaker.ts`, `convex/follows.ts`, `engine/adapters/njWarn.ts`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

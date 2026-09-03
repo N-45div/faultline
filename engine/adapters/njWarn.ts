@@ -138,8 +138,10 @@ export const njWarn: SourceAdapter<Raw> = {
     };
   },
   // A corrected start date or headcount is the news here; the raw cell moves
-  // with the parsed date, so it is stored but never emits on its own.
-  significant: ["effectiveDate", "employeesAffected", "noticeMonth"],
+  // with the parsed date, so it is stored but never emits on its own. The
+  // month is not listed: it is part of the identity, so a row whose month
+  // changed is a different row and could never emit a change from here.
+  significant: ["effectiveDate", "employeesAffected"],
   noise: [
     { op: "trimCase", path: "company" },
     { op: "trimCase", path: "siteAddress" },

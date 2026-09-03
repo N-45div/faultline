@@ -42,12 +42,17 @@ export const record = internalMutation({
   },
 });
 
-/** What is switched off right now, for the page that says so. */
+/**
+ * What is switched off right now, for the page that says so. Anyone can read
+ * this, so it carries the fact and not the provider's words: an upstream error
+ * string is our diagnostics, it belongs in the logs, and a stranger has no
+ * business reading what a vendor said to us.
+ */
 export const status = query({
   args: {},
   returns: v.object({
     paused: v.array(v.string()),
-    breakers: v.array(v.object({ provider: v.string(), failures: v.number(), openUntil: v.union(v.number(), v.null()), lastError: v.optional(v.string()) })),
+    breakers: v.array(v.object({ provider: v.string(), failures: v.number(), openUntil: v.union(v.number(), v.null()) })),
   }),
   handler: async (ctx) => {
     const now = Date.now();
@@ -56,7 +61,7 @@ export const status = query({
       paused: [...pausedSet()],
       breakers: rows
         .filter((r) => r.failures > 0 || r.openedUntil > now)
-        .map((r) => ({ provider: r.provider, failures: r.failures, openUntil: r.openedUntil > now ? r.openedUntil : null, lastError: r.lastError })),
+        .map((r) => ({ provider: r.provider, failures: r.failures, openUntil: r.openedUntil > now ? r.openedUntil : null })),
     };
   },
 });
