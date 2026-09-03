@@ -167,16 +167,21 @@ export const lastChecked = query({
  * The housing side, counted from what we hold rather than asserted. The city's
  * own status words are the only verdict on this page.
  */
+const SCAN = 4000;
+
 export const buildings = query({
   args: {},
-  returns: v.object({ buildings: v.number(), records: v.number(), stamped: v.number(), since: v.string() }),
+  returns: v.object({ buildings: v.number(), records: v.number(), stamped: v.number(), since: v.string(), truncated: v.boolean() }),
   handler: async (ctx) => {
     const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
-    if (!src) return { buildings: 0, records: 0, stamped: 0, since: "" };
+    if (!src) return { buildings: 0, records: 0, stamped: 0, since: "", truncated: false };
     const rows = await ctx.db
       .query("current")
       .withIndex("by_source_identity", (q) => q.eq("sourceId", src._id))
-      .take(4000);
+      // One past the window, so the page can tell a total from a ceiling. A
+      // scan that returns exactly its own limit is not a count, and this page
+      // promises live numbers.
+      .take(SCAN + 1);
     const seen = new Set<string>();
     let stamped = 0;
     for (const r of rows) {
@@ -186,8 +191,11 @@ export const buildings = query({
     }
     const first = await ctx.db.query("snapshots").order("asc").first();
     return {
+      truncated: rows.length > SCAN,
       buildings: seen.size,
-      records: rows.length,
+      // The file's own row count is the honest total; the scan is what we can
+      // classify by class and stamp inside one query.
+      records: src.rowCount ?? rows.length,
       stamped,
       since: first ? new Date(first.capturedAt).toISOString().slice(0, 10) : "",
     };

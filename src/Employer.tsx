@@ -16,7 +16,7 @@ type Found = {
   citations: { url: string; title: string }[];
 };
 // "We couldn't find it" and "we didn't look" are different answers.
-type Said = ({ state: "found" | "none" } & Found) | { state: "budget" | "off" | "failed" } | null;
+type Said = ({ state: "found" | "none"; cached?: boolean } & Found) | { state: "budget" | "off" | "failed" } | null;
 
 export default function Employer({ q, onBack }: { q: string; onBack: () => void }) {
   const result = useQuery(api.lookup.employer, { q });
@@ -33,14 +33,22 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
   // settles on the slug the receipt links to, so bookmarks and shares agree.
   useEffect(() => {
     const canonical = result?.canonical;
-    if (canonical && canonical !== q && window.location.pathname === `/e/${q}`) {
+    const here = (() => {
+      try {
+        return decodeURIComponent(window.location.pathname);
+      } catch {
+        return window.location.pathname;
+      }
+    })();
+    if (canonical && canonical !== q && here === `/e/${q}`) {
       window.history.replaceState({}, "", `/e/${canonical}`);
       window.dispatchEvent(new PopStateEvent("popstate"));
     }
   }, [result?.canonical, q]);
   useEffect(() => {
     if (bought && !asked) {
-      setSaid({ ...bought, state: "found" });
+      // This path only ever shows an answer that was bought earlier.
+      setSaid({ ...bought, state: "found", cached: true });
       setAsked(true);
     }
   }, [bought, asked]);

@@ -181,11 +181,17 @@ export const expire = internalMutation({
   returns: v.number(),
   handler: async (ctx) => {
     const cutoff = Date.now() - 30 * 86_400_000;
-    const old = (await ctx.db.query("packs").withIndex("by_creation_time", (q) => q.lt("_creationTime", cutoff)).take(100)).filter(
-      (p) => p.status === "ready" && p.storageId,
-    );
+    // The predicate belongs in the query. Taking the oldest 100 and filtering
+    // afterwards means that once 100 expired rows exist, every later run takes
+    // the same 100, filters them all out, and nothing is ever collected again.
+    const old = await ctx.db
+      .query("packs")
+      .withIndex("by_creation_time", (q) => q.lt("_creationTime", cutoff))
+      .filter((q) => q.eq(q.field("status"), "ready"))
+      .take(100);
     for (const p of old) {
-      await ctx.storage.delete(p.storageId!);
+      if (!p.storageId) continue;
+      await ctx.storage.delete(p.storageId);
       await ctx.db.patch(p._id, { storageId: undefined, status: "expired" });
     }
     if (old.length > 0) console.log(`[packs] expired ${old.length}`);

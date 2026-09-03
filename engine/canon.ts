@@ -73,6 +73,21 @@ export function slug(s: string): string {
   return foldString(s).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+/**
+ * The slug that goes in a URL. Distinct from slug() above, which mints the
+ * database keys every stored row is filed under and can never change: this one
+ * drops apostrophes rather than turning them into separators, so "Martin's"
+ * becomes "martins" — a form the company matcher can read back, because it
+ * drops apostrophes too. Turning it into "martin-s" made a found receipt
+ * unfindable.
+ */
+export function urlSlug(s: string): string {
+  return foldString(s)
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 /** Fast non-cryptographic 64-bit hash (two FNV-1a passes), usable inside a mutation. */
 export function fnv1a64(s: string): string {
   let a = 0x811c9dc5;

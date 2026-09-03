@@ -4,7 +4,8 @@ import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
-import { warnNoticeGap, WARN_EXCEPTIONS, WARN_STATUTORY_DAYS } from "../engine/rules";
+import { OWN_ACT, statuteName, warnNoticeGap, WARN_EXCEPTIONS, WARN_STATUTORY_DAYS } from "../engine/rules";
+import { complianceLines } from "../engine/receipt";
 
 // Builds the evidence pack: one PDF holding the filing as it stands, every
 // dated version we hold with its hash, the changes we recorded, the statute,
@@ -114,7 +115,9 @@ const JURIS: Record<string, string> = {
   "co-warn": "US-CO",
 };
 /** States with a WARN act of their own; the rest are federal 60 days only. */
-const OWN_ACT: Record<string, string> = { "US-NY": "New York's WARN Act", "US-CA": "Cal-WARN", "US-MD": "Maryland's Economic Stabilization Act", "US-NJ": "New Jersey's WARN Act" };
+// Imported, not redeclared: section 1 and section 4 of this PDF once disagreed
+// about whether Virginia has a WARN act, inside one document.
+
 
 const iso = (ms: number) => new Date(ms).toISOString().replace("T", " ").slice(0, 19) + " UTC";
 
@@ -174,7 +177,7 @@ function renderPack(pdf: Pdf, d: PackData) {
         });
         pdf.space(3);
         pdf.text(
-          `${g.actualDays} days between the notice date and the start of the layoff. ${state}'s WARN Act sets ${g.statutoryDays} days.`,
+          `${g.actualDays} days between the notice date and the start of the layoff. ${statuteName(JURIS[c.sourceSlug as keyof typeof JURIS] ?? "US")} sets ${g.statutoryDays} days.`,
           { indent: 12, size: 10, bold: true, color: g.verdict === "gap" ? ACCENT : INK },
         );
         if (g.postingLagDays !== null)
@@ -302,8 +305,10 @@ export const buildPack = internalAction({
         "",
         "Inside: the record as it stands, every dated version we hold with its hash, the changes we recorded, the statute, and how the capture works.",
         "",
-        "This preview pack is free while we launch. Packs are $79 once payments open.",
-        "Reply STOP and we will not email you again.",
+        "The pack is free.",
+        // The pack email is mail too: it carries the same compliance lines as
+        // everything else we send, not a price.
+        ...complianceLines(process.env.NOTICE_POSTAL, "you are getting this because you asked us for this pack"),
       ].join(nl);
       if (d.pack.agentInboxId && d.pack.messageId && bytes.byteLength < 3_000_000) {
         await ctx.scheduler.runAfter(0, internal.mail.reply, {

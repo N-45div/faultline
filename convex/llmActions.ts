@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { MODEL, PROMPT_VERSION, DAILY_CALL_CAP, costCents, type Usage } from "./llm";
-import { paused } from "./guard";
+import { paused, providerFault } from "./guard";
 
 // The only file that talks to OpenAI. One job: read a termination letter —
 // pasted text or an attached PDF — and pull out what it states, so it can sit
@@ -213,7 +213,7 @@ export const extractLetter = internalAction({
       await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: true });
     } catch (e) {
       console.error(`[llm] failed: ${String(e)}`);
-      await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: false, error: String(e) });
+      if (providerFault(e)) await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: false, error: String(e) });
     }
     await ctx.runMutation(internal.inbound.finishLetter, { inboxId, text, extraction, note });
     return null;

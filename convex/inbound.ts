@@ -214,7 +214,7 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
               "It's a PDF: the record as it stands, every dated version we hold with its capture time and hash, the changes we recorded, and the statute — the thing you hand a lawyer.",
               "It will arrive in this thread within a couple of minutes.",
             ],
-            ["This preview pack is free while we launch. Packs are $79 once payments open."],
+            ["The pack is free."],
           ],
           links: base.links,
           footer: [],
@@ -242,9 +242,12 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       receipt = {
         kind: "none",
         query: "monitor",
-        headline: "Monitor: unlimited follows for your team, a weekly digest of what changed, packs included.",
+        headline: "Follows for your organisation, a daily digest of what changed, packs included.",
         blocks: [
-          ["$199 a month for an organisation, up to five people. $499 with CSV and API access across every state we cover.", "Reply with your organisation's name and the employers or buildings you follow, and we'll set it up and email this thread."],
+          [
+            "Free while we launch, and not billable yet.",
+            "Reply with your organisation's name and the employers or buildings you follow, and we'll set it up and email this thread.",
+          ],
         ],
         links: [],
         footer: ["No card needed to ask. Reply STOP to withdraw the request."],
@@ -331,7 +334,7 @@ export const finishLetter = internalMutation({
       if (x.signDeadlineDays) preface.push(`You were given ${x.signDeadlineDays} days to sign the release.`);
       if (x.owbpaDisclosureAttached === "no") {
         preface.push(
-          "Your letter does not appear to include the list of job titles and ages that a group termination must give anyone 40 or over (OWBPA). If you are 40 or over, that list should have come with the release, and you get 45 days to consider it — a lawyer will want to know.",
+          "We couldn't see the list of job titles and ages that OWBPA requires with a group termination release for anyone 40 or over. That list may have come separately, and the rule does not reach every termination — the consideration period differs for a group programme and an individual one. Worth asking a lawyer, with the release in front of them.",
         );
       } else if (x.owbpaDisclosureAttached === "yes") {
         preface.push("Your letter says the OWBPA list of job titles and ages is attached — keep it with the release.");

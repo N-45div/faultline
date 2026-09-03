@@ -23,12 +23,12 @@ export default function Pricing() {
         <div className="tier featured">
           <p className="tier-name">Evidence pack</p>
           <p className="tier-price">
-            $79 <span>per pack</span>
+            Free <span>today · $79 per pack when payments open</span>
           </p>
           <ul>
             <li>Every dated version of the filing we hold</li>
             <li>Capture times and hashes, the statute text, the intervals</li>
-            <li>One PDF in your thread within minutes — the thing you hand a lawyer</li>
+            <li>One PDF in your thread, usually within minutes — the thing you hand a lawyer</li>
           </ul>
           <a className="cta" href={mailto("PACK Spirit Airlines", "Replace the subject with the company name or building address the pack is for.")}>
             Email PACK + the name
@@ -37,12 +37,12 @@ export default function Pricing() {
         <div className="tier">
           <p className="tier-name">Monitor</p>
           <p className="tier-price">
-            $199 <span>per month</span>
+            Free <span>today · $199 a month when payments open</span>
           </p>
           <ul>
-            <li>Unlimited follows, up to five people</li>
-            <li>A weekly digest of what changed, packs included</li>
-            <li>$499 with CSV and API access across every state we cover</li>
+            <li>Up to 500 follows for your organisation</li>
+            <li>A daily digest of what changed, packs included</li>
+            <li>CSV and API access are not built yet</li>
           </ul>
           <a className="cta" href={mailto("MONITOR", "Your organisation, and the employers or buildings you follow:")}>
             Email MONITOR

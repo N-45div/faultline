@@ -224,7 +224,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           New York City stamps a landlord's "it's fixed" as FALSE CERTIFICATION, in those words, then overwrites the
           record.{" "}
           {b && b.buildings > 0
-            ? `We hold ${b.records.toLocaleString()} records across ${b.buildings} buildings and keep the version each change replaced.`
+            ? `We hold ${b.records.toLocaleString()} records across ${b.truncated ? "at least " : ""}${b.buildings} buildings and keep the version each change replaced.`
             : "We keep the version each change replaced."}
         </p>
         <p className="tour-ctas">

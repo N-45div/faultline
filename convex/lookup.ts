@@ -2,8 +2,8 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import type { DatabaseReader } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { addressTokens, companyMentionScore, companyTokens, looksLikeAddress, rankAddresses, rankCompanies, searchTerms } from "../engine/match";
-import { foldString, slug } from "../engine/canon";
+import { addressTokens, companyMentionScore, companyTokens, looksLikeAddress, rankAddresses, rankCompanies, sameCompany, searchTerms } from "../engine/match";
+import { foldString, slug, urlSlug } from "../engine/canon";
 import {
   buildingReceipt,
   layoffReceipt,
@@ -93,6 +93,10 @@ export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Pro
           noticeMonth: f.noticeMonth ? String(f.noticeMonth) : undefined,
           effectiveDate: String(f.effectiveDate),
           postedDate: String(f.postedDate ?? f.processedDate ?? ""),
+          // California's column is "Processed Date" — the day it handled the
+          // notice, not the day it published one. It is never rendered as
+          // publication.
+          postedIsProcessed: !f.postedDate && Boolean(f.processedDate),
           jurisdiction,
           layoffOrClosure: f.layoffOrClosure ? String(f.layoffOrClosure) : undefined,
           reason: f.reason ? String(f.reason) : undefined,
@@ -199,8 +203,8 @@ export const versions = query({
     if (q && !/^\d{10}$/.test(subjectKey)) {
       const sites = await findEmployerSites(ctx.db, q.replace(/-/g, " "));
       if (sites[0] && sites[0].score >= 0.6) {
-        const company = foldString(sites[0].company);
-        const matched = sites.filter((s) => foldString(s.company) === company).map((s) => s.subjectKey);
+        const company = sites[0].company;
+        const matched = sites.filter((s) => sameCompany(s.company, company)).map((s) => s.subjectKey);
         if (matched.length > 0) keys = matched;
       }
     }
@@ -236,10 +240,26 @@ async function provenanceFor(db: DatabaseReader, slugs: string[]): Promise<Recei
       status: full.httpStatus,
       rows: src.rowCount ?? full.rowCount,
       lastChecked: src.lastRunAt ?? full.capturedAt,
+      coverage: COVERAGE[slugName],
     });
   }
   return out;
 }
+
+/**
+ * What each file actually covers, in its own terms. Taken from the adapters'
+ * own findings; the receipt cannot claim a span it never read.
+ */
+const COVERAGE: Record<string, string> = {
+  "ny-warn": "the state's current file",
+  "ca-warn": "a rolling window the state overwrites",
+  "md-warn": "the current year",
+  "co-warn": "the current year",
+  "nc-warn": "the current year",
+  "va-warn": "back to 2010",
+  "nj-warn": "back to 2004",
+  "nyc-hpd": "the buildings we hold",
+};
 
 const PUBLISHER_NAME: Record<string, string> = {
   "ny-warn": "New York",
@@ -279,7 +299,10 @@ export async function guessCompanyFromText(db: DatabaseReader, text: string): Pr
   return best?.company ?? null;
 }
 
-export async function buildReceipt(db: DatabaseReader, q: string): Promise<{ receipt: Receipt; matches: { company: string; score: number }[] }> {
+export async function buildReceipt(
+  db: DatabaseReader,
+  q: string,
+): Promise<{ receipt: Receipt; matches: { company: string; score: number }[]; keys?: string[] }> {
   const since = await versionsSince(db);
 
   // The city's own parcel number — the one id on our building pages — must
@@ -321,19 +344,20 @@ export async function buildReceipt(db: DatabaseReader, q: string): Promise<{ rec
 
   const sites = await findEmployerSites(db, q);
   const matches: { company: string; score: number }[] = [];
-  for (const s of sites) if (!matches.some((m) => foldString(m.company) === foldString(s.company))) matches.push({ company: s.company, score: s.score });
+  for (const s of sites) if (!matches.some((m) => sameCompany(m.company, s.company))) matches.push({ company: s.company, score: s.score });
 
   if (sites[0] && sites[0].score >= 0.6) {
-    const company = foldString(sites[0].company);
-    const keys = sites.filter((s) => foldString(s.company) === company).map((s) => s.subjectKey);
+    const company = sites[0].company;
+    const keys = sites.filter((s) => sameCompany(s.company, company)).map((s) => s.subjectKey);
     const rows = await noticesFor(db, keys);
     if (rows.length > 0) {
       const slugs = [...new Set(rows.map((r) => SLUG_OF[r.jurisdiction]).filter(Boolean))];
       const held = await versionsFor(db, keys);
       return {
+        keys,
         receipt: layoffReceipt(q, keys[0], rows, {
           versionsSince: since,
-          pageUrl: `${siteUrl()}/e/${slug(sites[0].company)}`,
+          pageUrl: `${siteUrl()}/e/${urlSlug(sites[0].company)}`,
           provenance: await provenanceFor(db, slugs),
           held: { rows: held.rows.length, versions: held.rows.reduce((n, r) => n + r.versions, 0), reads: held.reads, since: held.since },
         }),
@@ -427,12 +451,22 @@ export const employer = query({
     type Filing = { employer: string; filingDate: string; statedReason?: string } | undefined;
     const clean = q.replace(/-/g, " ").trim().slice(0, 120);
     if (!clean) return { receipt: noMatchReceipt("", []), matches: [], filing: undefined as Filing, canonical: undefined as string | undefined };
-    const built = await buildReceipt(ctx.db, clean);
+    const { keys, ...built } = await buildReceipt(ctx.db, clean);
     if (built.receipt.kind !== "layoff" || !built.receipt.subjectKey) return { ...built, filing: undefined as Filing, canonical: undefined as string | undefined };
-    const rows = await noticesFor(ctx.db, [built.receipt.subjectKey]);
-    const first = [...rows].sort((a, b) => (a.noticeDate < b.noticeDate ? 1 : -1))[0];
+    // Every key the receipt was built from. One employer's filings are spread
+    // across a subject per site and per state; reading back only the first
+    // gave New Jersey's dateless rows and nothing else.
+    const rows = await noticesFor(ctx.db, keys ?? [built.receipt.subjectKey]);
+    // The newest filing that actually carries a notice date. New Jersey
+    // publishes only the month, so its rows cannot anchor a search around a
+    // date — and an empty date here rendered as "in the month around ." on the
+    // page and was passed to a paid search as a blank.
+    const dated = rows.filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.noticeDate)).sort((a, b) => (a.noticeDate < b.noticeDate ? 1 : a.noticeDate > b.noticeDate ? -1 : 0));
+    const first = dated[0];
     const filing: Filing = first ? { employer: first.company, filingDate: first.noticeDate, statedReason: first.reason } : undefined;
-    const canonical: string | undefined = first ? slug(first.company) : undefined;
+    // The name the match settled on — stable whichever state's row is read
+    // back first, so the URL does not flip between spellings.
+    const canonical: string | undefined = built.matches[0] ? urlSlug(built.matches[0].company) : undefined;
     return { ...built, filing, canonical };
   },
 });

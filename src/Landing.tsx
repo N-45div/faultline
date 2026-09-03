@@ -146,13 +146,14 @@ export default function Landing({ go }: { go: (p: string) => void }) {
             <p className="kicker">Buildings too</p>
             <h2 className="h2">"It's fixed," said the landlord.</h2>
             <p>
-              New York City inspects and stamps that claim FALSE CERTIFICATION about forty times a day — then
+              New York City inspects and stamps that claim FALSE CERTIFICATION — in those words — then
               overwrites the record. Email us the address and you get every record for the building, dated.
             </p>
             {b && b.buildings > 0 && (
               <p className="fine">
-                Right now we hold {b.records.toLocaleString()} records across {b.buildings} New York City buildings,
-                kept since {b.since}. When the city changes one, we keep the version it replaced.
+                Right now we hold {b.records.toLocaleString()} records across {b.truncated ? "at least " : ""}
+                {b.buildings} New York City buildings, kept since {b.since}. When the city changes one, we keep the
+                version it replaced.
               </p>
             )}
             <p className="fine">Class C is immediately hazardous, B hazardous, A non-hazardous — the city's own scale.</p>

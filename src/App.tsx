@@ -12,6 +12,15 @@ import "./styles.css";
 // Every string on these pages is read by a person who got a letter this month.
 // No engine nouns: nothing here is a source, a diff, a snapshot or a job.
 
+/** A malformed percent-escape in the path is a bad link, not a blank site. */
+function safeDecode(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 function usePath(): [string, (p: string) => void] {
   const [path, setPath] = useState(window.location.pathname);
   useEffect(() => {
@@ -40,7 +49,7 @@ export default function App() {
   // The tab and the bookmark say where you are, not the repository's old name.
   useEffect(() => {
     const titles: [boolean, string][] = [
-      [Boolean(employerMatch), `${decodeURIComponent(employerMatch?.[1] ?? "").replace(/-/g, " ")} · Notice`],
+      [Boolean(employerMatch), `${safeDecode(employerMatch?.[1] ?? "").replace(/-/g, " ")} · Notice`],
       [Boolean(buildingMatch), "Building record · Notice"],
       [isApp, "Receipts · Notice"],
       [isJudge, "Tour · Notice"],
@@ -52,8 +61,12 @@ export default function App() {
   }, [path]);
 
   let body;
-  if (employerMatch) body = <Employer q={decodeURIComponent(employerMatch[1])} onBack={() => go("/app")} />;
-  else if (buildingMatch) body = <Building bbl={decodeURIComponent(buildingMatch[1])} onBack={() => go("/app")} />;
+  // key: the employer page holds per-employer state (what the company said in
+  // public). Without it, navigating from one employer to another reuses the
+  // mounted component and shows the first company's words under the second
+  // company's filing — the one thing this product must never do.
+  if (employerMatch) body = <Employer key={safeDecode(employerMatch[1])} q={safeDecode(employerMatch[1])} onBack={() => go("/app")} />;
+  else if (buildingMatch) body = <Building bbl={safeDecode(buildingMatch[1])} onBack={() => go("/app")} />;
   else if (isApp) body = <Receipts go={go} />;
   else if (isJudge) body = <Judge go={go} />;
   else if (isSignIn) body = <SignIn onDone={() => go("/app")} />;

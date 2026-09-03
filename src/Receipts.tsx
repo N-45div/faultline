@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Authenticated, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
+import { urlSlug } from "../engine/canon";
 import { INBOX } from "./Pricing";
 
 // The tool: look something up, see what moved, see when we last read each file.
@@ -13,7 +14,9 @@ function when(ms?: number): string {
 }
 
 const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
-export const toSlug = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+// One implementation, shared with the server that mints these links: a second
+// copy drifts, and a link that does not round-trip lands on "nothing filed".
+export const toSlug = urlSlug;
 
 export default function Receipts({ go }: { go: (p: string) => void }) {
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });

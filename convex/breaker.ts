@@ -32,7 +32,11 @@ export const record = internalMutation({
       else if (!row) await ctx.db.insert("breakers", { provider, failures: 0, openedUntil: 0, updatedAt: now });
       return null;
     }
-    const failures = (row?.failures ?? 0) + 1;
+    // Failures decay: three faults spread over three quiet days are not a
+    // provider outage, and a stale count would hold the breaker open on the
+    // first failed probe after every cool-off.
+    const stale = row ? now - row.updatedAt > COOL_MS : false;
+    const failures = (stale ? 0 : (row?.failures ?? 0)) + 1;
     const openedUntil = failures >= THRESHOLD ? now + COOL_MS : (row?.openedUntil ?? 0);
     const patch = { failures, openedUntil, lastError: (error ?? "").slice(0, 200), updatedAt: now };
     if (row) await ctx.db.patch(row._id, patch);

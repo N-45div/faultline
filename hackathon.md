@@ -382,6 +382,56 @@ longer listed as a significant field, because it is part of the row's
 identity and could never have emitted a change from there (`engine/receipt.ts`,
 `convex/breaker.ts`, `convex/follows.ts`, `engine/adapters/njWarn.ts`).
 
+### 2026-09-03 - 183db33
+Six independent adversarial reviews — money and abuse, receipt correctness,
+concurrency, the web app, honesty of every claim, operational fitness — each
+required to trace a finding to a concrete failing input. Two of them
+independently found the same two worst things, which is how I knew they were
+real.
+
+**The receipt was stating a law that does not exist.** "Virginia's WARN Act
+sets 60 days" — Virginia has no WARN act; the federal 60 days is the whole
+rule, as this repo's own comments say. Colorado and North Carolina the same.
+The evidence pack contradicted itself inside one document: section 1 named
+Virginia's act, section 4 said Virginia has none. One `OWN_ACT` map now
+answers that question for the receipt, the change sentences and the PDF.
+
+**The "nothing filed" receipt claimed total coverage.** "We hold every layoff
+notice New York, California, … have published" — but California's file is a
+rolling window (155 rows, two months), and Maryland, Colorado and North
+Carolina publish one calendar year. On the one receipt whose entire value is
+a negative, the scope of that negative was false. It now says what each file
+covers, per file, next to that file's row count.
+
+**Yesterday's canonical-slug change broke found receipts.** `slug("Martin's")`
+is "martin-s", which the matcher cannot read back, so /e/martins showed
+eleven Virginia filings and then rewrote its own URL into "we couldn't find
+it". A separate `urlSlug` drops apostrophes (the database keys, which slug()
+mints, are untouched), and the web now shares one implementation with the
+server instead of a second copy.
+
+**Spirit Airlines had been split in two** by New Jersey's arrival: "Spirit
+Airlines" and "Spirit Airlines, LLC" were different employers, so the tour's
+own example page had lost the New York filing it describes. Names that differ
+only by a legal suffix are one employer now; "Amazon" and "Amazon Web
+Services" still are not.
+
+Also: a caller-supplied "stated reason" reached the search prompt and was
+published as an employer's words — it now comes from the filing we hold; the
+provider breakers no longer trip on faults that are ours (a 400 we caused, a
+404 on a dead thread), so three bad requests can't switch the model off for
+everyone; held mail is re-scheduled rather than dropped, which is what the
+kill switch always claimed; the share route's shell fetch is inside its try
+with a timeout, so a static-host hiccup degrades instead of 500ing every
+employer page; `$&` in a query can no longer break out of a meta tag; pack
+expiry no longer stalls behind its first hundred rows; prices are out of
+everything we email (a rate card makes it commercial mail, which needs the
+postal address we deliberately don't have); California's *processed* date is
+no longer reported as the day the state published; the 90-day aggregation
+only fires where the state publishes an actual street address, not a
+workforce region; and the employer page remounts per employer, so one
+company's public statement can never appear under another's filing.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

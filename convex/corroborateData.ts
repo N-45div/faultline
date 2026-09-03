@@ -46,13 +46,17 @@ export const cached = internalQuery({
  */
 export const isFiling = internalQuery({
   args: { employer: v.string(), filingDate: v.string() },
-  returns: v.boolean(),
+  returns: v.object({ held: v.boolean(), statedReason: v.optional(v.string()) }),
   handler: async (ctx, { employer, filingDate }) => {
+    // A filing with no notice date is not a filing we can search around; New
+    // Jersey publishes only the month, and "" === "" would otherwise pass.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(filingDate)) return { held: false };
     const sites = await findEmployerSites(ctx.db, employer);
     const keys = sites.filter((s) => s.company === employer).map((s) => s.subjectKey);
-    if (keys.length === 0) return false;
+    if (keys.length === 0) return { held: false };
     const rows = await noticesFor(ctx.db, keys);
-    return rows.some((r) => r.company === employer && r.noticeDate === filingDate);
+    const match = rows.find((r) => r.company === employer && r.noticeDate === filingDate);
+    return match ? { held: true, statedReason: match.reason } : { held: false };
   },
 });
 

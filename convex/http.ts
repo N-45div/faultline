@@ -60,21 +60,35 @@ http.route({
 // before the same app shell the static host serves everywhere else. The
 // shell is fetched from the static host, so a new build needs no change.
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// Every replacement goes through a function. A string replacement treats $&,
+// $1 and $' as instructions, and the text here is a receipt that echoes what
+// somebody typed — "/e/$&" was enough to break out of the attribute and
+// duplicate markup into the head.
 const meta = (html: string, title: string, description: string, url: string) =>
   html
-    .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
-    .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/, `$1${esc(description)}$2`)
-    .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/, `$1${esc(title)}$2`)
-    .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/, `$1${esc(description)}$2`)
-    .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/, `$1${esc(url)}$2`)
-    .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/, `$1${esc(title)}$2`)
-    .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/, `$1${esc(description)}$2`);
+    .replace(/<title>[^<]*<\/title>/, () => `<title>${esc(title)}</title>`)
+    .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/, (_m, a, b) => `${a}${esc(description)}${b}`)
+    .replace(/(<meta\s+property="og:title"\s+content=")[^"]*(")/, (_m, a, b) => `${a}${esc(title)}${b}`)
+    .replace(/(<meta\s+property="og:description"\s+content=")[^"]*(")/, (_m, a, b) => `${a}${esc(description)}${b}`)
+    .replace(/(<meta\s+property="og:url"\s+content=")[^"]*(")/, (_m, a, b) => `${a}${esc(url)}${b}`)
+    .replace(/(<meta\s+name="twitter:title"\s+content=")[^"]*(")/, (_m, a, b) => `${a}${esc(title)}${b}`)
+    .replace(/(<meta\s+name="twitter:description"\s+content=")[^"]*(")/, (_m, a, b) => `${a}${esc(description)}${b}`);
 
 const share = (kind: "e" | "b") =>
   httpAction(async (ctx, req) => {
     const u = new URL(req.url);
-    const shell = await fetch(`${u.origin}/index.html`, { headers: { accept: "text/html" } });
-    let html = await shell.text();
+    // The shell fetch is inside the try, with a timeout: an employer page that
+    // 500s because the static host hiccuped is worse than one without its
+    // social preview, and this route serves every /e/ and /b/ page load.
+    let html = "";
+    try {
+      const shell = await fetch(`${u.origin}/index.html`, { headers: { accept: "text/html" }, signal: AbortSignal.timeout(4000) });
+      if (!shell.ok) throw new Error(`shell ${shell.status}`);
+      html = await shell.text();
+    } catch (e) {
+      console.error(`[share] shell fetch failed: ${(e as Error).message}`);
+      return Response.redirect(`${u.origin}/index.html`, 302);
+    }
     try {
       const id = decodeURIComponent(u.pathname.split("/").filter(Boolean)[1] ?? "");
       if (id) {

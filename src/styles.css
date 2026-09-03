@@ -889,5 +889,5 @@ a {
 
 /* A file that has not been verified lately says so, in the one colour that means it. */
 .stale {
-  color: #b42318;
+  color: var(--accent);
 }

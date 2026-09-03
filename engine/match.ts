@@ -33,6 +33,20 @@ export function searchTerms(q: string): string {
   return [...out].join(" ");
 }
 
+/**
+ * The same employer, written two ways. States file the same company as "Spirit
+ * Airlines" in one and "Spirit Airlines, LLC" in another; treating those as two
+ * employers splits a company's filings across two pages, and the page a link
+ * points at shows only half of them. Legal suffixes are already dropped by
+ * companyTokens, so this is exact agreement on the words that remain — "Amazon"
+ * and "Amazon Web Services" stay separate.
+ */
+export function sameCompany(a: string, b: string): boolean {
+  const ta = companyTokens(a);
+  const tb = companyTokens(b);
+  return ta.length > 0 && ta.length === tb.length && ta.join(" ") === tb.join(" ");
+}
+
 export interface Candidate<T> {
   item: T;
   score: number;

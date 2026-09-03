@@ -26,6 +26,25 @@ export const WARN_STATUTORY_DAYS: Record<string, number> = {
   "US-NJ": 90,
 };
 
+/**
+ * The states with a WARN act of their own, in the act's own name. Virginia,
+ * Colorado and North Carolina are deliberately absent: they have none, and the
+ * federal 60 days is the whole rule there. Saying "Virginia's WARN Act sets 60
+ * days" states a law that does not exist, in the document a worker hands a
+ * lawyer.
+ */
+export const OWN_ACT: Record<string, string> = {
+  "US-NY": "New York's WARN Act",
+  "US-CA": "Cal-WARN",
+  "US-MD": "Maryland's Economic Stabilization Act",
+  "US-NJ": "New Jersey's WARN Act",
+};
+
+/** "New York's WARN Act sets 90 days" / "federal WARN sets 60 days". */
+export function statuteName(jurisdiction: string): string {
+  return OWN_ACT[jurisdiction] ?? "federal WARN";
+}
+
 export const WARN_EXCEPTIONS: Record<string, string[]> = {
   "US": ["faltering company", "unforeseeable business circumstances", "natural disaster"],
   "US-NY": ["faltering company", "unforeseeable business circumstances", "natural disaster", "strike or lockout"],
@@ -147,11 +166,10 @@ export function noticePhrase(actualDays: number): string {
 }
 
 /** Plain-English notice sentence, shared by every WARN adapter. */
-export function noticeSentence(company: string, workers: number, site: string, r: NoticeGapResult, stateName: string): string {
+export function noticeSentence(company: string, workers: number, site: string, r: NoticeGapResult, _stateName?: string): string {
   const days = noticePhrase(r.actualDays);
-  const law = r.verdict === "gap"
-    ? `${stateName} sets ${r.statutoryDays} days`
-    : `inside the ${r.statutoryDays} days ${stateName} sets`;
+  const statute = statuteName(r.jurisdiction);
+  const law = r.verdict === "gap" ? `${statute} sets ${r.statutoryDays} days` : `inside the ${r.statutoryDays} days ${statute} sets`;
   const lag = r.postingLagDays;
   const lagText = lag === null ? "" : lag === 0 ? "the same day" : `${lag} ${lag === 1 ? "day" : "days"} after the notice`;
   const posted =

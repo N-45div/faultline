@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { MODEL, costCents, type Usage } from "./llm";
-import { paused } from "./guard";
+import { paused, providerFault } from "./guard";
 
 // The state's file says a company laid people off, and why. This asks what the
 // company was saying in public the same week, and puts the two side by side —
@@ -45,6 +45,8 @@ interface Corroborated {
 }
 
 export const check = action({
+  // statedReason is accepted for compatibility and deliberately ignored:
+  // what reaches the prompt is read from the filing we hold.
   args: { employer: v.string(), filingDate: v.string(), statedReason: v.optional(v.string()), subjectKey: v.optional(v.string()) },
   returns: v.union(
     // "We couldn't find it" and "we didn't look" are different answers, and
@@ -63,7 +65,7 @@ export const check = action({
   ),
   handler: async (
     ctx,
-    { employer, filingDate, statedReason, subjectKey },
+    { employer, filingDate, subjectKey },
   ): Promise<{ state: "budget" | "off" | "failed" } | (Corroborated & { state: "found" | "none"; cached: boolean })> => {
     const hit: Corroborated | null = await ctx.runQuery(internal.corroborateData.cached, { employer, filingDate });
     if (hit) return { ...hit, state: hit.corroborated ? "found" : "none", cached: true };
@@ -71,8 +73,8 @@ export const check = action({
     if (paused("llm") || (await ctx.runQuery(internal.breaker.open, { provider: "openai" }))) return { state: "off" };
     // Only for a filing we hold. Anyone can call this; only the page's own
     // employer + notice date pairs cost money.
-    const known: boolean = await ctx.runQuery(internal.corroborateData.isFiling, { employer, filingDate });
-    if (!known) {
+    const known: { held: boolean; statedReason?: string } = await ctx.runQuery(internal.corroborateData.isFiling, { employer, filingDate });
+    if (!known.held) {
       console.warn(`[corroborate] refused: not a filing we hold (${employer.slice(0, 60)} / ${filingDate})`);
       return { state: "failed" };
     }
@@ -83,6 +85,7 @@ export const check = action({
       return { state: "budget" };
     }
 
+    const reason = (known.statedReason ?? "").slice(0, 200);
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     try {
       // One search. Pinned, because with tool_choice "auto" the model is free
@@ -104,7 +107,12 @@ export const check = action({
             role: "user",
             content:
               `${employer} filed a layoff notice with the state dated ${filingDate}` +
-              `${statedReason ? `, giving the reason "${statedReason}"` : ""}.` +
+              // The reason comes from the filing we hold, never from the caller.
+              // This action is public, its answer is cached and shown to every
+              // later visitor as the employer's own words, and a caller-supplied
+              // string here would let a stranger choose what a real company is
+              // quoted as saying.
+              `${reason ? `, giving the reason "${reason}"` : ""}.` +
               ` Search for what ${employer} itself said in public between one month before and one month after ${filingDate} about this workforce reduction,` +
               ` its performance, or its plans — a press release, an investor call, a company statement quoted in the local press, or an executive's public remarks.` +
               ` Quote the company's own words and give the date and the source. If you cannot find the company's own words from that window, say so plainly and do not substitute an analyst's or a reporter's characterisation.`,
@@ -170,7 +178,10 @@ export const check = action({
       return { ...out, state: out.corroborated ? "found" : "none", cached: false };
     } catch (e) {
       console.error(`[corroborate] failed: ${String(e)}`);
-      await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: false, error: String(e) });
+      // Only a provider fault trips the breaker. A 400 is our request's fault,
+      // and counting it would let three bad calls switch the model off for
+      // everyone for fifteen minutes.
+      if (providerFault(e)) await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: false, error: String(e) });
       return { state: "failed" };
     }
   },

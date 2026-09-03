@@ -5,7 +5,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { nyWarn } from "../engine/adapters/nyWarn";
-import { scoreCompany, scoreAddress, mentionsCompany, companyMentionScore, searchTerms } from "../engine/match";
+import { scoreCompany, scoreAddress, mentionsCompany, companyMentionScore, sameCompany, searchTerms } from "../engine/match";
 import { classifyInbound } from "../engine/intent";
 import { aggregationLine, amendmentLines, buildingReceipt, exceptionLine, layoffReceipt, noMatchReceipt, receiptText, type LayoffNoticeRow } from "../engine/receipt";
 
@@ -33,6 +33,11 @@ for (const [q, label, min] of pairs) {
 check(searchTerms("Martin's") === "martin s", `index terms for Martin's: ${searchTerms("Martin's")}`);
 check(searchTerms("McDonalds") === "mcdonalds mcdonald", "a possessive typed without its apostrophe carries its stem");
 check(searchTerms("Spirit Airlines, LLC") === "spirit airlines airline", "legal words dropped, plural stem added");
+
+check(sameCompany("Spirit Airlines", "Spirit Airlines, LLC"), "a legal suffix does not make a second employer");
+check(sameCompany("McDonald's Corporation", "McDonalds Corp"), "nor does an apostrophe or an abbreviation");
+check(!sameCompany("Amazon", "Amazon Web Services"), "but a different company is a different company");
+check(!sameCompany("", "Anything"), "an empty name matches nothing");
 
 console.log("== address matching");
 check(scoreAddress("249 East 37 St, Brooklyn", "249 EAST 37 STREET, Brooklyn") >= 0.9, "249 East 37 St → 249 EAST 37 STREET");
@@ -94,14 +99,26 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/Virginia · Richmond VA — 545 workers/.test(t) && /Maryland · 100 E\. Carroll St/.test(t), "each block names its state");
   check(/Check it on Virginia's page/.test(t) && /Check it on Maryland's page/.test(t), "one link per state present");
   check(!/1 workers/.test(t), "no '1 workers'");
-  check(/inside the 60 days Virginia sets/.test(t) && !/inside the 60 Virginia/.test(t), "the statute line says 'days'");
+  // Virginia has no WARN act of its own; naming one would invent a law.
+  check(/inside the 60 days federal WARN sets/.test(t), "the statute is named by whoever wrote it");
+  check(!/Virginia's WARN Act/.test(t) && !/days Virginia sets/.test(t), "no state act is invented for Virginia");
+  const short = receiptText(
+    layoffReceipt("X", "x", [{ company: "X", siteAddress: "Richmond VA", workers: 60, noticeDate: "2026-05-01", effectiveDate: "2026-05-15", postedDate: "", jurisdiction: "US-VA" }], { versionsSince: "2026-08-29" }),
+  );
+  check(/federal WARN sets 60 days; Virginia has no WARN act of its own\./.test(short), "a state without an act gets the federal rule, said plainly");
+  const ny = receiptText(
+    layoffReceipt("Y", "y", [{ company: "Y", siteAddress: "1 Main St", workers: 60, noticeDate: "2026-05-01", effectiveDate: "2026-05-15", postedDate: "", jurisdiction: "US-NY" }], { versionsSince: "2026-08-29" }),
+  );
+  check(/New York's WARN Act sets 90 days\./.test(ny) && !/has no WARN act/.test(ny), "a state that has one is named by it");
 }
 
 // Separate filings at one site inside 90 days are one event under the federal
 // rule; the state's file shows them as unrelated rows. Martin's, Richmond, 2017.
 {
+  // The federal rule aggregates at a single site of employment, so this only
+  // fires where the state publishes a street address.
   const site = (noticeDate: string, workers: number, effectiveDate: string): LayoffNoticeRow => ({
-    company: "Martin's", siteAddress: "Richmond VA", workers, noticeDate, effectiveDate, postedDate: "", jurisdiction: "US-VA", layoffOrClosure: "Layoff",
+    company: "Martin's", siteAddress: "155 South Hill Drive, Richmond VA", workers, noticeDate, effectiveDate, postedDate: "", jurisdiction: "US-VA", layoffOrClosure: "Layoff",
   });
   const rows = [site("2017-04-11", 138, "2017-07-10"), site("2017-04-11", 99, "2017-07-10"), site("2017-04-24", 109, "2017-06-23"), site("2016-12-08", 155, "2017-02-06"), site("2016-06-14", 96, "2016-08-13")];
   const third = aggregationLine(rows[2], rows) ?? "";
@@ -109,8 +126,13 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/^One of 2 notices at this address dated the same day, 237 workers together\./.test(aggregationLine(rows[0], rows) ?? ""), "same-day filings are counted, not ranked");
   check(aggregationLine(rows[4], rows) === null, "a filing with nothing inside 90 days says nothing");
   check(aggregationLine(rows[3], rows) === null, "December's filing is outside April's window, and June's is outside December's");
-  const other = { ...rows[2], siteAddress: "Norfolk VA" };
+  const other = { ...rows[2], siteAddress: "8 Granby Street, Norfolk VA" };
   check(aggregationLine(other, [...rows, other]) === null, "another address is another site");
+  // Colorado publishes a workforce area, not a site. Two notices in "Pueblo"
+  // are not evidence of one aggregated layoff, and must not claim to be.
+  const region = rows.map((r) => ({ ...r, siteAddress: "Pueblo", jurisdiction: "US-CO" as const }));
+  check(aggregationLine(region[2], region) === null, "a workforce area is not a site of employment");
+  check(aggregationLine({ ...rows[2], noticeDate: "2017-07-10" }, [{ ...rows[0], noticeDate: "2017-04-11" }]) === null, "exactly 90 days apart spans 91 days, so it is outside the window");
   const t = receiptText(layoffReceipt("Martin's", "x", rows, { versionsSince: "2026-08-29" }));
   check(/3rd notice at this address in 13 days/.test(t) && /within any 90-day period together/.test(t), "the receipt carries the aggregation line");
 }
@@ -187,7 +209,7 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(!/no certification stamps/.test(b.headline), "never 'no stamps' over live violations");
   check(/PROVIDE HOT WATER/.test(t), "the city's own description is in the receipt");
   check(t.indexOf("class C") < t.indexOf("class B"), "class C shown before class B");
-  check(/We hold 3 rows for this, in 4 versions, and have read the file 41 times since 2026-08-29\./.test(t), "the held line counts");
+  check(/We hold 3 rows for this, in 4 versions, across 1 file read 41 times between them since 2026-08-29\./.test(t), "the held line counts, and names how many files");
   check(/Read from New York City's file on 2026-09-02 03:12 UTC \(HTTP 200, 3,382 rows\)/.test(t), "the provenance line is dated");
 }
 

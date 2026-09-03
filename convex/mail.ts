@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { paused } from "./guard";
+import { paused, providerFault } from "./guard";
 
 // Outbound mail. The AgentMail component handles inbound (webhook, threads,
 // storage); sending goes straight to AgentMail's API from the app, because a
@@ -32,7 +32,13 @@ async function call(path: string, body: unknown): Promise<{ message_id: string; 
     body: JSON.stringify(body),
   });
   const data: any = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`AgentMail ${res.status}: ${data?.message ?? JSON.stringify(data).slice(0, 200)}`);
+  if (!res.ok) {
+    const err = new Error(`AgentMail ${res.status}: ${data?.message ?? JSON.stringify(data).slice(0, 200)}`);
+    // The status travels with the error so the breaker can tell a dead thread
+    // (404, this message only) from AgentMail being down (5xx, everyone).
+    (err as Error & { status?: number }).status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -45,6 +51,12 @@ function wire(attachments?: { filename: string; content: string; contentType?: s
  * Paused by hand, or the provider's breaker is open: the message goes back
  * to the queue when it came from one, and is not attempted.
  */
+// Held mail is re-tried for about an hour: long enough to ride out a breaker
+// cool-off or a hand-set pause, short enough that a person still recognises
+// the reply when it lands.
+const HELD_RETRY_MS = 10 * 60_000;
+const HELD_RETRIES = 6;
+
 async function held(ctx: { runQuery: (ref: any, args: any) => Promise<any> }, what: string): Promise<boolean> {
   if (paused("mail")) {
     console.warn(`[mail] ${what} held: NOTICE_PAUSE`);
@@ -67,11 +79,18 @@ export const reply = internalAction({
     receiptId: v.optional(v.id("receipts")),
     inboxId: v.optional(v.id("inbox")),
     onFailure: v.optional(onFailureValidator),
+    /** How many times this has been re-scheduled while mail was held. */
+    attempt: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, a) => {
     if (await held(ctx, "reply")) {
       if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: false });
+      // A queued alert goes back to the queue; a reply to a person who wrote to
+      // us has no queue, so it is re-scheduled. "Nothing is dropped" has to be
+      // true of the reply path too, or someone who emailed us gets silence.
+      else if ((a.attempt ?? 0) < HELD_RETRIES) await ctx.scheduler.runAfter(HELD_RETRY_MS, internal.mail.reply, { ...a, attempt: (a.attempt ?? 0) + 1 });
+      else console.error(`[mail] reply abandoned after ${HELD_RETRIES} held attempts`);
       return null;
     }
     try {
@@ -86,7 +105,9 @@ export const reply = internalAction({
       console.log(`[mail] replied in thread ${r.thread_id}`);
     } catch (e) {
       console.error(`[mail] reply failed: ${String(e)}`);
-      await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: false, error: String(e) });
+      // A 404 on a thread that aged out is this message's problem, not the
+      // provider's; counting it would silence everybody for fifteen minutes.
+      if (providerFault(e)) await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: false, error: String(e) });
       // A thread can go stale — the message aged out, or the person deleted it.
       // Put the news back and forget the thread, so the retry starts a new one.
       if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: true });
@@ -105,11 +126,14 @@ export const send = internalAction({
     html: v.optional(v.string()),
     attachments: v.optional(v.array(attachmentValidator)),
     onFailure: v.optional(onFailureValidator),
+    attempt: v.optional(v.number()),
   },
   returns: v.null(),
   handler: async (ctx, a) => {
     if (await held(ctx, "send")) {
       if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: false });
+      else if ((a.attempt ?? 0) < HELD_RETRIES) await ctx.scheduler.runAfter(HELD_RETRY_MS, internal.mail.send, { ...a, attempt: (a.attempt ?? 0) + 1 });
+      else console.error(`[mail] send abandoned after ${HELD_RETRIES} held attempts`);
       return null;
     }
     try {
@@ -125,7 +149,9 @@ export const send = internalAction({
       console.log(`[mail] sent ${r.message_id} to ${a.to}`);
     } catch (e) {
       console.error(`[mail] send failed: ${String(e)}`);
-      await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: false, error: String(e) });
+      // A 404 on a thread that aged out is this message's problem, not the
+      // provider's; counting it would silence everybody for fifteen minutes.
+      if (providerFault(e)) await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: false, error: String(e) });
       if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: false });
     }
     return null;
