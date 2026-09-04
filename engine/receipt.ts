@@ -93,6 +93,17 @@ export interface BuildingStamp {
   inspected?: string | null;
 }
 
+/** One inspection citation, as the Health Department recorded it. */
+export interface RestaurantRow {
+  dba: string;
+  inspectionDate: string;
+  action: string;
+  grade: string | null;
+  score: number | null;
+  critical: boolean;
+  description: string | null;
+}
+
 export interface Receipt {
   kind: "layoff" | "building" | "none";
   query: string;
@@ -110,6 +121,8 @@ export interface ReceiptOpts {
   provenance?: { publisher: string; url: string; at: number; status: number; rows: number; lastChecked: number; coverage?: string }[];
   /** What we hold for this subject: rows, versions of them, reads of the file since. */
   held?: { rows: number; versions: number; reads: number; since: number | null };
+  /** Health Department inspections at the same address, newest first. */
+  restaurants?: RestaurantRow[];
 }
 
 const stamp = (ms: number) => new Date(ms).toISOString().replace("T", " ").slice(0, 16) + " UTC";
@@ -428,6 +441,40 @@ export function buildingReceipt(query: string, subjectKey: string, label: string
     return s.description ? [head, s.description.length > 220 ? `${s.description.slice(0, 217).trimEnd()}…` : s.description] : [head];
   });
   if (n > shown.length) blocks.push([`…and ${n - shown.length} more on the building's page.`]);
+
+  // The Health Department's file at the same address. Its own description says
+  // it holds only restaurants open today, and three years back from the last
+  // inspection — so when one closes for good, this history leaves the city's
+  // site. What we read, we keep.
+  const food = opts.restaurants ?? [];
+  if (food.length > 0) {
+    // One closure is one restaurant on one day, however many citations the
+    // city wrote that day. Counting rows here said "closed 13 restaurants"
+    // over a single name.
+    const closedOn = new Map<string, string>();
+    for (const f of food) {
+      if (!/closed by dohmh/i.test(f.action) || /re-opened/i.test(f.action)) continue;
+      const seen = closedOn.get(f.dba);
+      if (!seen || f.inspectionDate > seen) closedOn.set(f.dba, f.inspectionDate);
+    }
+    const names = [...new Set(food.map((f) => f.dba).filter(Boolean))];
+    const closedList = [...closedOn.entries()].sort((a, b) => (a[1] < b[1] ? 1 : -1));
+    const head =
+      closedList.length === 1
+        ? `New York City closed ${closedList[0][0]} here on ${closedList[0][1]}.`
+        : closedList.length > 1
+          ? `New York City closed ${closedList.length} restaurants here: ${closedList.map(([name, on]) => `${name} (${on})`).join(", ")}.`
+          : `Health Department inspections at this address: ${names.slice(0, 3).join(", ")}${names.length > 3 ? `, and ${names.length - 3} more` : ""}.`;
+    const lines = [head];
+    for (const f of food.slice(0, 3)) {
+      const grade = f.grade ? ` Grade ${f.grade}.` : "";
+      const score = f.score !== null ? ` Score ${f.score}.` : "";
+      const critical = f.critical ? " Marked critical." : "";
+      lines.push(`${f.dba || "An establishment"}, ${f.inspectionDate}.${grade}${score}${critical}${f.description ? ` "${f.description.length > 180 ? `${f.description.slice(0, 177).trimEnd()}…` : f.description}"` : ""}`);
+    }
+    lines.push("The city's food file holds only restaurants that are open today, and three years back from the last inspection — its own words. We keep every version we read, including of records that later leave it.");
+    blocks.push(lines);
+  }
   return {
     kind: "building",
     query,

@@ -45,14 +45,18 @@ export const nycRestaurants: SourceAdapter<Raw> = {
     kind: "socrata",
     domain: DOMAIN,
     resourceId: RESOURCE,
-    maxKeysPerQuery: 100,
+    // Smaller pages than the housing file: each building brings its whole
+    // history back, not one day of it.
+    maxKeysPerQuery: 40,
     // Cheap and countable: has the city closed anything since the cursor?
     pulse: (cursor) => `$select=count(1)&$where=action like '%25Closed by DOHMH%25' AND inspection_date>='${dateOnly(cursor)}'`,
-    // Only the buildings somebody is looking at. Inspections backfill, so the
-    // cursor trails and identity + sigHash dedupe the rest.
-    watch: (bbls, cursor) =>
-      `$limit=5000&$order=inspection_date DESC` +
-      `&$where=bbl in(${bbls.map((b) => `'${q(b)}'`).join(",")}) AND inspection_date>='${dateOnly(cursor)}'`,
+    // Deliberately unfiltered by date, unlike the housing file. A building's
+    // inspection history is the thing that disappears when a restaurant
+    // closes, so what is worth holding is the whole current slice for the
+    // buildings we watch — not the last three days of it. The cursor is
+    // ignored; identity plus sigHash mean re-reading the same rows writes
+    // nothing.
+    watch: (bbls) => `$limit=5000&$order=inspection_date DESC&$where=bbl in(${bbls.map((b) => `'${q(b)}'`).join(",")})`,
   },
   cadence: { baseMs: 60 * 60_000, hotMs: 30 * 60_000, jitterPct: 15, gate: "always" },
   targeting: "server_filter",

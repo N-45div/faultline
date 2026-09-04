@@ -9,6 +9,7 @@ import {
   layoffReceipt,
   noMatchReceipt,
   type BuildingStamp,
+  type RestaurantRow,
   type LayoffNoticeRow,
   type Receipt,
   type ReceiptOpts,
@@ -135,6 +136,30 @@ export async function stampsFor(db: DatabaseReader, bbl: string): Promise<Buildi
       inspected: c.fields.inspectiondate ? String(c.fields.inspectiondate) : null,
     }))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+/**
+ * Health Department inspections filed under the same building. A different
+ * city file, the same 10-digit parcel number.
+ */
+export async function restaurantsFor(db: DatabaseReader, bbl: string): Promise<RestaurantRow[]> {
+  const src = await db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-restaurants")).unique();
+  if (!src) return [];
+  const cur = await db
+    .query("current")
+    .withIndex("by_source_subject", (q) => q.eq("sourceId", src._id).eq("subjectKey", bbl))
+    .collect();
+  return cur
+    .map((c) => ({
+      dba: String(c.fields.dba ?? ""),
+      inspectionDate: String(c.fields.inspectionDate ?? ""),
+      action: String(c.fields.action ?? ""),
+      grade: c.fields.grade ? String(c.fields.grade) : null,
+      score: c.fields.score !== null && c.fields.score !== undefined ? Number(c.fields.score) : null,
+      critical: String(c.fields.criticalFlag ?? "") === "Critical",
+      description: c.fields.violationDescription ? String(c.fields.violationDescription) : null,
+    }))
+    .sort((a, b) => (a.inspectionDate < b.inspectionDate ? 1 : -1));
 }
 
 /**
@@ -326,7 +351,8 @@ export async function buildReceipt(
         receipt: buildingReceipt(subject.label, key, subject.label, stamps, {
           versionsSince: since,
           pageUrl: `${siteUrl()}/b/${key}`,
-          provenance: await provenanceFor(db, ["nyc-hpd"]),
+          restaurants: await restaurantsFor(db, key),
+          provenance: await provenanceFor(db, ["nyc-hpd", "nyc-restaurants"]),
           held: { rows: held.rows.length, versions: held.rows.reduce((n, r) => n + r.versions, 0), reads: held.reads, since: held.since },
         }),
         matches: [],
@@ -343,7 +369,8 @@ export async function buildReceipt(
         receipt: buildingReceipt(q, b[0].subjectKey, b[0].label, stamps, {
           versionsSince: since,
           pageUrl: `${siteUrl()}/b/${b[0].subjectKey}`,
-          provenance: await provenanceFor(db, ["nyc-hpd"]),
+          restaurants: await restaurantsFor(db, b[0].subjectKey),
+          provenance: await provenanceFor(db, ["nyc-hpd", "nyc-restaurants"]),
           held: { rows: held.rows.length, versions: held.rows.reduce((n, r) => n + r.versions, 0), reads: held.reads, since: held.since },
         }),
         matches: [],
@@ -428,7 +455,8 @@ export const building = query({
     return {
       receipt: buildingReceipt(subject.label, clean, subject.label, stamps, {
         versionsSince: since,
-        provenance: await provenanceFor(ctx.db, ["nyc-hpd"]),
+        restaurants: await restaurantsFor(ctx.db, clean),
+        provenance: await provenanceFor(ctx.db, ["nyc-hpd", "nyc-restaurants"]),
         held: { rows: held.rows.length, versions: held.rows.reduce((n, r) => n + r.versions, 0), reads: held.reads, since: held.since },
       }),
       label: subject.label,

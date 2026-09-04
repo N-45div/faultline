@@ -202,6 +202,24 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/Check it on New Jersey's page/.test(t), "New Jersey's own page is linked");
 }
 
+// The food file at the same address. One closure is one restaurant on one
+// day, however many citations the city wrote that day.
+{
+  const cite = (dba: string, date: string, action: string, description: string): import("../engine/receipt").RestaurantRow => ({
+    dba, inspectionDate: date, action, grade: null, score: 9, critical: true, description,
+  });
+  const closed = "Establishment Closed by DOHMH. Violations were cited in the following area(s) and those requiring immediate action were addressed.";
+  const rows = [cite("LAO JIE HOTPOT", "2026-08-26", closed, "Live roaches."), cite("LAO JIE HOTPOT", "2026-08-26", closed, "Pests."), cite("LAO JIE HOTPOT", "2026-08-31", closed, "Harbourage.")];
+  const t = receiptText(buildingReceipt("105 Bowery", "1003040006", "105 BOWERY, Manhattan", [], { versionsSince: "2026-08-29", restaurants: rows }));
+  check(/New York City closed LAO JIE HOTPOT here on 2026-08-31\./.test(t), "one restaurant, one closure — not one per citation");
+  check(!/closed 3 restaurants/.test(t), "citations are not restaurants");
+  check(/holds only restaurants that are open today/.test(t), "and the file's own limit is stated");
+  const two = receiptText(
+    buildingReceipt("x", "1", "1 Main St", [], { versionsSince: "2026-08-29", restaurants: [...rows, cite("OTHER PLACE", "2026-01-05", closed, "Roaches.")] }),
+  );
+  check(/closed 2 restaurants here: LAO JIE HOTPOT \(2026-08-31\), OTHER PLACE \(2026-01-05\)/.test(two), "two restaurants are named with their dates");
+}
+
 // A start-date cell holding more than one date is the state saying more than
 // one thing. Maryland writes ranges backwards; New Jersey writes lists.
 {
