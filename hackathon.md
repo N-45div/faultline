@@ -527,6 +527,41 @@ stored row, follow and subject, so changing it would orphan the lot; recorded
 and left alone (`convex/schema.ts`, `convex/follows.ts`, `convex/digest.ts`,
 `convex/inbound.ts`, `src/FollowButton.tsx`).
 
+### 2026-09-03 - f1950c3
+The ninth file, and the plainest case yet for why versions are the product.
+The Health Department's restaurant inspection file says its own limits out
+loud: it holds violations "up to three years prior to the most recent
+inspection", for establishments "in an active status on the RECORD DATE", and
+"only restaurants in an active status are included in the dataset". So when a
+restaurant closes for good, its whole inspection history leaves the city's
+file — and thousands open and close every year, in the department's own
+words. That is not a claim we make about the city; it is the city's
+description of its own dataset, quoted.
+
+It is keyed on the same 10-digit parcel number HPD uses, so it lands on the
+building pages we already have. 105 Bowery, live right now: no housing
+violations on record, and underneath, "New York City closed LAO JIE HOTPOT
+here on 2026-08-31", with the three citations in the city's own words. The
+phone number in the file is read and dropped, like Virginia's named contact.
+
+Two things this turned up. Unlike the housing file, this one is deliberately
+read without a date filter — a building's *history* is the thing that
+disappears, so the last three days of it is not what is worth holding. That
+makes the first read large: 6,709 rows across 197 watched buildings, which
+went through the deferral path in three cycles and proved the fix from
+earlier today on production. And the receipt first said "closed 13
+restaurants" at one address, because it counted citations rather than
+restaurants — one closure is one restaurant on one day, however many
+citations the city wrote that day.
+
+Also from the plan and dropped, honestly: OATH hearings. The plan said
+dismissed violations are removed from the property record. Its own
+description does not say that, its location fields are blank on three
+quarters of rows, and the hearing result is blank on nearly all of them —
+it will not carry the claim, so it is not being built on one.
+
+Nine files, 13,560 rows.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
@@ -566,7 +601,7 @@ are the dated proof you bring them.
 | 5 Sep | Done two days early: the 30/90-day aggregation line per employer and site ("3rd notice from X at this address in 74 days, 61 workers cumulative") — the batching loophole workers describe, that no tracker computes; the exception line — where a state records the reason given, whether the employer named an exception (unforeseeable business circumstances, faltering company) beside their own public words; Google sign-in once the client id arrives |
 | 6 Sep | Ten receipts to ten plaintiff-side firms and tenant organisers — the thirty-day test; employer share pages (done 3 Sep); AgentMail Developer plan + custom domain, warmup starts |
 | 7 Sep | Judging-week protections done 3 Sep (breakers, "last verified" badges, kill switch, chaos test, pack GC, copy lint); left: a second adversarial review of everything shipped since 31 Aug |
-| 8–10 Sep | New Jersey DONE 3 Sep (2,367 filings; the state that publishes no notice date). Illinois PROBED 3 Sep and parked: its WARN list is an Angular app whose API (`/iebs/Apps/api/public/search`) 302s to a login for every request, and the department's own page offers only per-year PDFs — a source that would break in front of a judge. Left: Illinois (90/60-day laws, overwritten files); Wisconsin (dwd.wisconsin.gov does not resolve from this network at all — try from another network or from inside a deployment fetch before writing the adapter; the one state that publishes revision codes — the model for the amendment chain); the NYC feeds that are provably lossy where HPD is not: restaurant inspections (closed restaurants vanish) and OATH hearings (dismissed violations are removed from the property record) |
+| 8–10 Sep | New Jersey and NYC restaurant inspections DONE 3 Sep (the food file the city rebuilds from every pull). OATH dropped: its own description does not support "dismissed violations are removed", location is blank on 3/4 of rows, hearing result on nearly all. New Jersey DONE 3 Sep (2,367 filings; the state that publishes no notice date). Illinois PROBED 3 Sep and parked: its WARN list is an Angular app whose API (`/iebs/Apps/api/public/search`) 302s to a login for every request, and the department's own page offers only per-year PDFs — a source that would break in front of a judge. Left: Illinois (90/60-day laws, overwritten files); Wisconsin (dwd.wisconsin.gov does not resolve from this network at all — try from another network or from inside a deployment fetch before writing the adapter; the one state that publishes revision codes — the model for the amendment chain); the NYC feeds that are provably lossy where HPD is not: restaurant inspections (closed restaurants vanish) and OATH hearings (dismissed violations are removed from the property record) |
 | 11–13 Sep | Firecrawl: HTML-only states and employer newsroom captures; share images; teaser post |
 | 14–16 Sep | Hardening: redaction, chaos test with keys removed, the lawyer export (employer, site, notice date, first separation, count, exception text, amendments, limitations date) |
 | 17–18 Sep | Video |
