@@ -1,4 +1,4 @@
-import { daysBetween, foldString, monthName } from "./canon";
+import { daysBetween, foldString, monthName, usDate } from "./canon";
 import { FEDERAL_WARN_THRESHOLD, OWN_ACT, WARN_EXCEPTIONS, noticePhrase, statuteName, warnNoticeGap, type NoticeGapResult } from "./rules";
 
 // The receipt is the product. Every word here is read by someone who got a
@@ -34,6 +34,13 @@ export interface LayoffNoticeRow {
    * and never the day. New Jersey is the only one so far.
    */
   noticeMonth?: string;
+  /**
+   * The start-date cell exactly as the state wrote it. Often a single date,
+   * sometimes a range, sometimes a list of twelve, sometimes written
+   * backwards. Kept so the receipt can show the cell instead of asserting one
+   * date out of several.
+   */
+  effectiveDateRaw?: string;
   layoffOrClosure?: string;
   reason?: string;
   amendments?: Amendment[];
@@ -148,6 +155,28 @@ const OWN_ACT_LINE: Partial<Record<LayoffNoticeRow["jurisdiction"], string>> = {
   "US-NJ": "New Jersey's own WARN Act sets 90 days, and since April 2023 severance of a week per year worked.",
 };
 
+/**
+ * Whether the one start date we parsed is the whole of what the state wrote.
+ *
+ * Maryland writes ranges, sometimes backwards ("03/31/2026 - 06/30/2025"), and
+ * measuring to the first date there turned a 214-day gap into "inside the
+ * statute". New Jersey writes lists — "3/31/26 (Paramus and Ramsey), 4/30/26
+ * (Livingston)" — and a Livingston worker's date is not the first one. A
+ * proper range is fine: its first date is the start. Anything else is the
+ * state saying more than one thing, and the receipt shows the cell rather than
+ * choosing for it.
+ */
+export function startDateIsCertain(raw: string | undefined): boolean {
+  const cell = (raw ?? "").trim();
+  if (!cell) return true;
+  const found = cell.match(/\d{1,2}\/\d{1,2}\/\d{2,4}/g) ?? [];
+  if (found.length <= 1) return true;
+  if (found.length > 2) return false;
+  // Two dates joined by a dash, and in order: a range, whose start is the first.
+  const isRange = /\d\s*(?:-|–|—|to|through)\s*\d/i.test(cell);
+  return isRange && usDate(found[0] ?? "") <= usDate(found[1] ?? "");
+}
+
 /** A house number and a street: what the federal single-site rule needs. */
 function hasStreetAddress(site: string): boolean {
   return /\d/.test(site) && /\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|way|hwy|highway|pkwy|parkway|ct|court|pl|place|ter|terrace|cir|circle|sq|square|route|rt|suite|ste|floor|fl)\b/i.test(site);
@@ -234,7 +263,18 @@ export function exceptionLine(row: LayoffNoticeRow, gap: Pick<NoticeGapResult, "
 
 export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNoticeRow[], opts: ReceiptOpts): Receipt {
   const scored = rows
-    .map((r) => ({ r, g: warnNoticeGap({ jurisdiction: r.jurisdiction, noticeDate: r.noticeDate, effectiveDate: r.effectiveDate, postedDate: r.postedDate || undefined }) }))
+    .map((r) => ({
+      r,
+      certain: startDateIsCertain(r.effectiveDateRaw),
+      g: warnNoticeGap({
+        jurisdiction: r.jurisdiction,
+        noticeDate: r.noticeDate,
+        // An uncertain start date is no start date: the gap comes back
+        // "unknown" rather than measured against a date we chose.
+        effectiveDate: startDateIsCertain(r.effectiveDateRaw) ? r.effectiveDate : "",
+        postedDate: r.postedDate || undefined,
+      }),
+    }))
     // Shortest notice first — that is what a person opens the receipt for. A
     // filing whose notice period cannot be counted sorts last: an uncountable
     // gap is not a zero-day one.
@@ -266,7 +306,7 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
   // eleven blocks in a row it is wallpaper, and a reader skips the line that
   // matters most. Said on that state's first block, and not again.
   const explained = new Set<string>();
-  const blocks = scored.slice(0, 5).map(({ r, g }) => {
+  const blocks = scored.slice(0, 5).map(({ r, g, certain }) => {
     const state = STATE[r.jurisdiction];
     const event = r.layoffOrClosure?.toLowerCase().includes("closure") ? "closure" : "layoff";
     const kind = [r.layoffOrClosure, r.reason].filter(Boolean).join(" · ");
@@ -286,17 +326,23 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
     const statute = statuteName(r.jurisdiction);
     const noticeLine =
       g.verdict === "unknown"
-        ? firstOfState
-          ? `${state} publishes the month it posted a notice, not the date the employer gave it, so the notice period cannot be counted from the state's file. ${OWN_ACT_LINE[r.jurisdiction] ?? `Federal WARN sets ${g.statutoryDays} days.`}`
-          : ""
+        ? !certain
+          ? `The notice period cannot be counted while the start date is written this way. ${OWN_ACT_LINE[r.jurisdiction] ?? `${statuteName(r.jurisdiction)} sets ${g.statutoryDays} days.`}`
+          : firstOfState
+            ? `${state} publishes the month it posted a notice, not the date the employer gave it, so the notice period cannot be counted from the state's file. ${OWN_ACT_LINE[r.jurisdiction] ?? `Federal WARN sets ${g.statutoryDays} days.`}`
+            : ""
         : g.verdict === "gap"
           ? `${phrase[0].toUpperCase()}${phrase.slice(1)}. ${statute} sets ${g.statutoryDays} days${OWN_ACT[r.jurisdiction] ? "" : `; ${state} has no WARN act of its own`}.`
           : `${phrase[0].toUpperCase()}${phrase.slice(1)} — inside the ${g.statutoryDays} days ${statute} sets.`;
-    const started = r.effectiveDate ? `${event === "closure" ? "Closure" : "Layoff"} started ${r.effectiveDate}.` : `${state}'s file gives no start date.`;
-    const dateLine =
-      g.verdict === "unknown"
-        ? `${monthName(r.noticeMonth ?? "") ? `Posted by ${state} in ${monthName(r.noticeMonth ?? "")}` : `${state} gives no notice date`}. ${started}`
-        : `Notice dated ${r.noticeDate}. ${started}`;
+    // When the cell holds more than one date, the cell is what is shown.
+    const started = !certain
+      ? `${state}'s file gives the start as "${(r.effectiveDateRaw ?? "").trim()}".`
+      : r.effectiveDate
+        ? `${event === "closure" ? "Closure" : "Layoff"} started ${r.effectiveDate}.`
+        : `${state}'s file gives no start date.`;
+    const dateLine = r.noticeDate
+      ? `Notice dated ${r.noticeDate}. ${started}`
+      : `${monthName(r.noticeMonth ?? "") ? `Posted by ${state} in ${monthName(r.noticeMonth ?? "")}` : `${state} gives no notice date`}. ${started}`;
     const lines = [siteLine, dateLine, noticeLine].filter(Boolean);
     // Below the federal headcount, the statutory paragraph is withheld: the
     // state lists filings its own act does not reach, and scoring one of those

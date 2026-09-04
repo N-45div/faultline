@@ -10,7 +10,15 @@ export const overview = internalQuery({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const count = async (t: TableNames) => (await ctx.db.query(t).collect()).length;
+    // Bounded, and low: these rows carry their whole `fields` object, so even
+    // a few thousand of them across a dozen tables blows the 16 MiB read limit
+    // — and this is the thing you reach for when something is already wrong.
+    // Exact totals live on the source rows; this is a shape check.
+    const CAP = 200;
+    const count = async (t: TableNames) => {
+      const rows = await ctx.db.query(t).take(CAP + 1);
+      return rows.length > CAP ? `${CAP.toLocaleString()}+` : rows.length;
+    };
     const latest = await ctx.db.query("changes").order("desc").take(6);
     const snaps = await ctx.db.query("snapshots").order("desc").take(6);
     return {

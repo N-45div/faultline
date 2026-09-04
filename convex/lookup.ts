@@ -66,6 +66,16 @@ export const LAYOFF_STATES = {
 
 export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Promise<LayoffNoticeRow[]> {
   const rows: LayoffNoticeRow[] = [];
+  // A subject's edits do not depend on which state's file is being read, so
+  // they are fetched once per subject rather than once per subject per state —
+  // seven times the reads for the same rows, on a path a stranger can call.
+  const editsFor = new Map<string, { at: number; changed: string[]; before: any; after: any; identityKey: string }[]>();
+  for (const key of subjectKeys) {
+    const edits = (await db.query("changes").withIndex("by_subject", (q) => q.eq("subjectKey", key)).order("asc").take(50))
+      .filter((c) => c.kind === "changed" && c.before && c.after)
+      .map((c) => ({ at: c.detectedAt, changed: c.changed, before: c.before!, after: c.after!, identityKey: c.identityKey }));
+    if (edits.length > 0) editsFor.set(key, edits);
+  }
   for (const [slugName, jurisdiction] of Object.entries(LAYOFF_STATES) as [keyof typeof LAYOFF_STATES, LayoffNoticeRow["jurisdiction"]][]) {
     const src = await db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slugName)).unique();
     if (!src) continue;
@@ -74,16 +84,11 @@ export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Pro
         .query("current")
         .withIndex("by_source_subject", (q) => q.eq("sourceId", src._id).eq("subjectKey", key))
         .collect();
-      // The state's in-place edits to these rows, oldest first, so a receipt
-      // can spell out the chain.
-      const edits = (await db.query("changes").withIndex("by_subject", (q) => q.eq("subjectKey", key)).order("asc").take(50)).filter(
-        (c) => c.kind === "changed" && c.before && c.after,
-      );
+      if (cur.length === 0) continue;
+      const edits = editsFor.get(key) ?? [];
       for (const c of cur) {
         const f = c.fields;
-        const amendments = edits
-          .filter((e) => e.identityKey === c.identityKey)
-          .map((e) => ({ at: e.detectedAt, changed: e.changed, before: e.before!, after: e.after! }));
+        const amendments = edits.filter((e) => e.identityKey === c.identityKey).map(({ at, changed, before, after }) => ({ at, changed, before, after }));
         rows.push({
           company: String(f.company),
           siteAddress: String(f.siteAddress),
@@ -91,6 +96,8 @@ export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Pro
           noticeDate: String(f.noticeDate ?? ""),
           // New Jersey publishes the month it posted a notice and no day.
           noticeMonth: f.noticeMonth ? String(f.noticeMonth) : undefined,
+          // Maryland and New Jersey both write more than one date in this cell.
+          effectiveDateRaw: f.effectiveDateRaw ? String(f.effectiveDateRaw) : undefined,
           effectiveDate: String(f.effectiveDate),
           postedDate: String(f.postedDate ?? f.processedDate ?? ""),
           // California's column is "Processed Date" — the day it handled the

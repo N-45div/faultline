@@ -479,6 +479,32 @@ letter-reading budget: a burst of public search calls could take the thing
 people actually email us for offline for a day (`convex/corroborateData.ts`,
 `convex/corroborate.ts`, `convex/llm.ts`).
 
+### 2026-09-03 - 39e1d39
+The last correctness finding from the six reviews, and the one that had the
+worst failure mode. Maryland writes start dates as ranges and sometimes
+writes them backwards — "03/31/2026 - 06/30/2025" — and measuring to the
+first date in the cell turned the largest gap in Maryland's file into "60
+days' notice — inside the 60 days". New Jersey writes lists: "3/31/26
+(Paramus and Ramsey), 4/30/26 (Livingston)", and the receipt stated 31 March
+as the start for a Livingston worker whose own date the state had printed
+right there.
+
+A start date is now only counted when the cell holds one date, or a proper
+range in order. Anything else — a list, a backwards range, two dates joined
+by "and" — is the state saying more than one thing, and the receipt shows the
+cell as written and declines to count a notice period from it. Both cases
+verified against the real rows.
+
+Also from the reviews: a subject's edits were read once per state per
+subject, so the same rows were fetched seven times on a path anyone can call;
+a name-follow that has never matched anything showed its internal key
+("q:acme-corp") to the reader and linked to a dead page; the dev overview
+died on the read limit, which is exactly when you reach for it; a pack built
+twice left the first PDF in storage referenced by nothing; and a cycle that
+deferred rows stored its etag anyway, so the next cycle asked "has it
+changed?", got a 304, and left the deferred rows waiting for the state's next
+edit.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

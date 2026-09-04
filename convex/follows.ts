@@ -98,6 +98,14 @@ export const mine = query({
       const subject =
         (await ctx.db.query("subjects").withIndex("by_kind_key", (q) => q.eq("kind", "employer_site").eq("key", s.subjectKey)).unique()) ??
         (await ctx.db.query("subjects").withIndex("by_kind_key", (q) => q.eq("kind", "building").eq("key", s.subjectKey)).unique());
+      // A follow on a name that has never appeared has no subject row: the key
+      // is "q:<the name>". Showing that key raw put an internal noun in front
+      // of a reader and linked to a page that says "we couldn't find q acme".
+      if (s.subjectKey.startsWith("q:")) {
+        const name = s.subjectKey.slice(2).replace(/-/g, " ");
+        out.push({ subjectKey: s.subjectKey, label: `${name} — nothing filed yet`, kind: "query", since: s.createdAt });
+        continue;
+      }
       out.push({ subjectKey: s.subjectKey, label: subject?.label ?? s.subjectKey, kind: subject?.kind ?? "unknown", since: s.createdAt });
     }
     return out.sort((a, b) => b.since - a.since);

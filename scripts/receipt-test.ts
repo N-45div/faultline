@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { nyWarn } from "../engine/adapters/nyWarn";
 import { scoreCompany, scoreAddress, mentionsCompany, companyMentionScore, sameCompany, searchTerms } from "../engine/match";
 import { classifyInbound } from "../engine/intent";
-import { aggregationLine, amendmentLines, buildingReceipt, exceptionLine, layoffReceipt, noMatchReceipt, receiptText, type LayoffNoticeRow } from "../engine/receipt";
+import { aggregationLine, amendmentLines, buildingReceipt, exceptionLine, layoffReceipt, noMatchReceipt, receiptText, startDateIsCertain, type LayoffNoticeRow } from "../engine/receipt";
 
 let failures = 0;
 const check = (cond: boolean, msg: string) => {
@@ -200,6 +200,27 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check((many.match(/Posted by New Jersey in February 2025/g) ?? []).length === 3, "but every filing still says which month it was posted");
   check(/2 filings in New Jersey and New York, 107 workers, 2025–2026/.test(both.headline), `mixed headline: ${both.headline}`);
   check(/Check it on New Jersey's page/.test(t), "New Jersey's own page is linked");
+}
+
+// A start-date cell holding more than one date is the state saying more than
+// one thing. Maryland writes ranges backwards; New Jersey writes lists.
+{
+  check(startDateIsCertain("03/31/2026"), "one date is certain");
+  check(startDateIsCertain(undefined) && startDateIsCertain(""), "no cell is certain");
+  check(startDateIsCertain("10/23/2026 - 03/26/2027"), "a range in order is certain: its start is the first date");
+  check(!startDateIsCertain("03/31/2026 - 06/30/2025"), "a range written backwards is not");
+  check(!startDateIsCertain("3/31/26 (Paramus and Ramsey), 4/30/26 (Livingston)"), "a list of sites and dates is not");
+  check(!startDateIsCertain("1/31/25 and 2/3/25"), "two dates joined by 'and' are not a range");
+
+  const md: LayoffNoticeRow = {
+    company: "MUFG Investor Services", siteAddress: "805 King Farm Boulevard, Rockville, MD 20850", workers: 86,
+    noticeDate: "2026-01-30", effectiveDate: "2026-03-31", effectiveDateRaw: "03/31/2026 - 06/30/2025", postedDate: "", jurisdiction: "US-MD",
+  };
+  const t = receiptText(layoffReceipt("MUFG", "x", [md], { versionsSince: "2026-08-29" }));
+  check(/Maryland's file gives the start as "03\/31\/2026 - 06\/30\/2025"\./.test(t), "the cell is shown as written");
+  check(/The notice period cannot be counted while the start date is written this way\./.test(t), "and no period is counted from it");
+  check(!/inside the 60 days/.test(t) && !/days' notice/.test(t), "a backwards range never reads as compliant");
+  check(/Notice dated 2026-01-30\./.test(t), "the notice date, which the state did give, is still shown");
 }
 
 // A building with live violations is not "no stamps": count them by class,

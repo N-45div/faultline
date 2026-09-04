@@ -144,6 +144,14 @@ export const ready = internalMutation({
   args: { packId: v.id("packs"), storageId: v.id("_storage"), pages: v.number(), bytes: v.number() },
   returns: v.null(),
   handler: async (ctx, a) => {
+    // A retry stores a second PDF. Whatever the row pointed at before is now
+    // referenced by nothing, and the daily collector only ever deletes ids it
+    // finds on a pack row — so it would sit in storage for good.
+    const existing = await ctx.db.get(a.packId);
+    if (existing?.storageId && existing.storageId !== a.storageId) {
+      await ctx.storage.delete(existing.storageId);
+      console.warn(`[packs] replaced an earlier PDF for ${a.packId}`);
+    }
     await ctx.db.patch(a.packId, { storageId: a.storageId, pages: a.pages, bytes: a.bytes, status: "ready" });
     return null;
   },

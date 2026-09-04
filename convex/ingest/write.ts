@@ -347,6 +347,8 @@ export const finishCommit = internalMutation({
     capturedAt: v.number(),
     bodySha256: v.string(),
     etag: v.optional(v.string()),
+    /** Forget the stored etag, so the next cycle asks for the whole file again. */
+    clearEtag: v.optional(v.boolean()),
     next: v.object({ nextRunAt: v.number(), cursor: v.optional(v.string()), lastStatus: v.string() }),
   },
   returns: v.null(),
@@ -358,7 +360,7 @@ export const finishCommit = internalMutation({
       nextRunAt: args.next.nextRunAt,
       cursor: args.next.cursor ?? source.cursor,
       lastStatus: args.next.lastStatus,
-      lastEtag: args.etag ?? source.lastEtag,
+      lastEtag: args.clearEtag ? undefined : (args.etag ?? source.lastEtag),
       lastBodySha256: args.bodySha256,
       lockedUntil: undefined,
       consecutiveFailures: 0,

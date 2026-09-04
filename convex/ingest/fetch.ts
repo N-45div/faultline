@@ -170,11 +170,18 @@ export const runSource = internalAction({
         emittedFlag = result.emitted;
       }
 
+      // When rows were deferred, the etag is deliberately not stored: keeping
+      // it would make the next cycle send If-None-Match, get a 304 for bytes
+      // that have not changed, write nothing, and leave the deferred rows
+      // waiting until the state next edits the file.
+      const deferred = allNew.length > newVersions.length;
+      if (deferred) next.nextRunAt = Date.now();
       await ctx.runMutation(internal.ingest.write.finishCommit, {
         sourceId: source._id,
         capturedAt: startedAt,
         bodySha256: fetched.bodySha256,
         etag: fetched.etag,
+        clearEtag: deferred,
         next,
       });
       console.log(
