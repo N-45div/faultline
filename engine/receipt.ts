@@ -427,7 +427,9 @@ export function buildingReceipt(query: string, subjectKey: string, label: string
   const mix = classMix(stamps);
   const headline =
     n === 0
-      ? `${label} — no violations in the records we hold.`
+      // "No violations" over a block about a restaurant the city closed reads
+      // as a contradiction. It is the housing file that is empty.
+      ? `${label} — no housing violations in the records we hold.`
       : `${label} — ${n} ${n === 1 ? "violation" : "violations"} on record${mix ? ` (${mix})` : ""}${
           stamped.length > 0 ? `; ${stamped.length} stamped ${stamped.length === 1 ? stamped[0].status : "FALSE or INVALID CERTIFICATION"}` : ""
         }.`;

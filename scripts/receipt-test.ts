@@ -212,6 +212,7 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   const rows = [cite("LAO JIE HOTPOT", "2026-08-26", closed, "Live roaches."), cite("LAO JIE HOTPOT", "2026-08-26", closed, "Pests."), cite("LAO JIE HOTPOT", "2026-08-31", closed, "Harbourage.")];
   const t = receiptText(buildingReceipt("105 Bowery", "1003040006", "105 BOWERY, Manhattan", [], { versionsSince: "2026-08-29", restaurants: rows }));
   check(/New York City closed LAO JIE HOTPOT here on 2026-08-31\./.test(t), "one restaurant, one closure — not one per citation");
+  check(/no housing violations in the records we hold/.test(t), "an empty housing file says which file is empty");
   check(!/closed 3 restaurants/.test(t), "citations are not restaurants");
   check(/holds only restaurants that are open today/.test(t), "and the file's own limit is stated");
   const two = receiptText(
