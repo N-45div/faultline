@@ -451,8 +451,9 @@ async function upsertSubscription(ctx: MutationCtx, subjectKey: string, email: s
     .withIndex("by_email", (q) => q.eq("email", email).eq("subjectKey", subjectKey))
     .unique();
   if (existing) {
-    if (!existing.active || existing.messageId !== messageId) await ctx.db.patch(existing._id, { active: true, threadId, messageId });
+    if (!existing.active || existing.messageId !== messageId || !existing.confirmed) await ctx.db.patch(existing._id, { active: true, threadId, messageId, confirmed: true });
     return;
   }
-  await ctx.db.insert("subscriptions", { subjectKey, email, threadId, messageId, createdAt: now, active: true });
+  // It arrived from this address, so this address asked for it.
+  await ctx.db.insert("subscriptions", { subjectKey, email, threadId, messageId, createdAt: now, active: true, confirmed: true });
 }

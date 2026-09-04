@@ -6,6 +6,7 @@ import { api } from "../convex/_generated/api";
 
 export default function FollowButton({ subjectKey, label }: { subjectKey: string; label: string }) {
   const following = useQuery(api.follows.following, { subjectKey });
+  const emailed = useQuery(api.follows.emailConfirmed, {});
   const follow = useMutation(api.follows.follow);
   const unfollow = useMutation(api.follows.unfollow);
 
@@ -14,7 +15,11 @@ export default function FollowButton({ subjectKey, label }: { subjectKey: string
       <Authenticated>
         {following ? (
           <>
-            <span className="muted">You follow this. We'll email you when it changes, at most once a day.</span>{" "}
+            <span className="muted">
+              {emailed
+                ? "You follow this. We'll email you when it changes, at most once a day."
+                : "You follow this — it will show up here when it changes. To get it by email, send FOLLOW from that address to the inbox; we only write to an address that has written to us."}
+            </span>{" "}
             <button type="button" className="linklike" onClick={() => void unfollow({ subjectKey })}>
               Stop following
             </button>

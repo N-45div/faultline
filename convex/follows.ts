@@ -43,7 +43,11 @@ export const follow = mutation({
       console.warn(`[follows] ${email} is at the ${MAX_FOLLOWS} ceiling`);
       return "following";
     }
-    await ctx.db.insert("subscriptions", { subjectKey, email, createdAt: Date.now(), active: true });
+    // Confirmed only if this address has written to us: sign-up does not
+    // verify an address, so a web follow alone is not evidence that the person
+    // typing it owns it.
+    const wroteToUs = await ctx.db.query("inbox").withIndex("by_from", (q) => q.eq("fromAddress", email)).first();
+    await ctx.db.insert("subscriptions", { subjectKey, email, createdAt: Date.now(), active: true, confirmed: Boolean(wroteToUs) });
     console.log(`[follows] ${email} now follows ${label}`);
     return "following";
   },
@@ -109,6 +113,20 @@ export const mine = query({
       out.push({ subjectKey: s.subjectKey, label: subject?.label ?? s.subjectKey, kind: subject?.kind ?? "unknown", since: s.createdAt });
     }
     return out.sort((a, b) => b.since - a.since);
+  },
+});
+
+/**
+ * Whether this person's address has ever written to the inbox — the only way
+ * we know it is theirs, and so the condition for emailing them at all.
+ */
+export const emailConfirmed = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const email = await emailOf(ctx);
+    if (!email) return false;
+    return Boolean(await ctx.db.query("inbox").withIndex("by_from", (q) => q.eq("fromAddress", email)).first());
   },
 });
 

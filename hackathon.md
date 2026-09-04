@@ -505,6 +505,28 @@ deferred rows stored its etag anyway, so the next cycle asked "has it
 changed?", got a 304, and left the deferred rows waiting for the state's next
 edit.
 
+### 2026-09-03 - a3f7c2b
+The last security finding. Signing up takes any address and does not verify
+it, so anyone could enter someone else's, follow a busy building from the
+web, and have us mail a stranger every day — from our own sending inbox, with
+a footer saying they had asked for it.
+
+A follow that arrives by email is confirmed by the act of sending it. A
+follow made on the web is confirmed only if that address has written to the
+inbox before. Unconfirmed follows still work — they appear on the site and
+under "What you follow" — they are simply never emailed, and the button says
+so rather than promising mail that will not come. No confirmation message is
+sent either, because a confirmation email to someone who never asked is the
+same email the abuse would have produced.
+
+Also settled: the reviews flagged that subject keys carry no jurisdiction, so
+one employer at a same-named place in two states would merge — a follower of
+one state's site getting the other's alerts. Checked against all seven files:
+3,719 subject keys, none claimed by two states. The key format mints every
+stored row, follow and subject, so changing it would orphan the lot; recorded
+and left alone (`convex/schema.ts`, `convex/follows.ts`, `convex/digest.ts`,
+`convex/inbound.ts`, `src/FollowButton.tsx`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

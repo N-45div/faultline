@@ -185,6 +185,14 @@ export default defineSchema({
     active: v.boolean(),
     /** The one-a-day ceiling is per person, so it is stamped on every follow. */
     lastEmailedAt: v.optional(v.number()),
+    /**
+     * Whether this address has been shown to belong to the person who asked.
+     * A follow that arrives by email is confirmed by the act of sending it. A
+     * follow made on the web is not: sign-up takes any address without
+     * verifying it, so anyone could enter someone else's and have us mail
+     * them. Unconfirmed follows work on the site and are never emailed.
+     */
+    confirmed: v.optional(v.boolean()),
   })
     .index("by_subject", ["subjectKey", "active"])
     .index("by_email", ["email", "subjectKey"]),

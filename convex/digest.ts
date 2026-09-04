@@ -62,7 +62,10 @@ export const flush = internalMutation({
         .query("subscriptions")
         .withIndex("by_email", (q) => q.eq("email", email))
         .collect();
-      const active = subs.filter((s) => s.active);
+      // Unconfirmed follows are shown on the site and never emailed. Without
+      // this, signing up as someone else's address and following anything
+      // would make us mail a stranger.
+      const active = subs.filter((s) => s.active && s.confirmed !== false);
       if (active.length === 0) {
         // They said STOP after the news was queued. Drop it, don't send it.
         for (const r of rows) await ctx.db.patch(r._id, { status: "sent", sentAt: now });
