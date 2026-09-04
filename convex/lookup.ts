@@ -266,6 +266,7 @@ const COVERAGE: Record<string, string> = {
   "va-warn": "back to 2010",
   "nj-warn": "back to 2004",
   "nyc-hpd": "the buildings we hold",
+  "nyc-restaurants": "active restaurants only, three years back",
 };
 
 const PUBLISHER_NAME: Record<string, string> = {
@@ -277,6 +278,7 @@ const PUBLISHER_NAME: Record<string, string> = {
   "nc-warn": "North Carolina",
   "co-warn": "Colorado",
   "nyc-hpd": "New York City",
+  "nyc-restaurants": "New York City restaurants",
 };
 
 const SLUG_OF: Record<string, string> = Object.fromEntries(Object.entries(LAYOFF_STATES).map(([s, j]) => [j, s]));

@@ -14,6 +14,7 @@ export const PUBLISHER: Record<string, string> = {
   "nc-warn": "North Carolina",
   "co-warn": "Colorado",
   "nyc-hpd": "NYC housing",
+  "nyc-restaurants": "NYC restaurants",
 };
 
 /** No one file may take more than this many of the lines on show. */

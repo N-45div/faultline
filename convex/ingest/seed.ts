@@ -32,6 +32,36 @@ export const standingHpdCohort = internalAction({
   },
 });
 
+const DOHMH = "https://data.cityofnewyork.us/resource/43nn-pn8j.json";
+
+/**
+ * The buildings where the Health Department has actually acted lately. Its
+ * file holds only restaurants that are open today, so the addresses worth
+ * holding versions of are the ones it has just closed or re-closed: those are
+ * the records most likely to leave the file altogether.
+ */
+export const standingRestaurantCohort = internalAction({
+  args: { limit: v.optional(v.number()), sinceDays: v.optional(v.number()) },
+  returns: v.object({ fetched: v.number(), added: v.number() }),
+  handler: async (ctx, { limit, sinceDays }) => {
+    if (paused("ingest")) return { fetched: 0, added: 0 };
+    const n = Math.min(limit ?? 300, 1000);
+    const since = new Date(Date.now() - (sinceDays ?? 180) * 86_400_000).toISOString().slice(0, 10);
+    const where = `action like '%Closed by DOHMH%' AND inspection_date>='${since}'`;
+    const url = encodeURI(`${DOHMH}?$select=bbl&$where=${where}&$group=bbl&$order=bbl&$limit=${n}`);
+    const res = await fetch(url, { headers: HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status} from Socrata`);
+    const rows: { bbl?: string }[] = await res.json();
+    const bbls = [...new Set(rows.map((r) => String(r.bbl ?? "")).filter((b) => /^\d{10}$/.test(b)))];
+    const added: number = await ctx.runMutation(internal.ingest.write.addTargets, {
+      slug: "nyc-restaurants",
+      subjectKeys: bbls,
+      addedBy: "standing",
+    });
+    return { fetched: bbls.length, added };
+  },
+});
+
 const BOROS: [RegExp, string][] = [
   [/\bbronx\b/i, "BRONX"],
   [/\bbrooklyn\b/i, "BROOKLYN"],

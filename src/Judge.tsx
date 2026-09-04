@@ -15,6 +15,7 @@ const PUBLISHER: Record<string, string> = {
   "nc-warn": "North Carolina",
   "co-warn": "Colorado",
   "nyc-hpd": "NYC housing",
+  "nyc-restaurants": "NYC restaurants",
 };
 
 // The count from the last full read; a "304 unchanged" is not an empty file.
