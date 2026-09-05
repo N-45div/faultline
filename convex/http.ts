@@ -54,6 +54,34 @@ http.route({
   }),
 });
 
+// The lawyer's export on the web: the same rows the employer page shows, one
+// filing per line. Public record data, no spend, no account — the receipt
+// already shows every value here; this is the same thing as a file.
+http.route({
+  pathPrefix: "/csv/e/",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const u = new URL(req.url);
+    let slug = "";
+    try {
+      slug = decodeURIComponent(u.pathname.split("/").filter(Boolean)[2] ?? "").replace(/\.csv$/i, "");
+    } catch {
+      slug = "";
+    }
+    if (!slug) return new Response("Not found", { status: 404 });
+    const out = await ctx.runQuery(api.lookup.exportCsv, { q: slug });
+    if (!out) return new Response("Not found", { status: 404 });
+    return new Response(out.csv, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${out.filename}"`,
+        "Cache-Control": "public, max-age=300",
+      },
+    });
+  }),
+});
+
 // Share pages. A link to an employer or a building pasted into a chat is
 // unfurled by a crawler that runs no JavaScript, so the page's own words —
 // the receipt headline and its first lines — go into the HTML head here,

@@ -101,7 +101,10 @@ export const njWarn: SourceAdapter<Raw> = {
           noticeMonth,
           monthPosted,
           year,
-          effectiveRaw: str(raw["Effective Date"]),
+          // "As written" for a date cell is the date, not Excel's serial for
+          // it: 46144 in a lawyer's export is nobody's idea of what the
+          // state wrote. Text cells — ranges, lists — are kept verbatim.
+          effectiveRaw: typeof raw["Effective Date"] === "number" ? anyDate(raw["Effective Date"]) : str(raw["Effective Date"]),
           effectiveDate: anyDate(raw["Effective Date"]),
           employees: Number(raw["Workforce Affected"]) || 0,
           ordinal,

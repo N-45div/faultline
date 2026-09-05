@@ -7,7 +7,9 @@ import { skipReason } from "../engine/hygiene";
 import { looksLikeAddress } from "../engine/match";
 import { classifyInbound, emailAddressOf, stripHtml } from "../engine/intent";
 import { complianceLines, noMatchReceipt, receiptHtml, receiptText, type Receipt } from "../engine/receipt";
-import { buildReceipt, guessCompanyFromText } from "./lookup";
+import { buildReceipt, guessCompanyFromText, noticesFor, STATE_FILE } from "./lookup";
+import { base64Utf8, layoffCsv } from "../engine/export";
+import { urlSlug } from "../engine/canon";
 
 // The address is a search box that writes back. Everything a person can do by
 // email lands here, is classified without a model, and is answered in-thread.
@@ -130,6 +132,8 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   }
 
   let receipt: Receipt;
+  // The CSV command answers with a file in the thread.
+  let csvAttachment: Attachment[] | undefined;
   let preface: string[] = [];
 
   switch (intent.kind) {
@@ -185,6 +189,41 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
           query: "follow",
           headline: "Reply FOLLOW to a receipt we sent you, and we'll follow that filing for you.",
           blocks: [["Or send a company name or a building address to get a receipt first."]],
+          links: [],
+          footer: [],
+        };
+      }
+      break;
+    }
+    case "csv": {
+      // Every filing we hold for this employer, one row each, as a file in
+      // this thread. Built here, from the same rows the receipt is built from.
+      const built = intent.query ? await buildReceipt(ctx.db, intent.query) : null;
+      if (built && built.receipt.kind === "layoff" && built.keys?.length) {
+        const rows = await noticesFor(ctx.db, built.keys);
+        const csv = layoffCsv(rows, { fileFor: (r) => STATE_FILE[r.jurisdiction] ?? "" });
+        const name = `notice-${urlSlug(built.matches[0]?.company ?? intent.query).slice(0, 40)}.csv`;
+        csvAttachment = [{ filename: name, content: base64Utf8(csv), contentType: "text/csv" }];
+        receipt = {
+          kind: "layoff",
+          query: `csv:${intent.query}`,
+          subjectKey: built.receipt.subjectKey,
+          headline: `${rows.length} ${rows.length === 1 ? "filing" : "filings"} for ${built.matches[0]?.company ?? intent.query}, attached as ${name}.`,
+          blocks: [
+            [
+              "One row per filing: employer, state, site, workers, the notice date, the layoff start as we parsed it and as the state wrote it, the type and reason the state recorded, the days of notice against the statute it falls under, the state's posting date, and every in-place amendment we caught with the day we caught it.",
+              "There is no limitations column on purpose. Federal WARN sets no limitations period; courts borrow the most analogous state statute, which differs by state and circuit. That is a determination, not a fact in the file.",
+            ],
+          ],
+          links: built.receipt.links,
+          footer: [],
+        };
+      } else {
+        receipt = {
+          kind: "none",
+          query: `csv:${intent.query}`,
+          headline: intent.query ? `We couldn't find a layoff filing for "${intent.query}" to export.` : "CSV needs a company name after it.",
+          blocks: [["Send CSV followed by the employer's name as it appears on your paperwork — for example, CSV Spirit Airlines."]],
           links: [],
           footer: [],
         };
@@ -271,7 +310,7 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
     }
   }
 
-  const delivered = await deliver(ctx, target, receipt, preface);
+  const delivered = await deliver(ctx, target, receipt, preface, csvAttachment);
   return { intent: intent.kind, query, kind: receipt.kind, text: delivered.text, sent: delivered.sent };
 }
 
@@ -369,7 +408,9 @@ export const finishLetter = internalMutation({
   },
 });
 
-async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: string[]): Promise<{ text: string; sent: boolean }> {
+type Attachment = { filename: string; content: string; contentType?: string };
+
+async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: string[], attachments?: Attachment[]): Promise<{ text: string; sent: boolean }> {
   // On everything we send: who we are, why it arrived, and how to stop it.
   const postal = (process.env.NOTICE_POSTAL ?? "").trim();
   if (!postal) console.warn("[inbound] NOTICE_POSTAL is unset — outbound mail carries no postal address");
@@ -404,6 +445,7 @@ async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: s
       html,
       receiptId,
       inboxId: t.inboxId,
+      attachments,
     });
     return { text, sent: true };
   }

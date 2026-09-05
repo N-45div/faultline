@@ -184,6 +184,12 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
           ))}
         </p>
       )}
+      {r.kind === "layoff" && result.canonical && (
+        <p className="fine">
+          <a href={`/csv/e/${result.canonical}.csv`}>Download every filing as CSV</a> — one row per filing, the dates as
+          the state wrote them, every amendment we caught. Or email CSV and the name.
+        </p>
+      )}
       <p className="fine">
         Same receipt by email: send the name to the address and reply FOLLOW to hear when it changes.
       </p>

@@ -562,6 +562,31 @@ it will not carry the claim, so it is not being built on one.
 
 Nine files, 13,560 rows.
 
+### 2026-09-04 - d5f0d8f
+Pulled forward from 14–16 September, because it is the thing the ten outreach
+targets would actually ask for. Email "CSV Spirit Airlines" and a file comes
+back in the thread; on the web, every employer page has "Download every
+filing as CSV". One row per filing: employer, state, site, workers, the
+notice date, the layoff start as we parsed it and as the state wrote it, the
+type and reason the state recorded, the days of notice against the statute
+the filing falls under, the state's posting date, every in-place amendment
+we caught with the day we caught it, and the state file it came from.
+
+Two deliberate absences. There is no "limitations date" column, though the
+plan listed one: federal WARN sets no limitations period, courts borrow the
+most analogous state statute, and that differs by state and circuit — a
+number in that column would be a legal determination dressed as data. And
+days_of_notice is blank, never zero, where it cannot be counted: New Jersey
+publishes no notice date, and a start date the state wrote as a list of five
+is not a date.
+
+The file is built in the same mutation that answers the email, where there
+is no Buffer, so base64 is done by hand. The first real export showed New
+Jersey's "as written" column carrying Excel's serial for a date cell — 46144
+— which is nobody's idea of what the state wrote; a date cell is now a date,
+and only text cells (ranges, lists) are kept verbatim (`engine/export.ts`,
+`convex/lookup.ts`, `convex/inbound.ts`, `convex/http.ts`, `src/Employer.tsx`).
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
@@ -603,7 +628,7 @@ are the dated proof you bring them.
 | 7 Sep | Judging-week protections done 3 Sep (breakers, "last verified" badges, kill switch, chaos test, pack GC, copy lint); left: a second adversarial review of everything shipped since 31 Aug |
 | 8–10 Sep | New Jersey and NYC restaurant inspections DONE 3 Sep (the food file the city rebuilds from every pull). OATH dropped: its own description does not support "dismissed violations are removed", location is blank on 3/4 of rows, hearing result on nearly all. New Jersey DONE 3 Sep (2,367 filings; the state that publishes no notice date). Illinois PROBED 3 Sep and parked: its WARN list is an Angular app whose API (`/iebs/Apps/api/public/search`) 302s to a login for every request, and the department's own page offers only per-year PDFs — a source that would break in front of a judge. Left: Illinois (90/60-day laws, overwritten files); Wisconsin (dwd.wisconsin.gov does not resolve from this network at all — try from another network or from inside a deployment fetch before writing the adapter; the one state that publishes revision codes — the model for the amendment chain); the NYC feeds that are provably lossy where HPD is not: restaurant inspections (closed restaurants vanish) and OATH hearings (dismissed violations are removed from the property record) |
 | 11–13 Sep | Firecrawl: HTML-only states and employer newsroom captures; share images; teaser post |
-| 14–16 Sep | Hardening: redaction, chaos test with keys removed, the lawyer export (employer, site, notice date, first separation, count, exception text, amendments, limitations date) |
+| 14–16 Sep | Lawyer export DONE 4 Sep (CSV by email and on every employer page; no limitations column, on purpose). Left: hardening — redaction, chaos test with keys removed (employer, site, notice date, first separation, count, exception text, amendments, limitations date) |
 | 17–18 Sep | Video |
 | 19–20 Sep | This file, final; posts; submission ready |
 | 21 Sep | Freeze |

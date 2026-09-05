@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { nyWarn } from "../engine/adapters/nyWarn";
 import { scoreCompany, scoreAddress, mentionsCompany, companyMentionScore, sameCompany, searchTerms } from "../engine/match";
 import { classifyInbound } from "../engine/intent";
+import { base64Utf8, layoffCsv, CSV_COLUMNS } from "../engine/export";
 import { aggregationLine, amendmentLines, buildingReceipt, exceptionLine, layoffReceipt, noMatchReceipt, receiptText, startDateIsCertain, type LayoffNoticeRow } from "../engine/receipt";
 
 let failures = 0;
@@ -51,6 +52,9 @@ check(classifyInbound("", "Meta\n\nSent from my phone").kind === "lookup", "firs
 check(classifyInbound("follow", "").kind === "follow", "follow");
 check(classifyInbound("Re: your receipt", "FOLLOW\n\n> On Aug 29 ...").kind === "follow", "FOLLOW as reply body → follow");
 check(classifyInbound("stop", "").kind === "stop", "stop");
+const csvIntent = classifyInbound("CSV Spirit Airlines", "");
+check(csvIntent.kind === "csv" && csvIntent.query === "Spirit Airlines", "CSV <name> → csv export");
+check(classifyInbound("Re: your receipt", ["export", "", "> On Aug 29 ..."].join("\n")).kind === "csv", "EXPORT as a reply body → csv");
 const letter = "Dear Dana,\n\nWe regret to inform you that your position with USIC Locating Services has been eliminated effective April 6, 2026 due to a contract loss. Your severance agreement is attached and must be signed within 21 days. Your last day is April 6. Please return all company property. This decision is specific to your role and is not a reflection of your performance.\n\nHuman Resources";
 check(classifyInbound("Fwd: Separation notice", letter).kind === "letter", "a real letter → letter");
 check(mentionsCompany(letter, "USIC Locating Services, LLC. d/b/a Reconn Utility Services") === false, "full d/b/a name not all present");
@@ -240,6 +244,30 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(/The notice period cannot be counted while the start date is written this way\./.test(t), "and no period is counted from it");
   check(!/inside the 60 days/.test(t) && !/days' notice/.test(t), "a backwards range never reads as compliant");
   check(/Notice dated 2026-01-30\./.test(t), "the notice date, which the state did give, is still shown");
+}
+
+// The lawyer's export: facts and captured dates only, blank where a count
+// would be a claim, and quoted properly where the state used a comma.
+{
+  const ny: LayoffNoticeRow = {
+    company: "Spirit Airlines, LLC", siteAddress: "LaGuardia Airport (LGA), Flushing, NY", workers: 186, noticeDate: "2026-05-02",
+    effectiveDate: "2026-05-02", postedDate: "2026-05-08", jurisdiction: "US-NY", layoffOrClosure: "Closure", reason: "Bankruptcy Economic",
+    amendments: [{ at: Date.UTC(2026, 8, 2), changed: ["effectiveDate"], before: { effectiveDate: "2026-06-15" }, after: { effectiveDate: "2026-05-02" } }],
+  };
+  const nj: LayoffNoticeRow = {
+    company: "Spirit Airlines", siteAddress: "Newark NJ", workers: 201, noticeDate: "", noticeMonth: "2026-05", effectiveDate: "2026-05-02",
+    effectiveDateRaw: "5/2/26", postedDate: "", jurisdiction: "US-NJ",
+  };
+  const csv = layoffCsv([nj, ny], { fileFor: (r) => `file:${r.jurisdiction}` });
+  const lines = csv.split(String.fromCharCode(13, 10)).filter(Boolean);
+  check(lines[0] === CSV_COLUMNS.join(","), "the header is the column list");
+  check(lines.length === 3, "one row per filing plus the header");
+  check(/^"Spirit Airlines, LLC",NY,"LaGuardia Airport \(LGA\), Flushing, NY",186,2026-05-02,,2026-05-02,,Closure,Bankruptcy Economic,0,New York's WARN Act,90,2026-05-08,/.test(lines[1]!), `the New York row: ${lines[1]}`);
+  check(/effectiveDate: 2026-06-15 → 2026-05-02 \(seen 2026-09-02\)/.test(lines[1]!), "the amendment is spelled out in its cell");
+  check(/^Spirit Airlines,NJ,Newark NJ,201,,2026-05,2026-05-02,5\/2\/26,,,,New Jersey's WARN Act,90,,,file:US-NJ$/.test(lines[2]!), `the New Jersey row leaves days_of_notice blank: ${lines[2]}`);
+  check(!/,0,New Jersey/.test(lines[2]!), "a notice period that cannot be counted is blank, never zero");
+  check(base64Utf8("hi") === "aGk=" && base64Utf8("") === "" && base64Utf8("Man") === "TWFu", "base64 of the classic cases");
+  check(base64Utf8("é→") === "w6nihpI=", "base64 encodes UTF-8 bytes, not code units");
 }
 
 // A building with live violations is not "no stamps": count them by class,

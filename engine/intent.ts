@@ -8,6 +8,7 @@ export type Intent =
   | { kind: "follow" }
   | { kind: "stop" }
   | { kind: "pack"; query: string }
+  | { kind: "csv"; query: string }
   | { kind: "monitor" }
   | { kind: "letter"; text: string }
   | { kind: "empty" };
@@ -32,6 +33,9 @@ export function classifyInbound(subjectRaw: string, bodyRaw: string): Intent {
   const isReply = /^\s*(re|fwd|fw)\s*:/i.test(subjectRaw ?? "");
   const packMatch = (isReply ? null : /^pack\b[:\s-]*(.*)$/i.exec(subject)) ?? /^pack\b[:\s-]*(.*)$/i.exec(firstLine);
   if (packMatch) return { kind: "pack", query: packMatch[1].trim().slice(0, 120) };
+  // "CSV <employer>": every filing we hold for them, one row each, as a file.
+  const csvMatch = (isReply ? null : /^(?:csv|export)\b[:\s-]*(.*)$/i.exec(subject)) ?? /^(?:csv|export)\b[:\s-]*(.*)$/i.exec(firstLine);
+  if (csvMatch) return { kind: "csv", query: csvMatch[1].trim().slice(0, 120) };
   if (commands.some((c) => /^monitor$/.test(c))) return { kind: "monitor" };
 
   // A letter: it talks like one. "I got a letter saying my position is being

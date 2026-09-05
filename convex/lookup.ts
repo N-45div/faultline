@@ -4,6 +4,7 @@ import type { DatabaseReader } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { addressTokens, companyMentionScore, companyTokens, looksLikeAddress, rankAddresses, rankCompanies, sameCompany, searchTerms } from "../engine/match";
 import { foldString, slug, urlSlug } from "../engine/canon";
+import { layoffCsv } from "../engine/export";
 import {
   buildingReceipt,
   layoffReceipt,
@@ -419,6 +420,39 @@ const receiptValidator = v.object({
   blocks: v.array(v.array(v.string())),
   links: v.array(v.object({ label: v.string(), url: v.string() })),
   footer: v.array(v.string()),
+});
+
+/** The state file a row came from, for the export's last column. */
+export const STATE_FILE: Record<string, string> = {
+  "US-NY": "https://dol.ny.gov/warn-notices",
+  "US-CA": "https://edd.ca.gov/en/jobs_and_training/Layoff_Services_WARN/",
+  "US-MD": "https://labor.maryland.gov/employment/warn.shtml",
+  "US-CO": "https://cdle.colorado.gov/employers/layoff-separations/layoff-warn-list",
+  "US-NC": "https://www.commerce.nc.gov/data-tools-reports/labor-market-data-tools/workforce-warn-reports/report-workforce-warn-summary-list-2026",
+  "US-VA": "https://virginiaworks.gov/im-an-employer/retain-and-grow/warn-notices/",
+  "US-NJ": "https://www.nj.gov/labor/business-services/layoffs-and-closing/file-warn-notice/",
+};
+
+/**
+ * The lawyer's export for one employer: every filing we hold, one row each,
+ * as CSV. Null when the name matches no layoff filing.
+ */
+export const exportCsv = query({
+  args: { q: v.string() },
+  returns: v.union(v.null(), v.object({ csv: v.string(), filename: v.string(), rows: v.number() })),
+  handler: async (ctx, { q }) => {
+    const clean = q.replace(/-/g, " ").trim().slice(0, 120);
+    if (!clean) return null;
+    const built = await buildReceipt(ctx.db, clean);
+    if (built.receipt.kind !== "layoff" || !built.keys?.length) return null;
+    const rows = await noticesFor(ctx.db, built.keys);
+    const company = built.matches[0]?.company ?? clean;
+    return {
+      csv: layoffCsv(rows, { fileFor: (r) => STATE_FILE[r.jurisdiction] ?? "" }),
+      filename: `notice-${urlSlug(company).slice(0, 40)}.csv`,
+      rows: rows.length,
+    };
+  },
 });
 
 /**
