@@ -2,11 +2,11 @@
 
 - **Project:** Notice
 - **Event:** Convex All Gas Hackathon
-- **What it does:** Email a company name or a building address and get back what they filed with the government, dated — with every version kept, because the states overwrite the files. Six state layoff files and New York City housing records.
-- **Live app:** https://spotted-elephant-420.convex.site
+- **What it does:** Email a company name or a New York City address and get back what they filed with the government, dated, with every version the agency overwrote. Seven states' layoff files, New York City's housing records, and the city's restaurant inspections — a file the Health Department says, in its own words, keeps only restaurants that are open today.
+- **Live app:** https://clear-dogfish-72.convex.site
 - **Repo:** https://github.com/N-45div/faultline
 - **Frontend:** Convex static hosting
-- **Convex deployment:** https://spotted-elephant-420.convex.cloud
+- **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held)
 - **Components:** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex
 - **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, HTTP actions, crons, scheduled functions, file storage, realtime queries
 - **Auth:** Convex Auth (email + password; Google once a client id is set), optional everywhere
