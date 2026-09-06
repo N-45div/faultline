@@ -636,6 +636,26 @@ a new host with no change to the app (`siteUrl()` reads the deployment's own
 `CONVEX_SITE_URL`). What needs Divij: the AgentMail webhook URL and the
 Google OAuth redirect URI both name the old host.
 
+### 2026-09-06 - d9b82dd
+The first team died of database I/O, so the new one was made unable to die
+the same way, on any metric, with judges and crawlers hitting it.
+
+Two backstops in the ingest tick that no bug can talk past: a source never
+runs twice inside twenty minutes whatever its schedule says, and never more
+than thirty times in a UTC day. The per-view reads are gone. "How many times
+we have read the file" was a scan of every snapshot row for every source on
+every employer page, growing by the day; it is a counter on the source row
+now, kept by every finished read (304s included). The landing page's numbers
+scanned four thousand documents per visitor; they are read from one small
+row, refreshed by an hourly cron, and the "records we hold" figure is a
+counter kept at commit time rather than the last read's row count — which
+had been understating the housing file by a factor of four (8,143 rows held,
+2,097 in the last read). Sent alerts older than a week are collected daily.
+
+What the counters say the deployment holds: 18,913 current rows across nine
+files. What the guards say it can cost: at most 270 reads a day across all
+sources, each reading hashes rather than rows.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
