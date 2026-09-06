@@ -198,17 +198,16 @@ export async function versionsFor(db: DatabaseReader, subjectKeys: string[]): Pr
     const ch = await db.query("changes").withIndex("by_subject", (q) => q.eq("subjectKey", key)).order("desc").take(30);
     for (const c of ch) changes.push({ at: c.detectedAt, sentence: c.sentence, kind: c.kind });
   }
-  // How many times the file has been read since we first held this subject:
-  // every fetch leaves a snapshot, a new version only when something moved.
+  // How many times the files have been read: a counter on the source row,
+  // kept by every finished read. Counting snapshot rows here read up to
+  // two thousand documents per file per page view, and grew by the day.
   let reads = 0;
   let lastRead = 0;
   for (const sourceId of sourceIds) {
-    const snaps = await db
-      .query("snapshots")
-      .withIndex("by_source_captured", (q) => q.eq("sourceId", sourceId as Id<"sources">).gte("capturedAt", Number.isFinite(earliest) ? earliest : 0))
-      .take(2000);
-    reads += snaps.length;
-    for (const s of snaps) if (s.capturedAt > lastRead) lastRead = s.capturedAt;
+    const src = await db.get(sourceId as Id<"sources">);
+    if (!src) continue;
+    reads += src.readCount ?? 0;
+    if ((src.lastRunAt ?? 0) > lastRead) lastRead = src.lastRunAt ?? 0;
   }
   return {
     rows: rows.sort((a, b) => b.lastSeen - a.lastSeen),

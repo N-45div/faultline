@@ -26,6 +26,11 @@ export default defineSchema({
     lockedUntil: v.optional(v.number()),
     consecutiveFailures: v.number(),
     shadowCycles: v.number(),
+    /** Every read of the file, 304s included: the number a receipt quotes. */
+    readCount: v.optional(v.number()),
+    /** Runs so far on `runsDay` (UTC date), the hard daily ceiling per source. */
+    runsDay: v.optional(v.string()),
+    runsToday: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
     .index("by_due", ["status", "nextRunAt"]),
@@ -369,6 +374,13 @@ export default defineSchema({
   })
     .index("by_download_token", ["downloadToken"])
     .index("by_subject", ["subjectKey", "createdAt"]),
+
+  /** Numbers the landing page shows, refreshed by a cron instead of scanned per view. */
+  stats: defineTable({
+    key: v.string(),
+    value: v.any(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   /** One row per provider: failures in a row, and until when the breaker is open. */
   breakers: defineTable({

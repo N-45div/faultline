@@ -29,12 +29,23 @@ const WALL_CAP = 50;
 const LOCK_MS = 10 * 60_000;
 
 /** Runs every minute. Schedules one action per due source and takes a lock. */
+/**
+ * Two backstops no bug can talk its way past. A source never runs twice
+ * inside MIN_GAP_MS, whatever its nextRunAt says — a deferral loop, a manual
+ * runNow, a cadence typo. And it never runs more than MAX_RUNS_PER_DAY times
+ * in a UTC day. The free plan is a monthly budget; these make the worst day
+ * a bounded one.
+ */
+const MIN_GAP_MS = 20 * 60_000;
+const MAX_RUNS_PER_DAY = 30;
+
 export const tick = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
     if (paused("ingest")) return 0;
     const now = Date.now();
+    const today = new Date(now).toISOString().slice(0, 10);
     const due = await ctx.db
       .query("sources")
       .withIndex("by_due", (q) => q.eq("status", "active").lte("nextRunAt", now))
@@ -42,7 +53,14 @@ export const tick = internalMutation({
     let scheduled = 0;
     for (const s of due) {
       if (s.lockedUntil && s.lockedUntil > now) continue;
-      await ctx.db.patch(s._id, { lockedUntil: now + LOCK_MS });
+      if (s.lastRunAt && now - s.lastRunAt < MIN_GAP_MS) continue;
+      const runsToday = s.runsDay === today ? (s.runsToday ?? 0) : 0;
+      if (runsToday >= MAX_RUNS_PER_DAY) {
+        if (runsToday === MAX_RUNS_PER_DAY) console.warn(`[tick] ${s.slug} hit ${MAX_RUNS_PER_DAY} runs today; holding until tomorrow`);
+        await ctx.db.patch(s._id, { runsToday: runsToday + 1, nextRunAt: now + 6 * 3_600_000 });
+        continue;
+      }
+      await ctx.db.patch(s._id, { lockedUntil: now + LOCK_MS, runsDay: today, runsToday: runsToday + 1 });
       await ctx.scheduler.runAfter(0, internal.ingest.fetch.runSource, { slug: s.slug });
       scheduled++;
     }
@@ -377,6 +395,7 @@ export const finishCommit = internalMutation({
     const source = await ctx.db.get(args.sourceId);
     if (!source) throw new Error("source vanished");
     await ctx.db.patch(args.sourceId, {
+      readCount: (source.readCount ?? 0) + 1,
       lastRunAt: args.capturedAt,
       nextRunAt: args.next.nextRunAt,
       cursor: args.next.cursor ?? source.cursor,

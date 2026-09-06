@@ -17,4 +17,10 @@ crons.interval("flush digests", { minutes: 1 }, internal.digest.flush, {});
 // itself goes after thirty days so storage holds versions, not copies.
 crons.daily("expire packs", { hourUTC: 4, minuteUTC: 20 }, internal.packs.expire, {});
 
+// The landing page's numbers, counted once an hour rather than once a view.
+crons.hourly("refresh stats", { minuteUTC: 7 }, internal.wall.refreshStats, {});
+
+// Sent alerts older than a week.
+crons.daily("gc sent alerts", { hourUTC: 4, minuteUTC: 40 }, internal.digest.gc, {});
+
 export default crons;

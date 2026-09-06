@@ -139,7 +139,11 @@ function heldLines(opts: ReceiptOpts): string[] {
     out.push(
       // "the file" is several files when an employer filed in several states,
       // and the sum of their read counts is nobody's number.
-      `We hold ${h.rows} ${h.rows === 1 ? "row" : "rows"} for this, in ${h.versions} ${h.versions === 1 ? "version" : "versions"}, across ${(opts.provenance ?? []).length || 1} ${((opts.provenance ?? []).length || 1) === 1 ? "file" : "files"} read ${h.reads} ${h.reads === 1 ? "time" : "times"} between them since ${stamp(since).slice(0, 10)}.`,
+      `We hold ${h.rows} ${h.rows === 1 ? "row" : "rows"} for this, in ${h.versions} ${h.versions === 1 ? "version" : "versions"}, since ${stamp(since).slice(0, 10)}; ${
+        ((opts.provenance ?? []).length || 1) === 1
+          ? `the file it comes from has been read ${h.reads} ${h.reads === 1 ? "time" : "times"}.`
+          : `the ${(opts.provenance ?? []).length} files it comes from have been read ${h.reads} times between them.`
+      }`,
     );
   }
   for (const p of opts.provenance ?? []) {

@@ -56,8 +56,8 @@ export default function Judge({ go }: { go: (p: string) => void }) {
     <>
       {guard && (!guard.mail || !guard.model || guard.paused.length > 0 || guard.breakers.some((b) => b.openUntil)) && (
         <p className="fine error" role="status">
-          {!guard.mail && "Outgoing mail is not configured on this deployment: receipts are stored, not sent. "}
-          {!guard.model && "The model is not configured on this deployment: letters are read without it, and the search says so. "}
+          {!guard.mail && "Outgoing mail is not set up here: receipts are stored, not sent. "}
+          {!guard.model && "The model is not set up here: letters are read without it, and the search says so. "}
           {guard.paused.length > 0 && `Paused by hand: ${guard.paused.join(", ")}. `}
           {guard.breakers
             .filter((b) => b.openUntil)

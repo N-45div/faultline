@@ -215,3 +215,18 @@ export const unpinSliceBodies = internalMutation({
     return { freed, remaining: freed >= n };
   },
 });
+
+/** One-off after the read counter was added: seed it from the snapshots on file. */
+export const backfillReadCounts = internalMutation({
+  args: {},
+  returns: v.array(v.object({ slug: v.string(), reads: v.number() })),
+  handler: async (ctx) => {
+    const out: { slug: string; reads: number }[] = [];
+    for (const src of await ctx.db.query("sources").collect()) {
+      const snaps = await ctx.db.query("snapshots").withIndex("by_source_captured", (q) => q.eq("sourceId", src._id)).take(5000);
+      await ctx.db.patch(src._id, { readCount: snaps.length });
+      out.push({ slug: src.slug, reads: snaps.length });
+    }
+    return out;
+  },
+});

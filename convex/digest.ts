@@ -183,3 +183,18 @@ export const waiting = internalQuery({
     return out;
   },
 });
+
+/** Sent alert rows older than a week are history nobody reads; the receipts hold the words. */
+export const gc = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const cutoff = Date.now() - 7 * 86_400_000;
+    const old = await ctx.db
+      .query("alertQueue")
+      .withIndex("by_status_created", (q) => q.eq("status", "sent").lt("createdAt", cutoff))
+      .take(500);
+    for (const r of old) await ctx.db.delete(r._id);
+    return old.length;
+  },
+});

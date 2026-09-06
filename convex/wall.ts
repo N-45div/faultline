@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import { noticeSentence, warnNoticeGap } from "../engine/rules";
 
 // Public, unauthenticated reads. Nothing here touches a model or a network.
@@ -170,15 +170,43 @@ export const lastChecked = query({
  */
 const SCAN = 4000;
 
+const buildingsShape = v.object({ buildings: v.number(), records: v.number(), stamped: v.number(), since: v.string(), truncated: v.boolean() });
+
+/**
+ * The numbers the landing page shows, read from one small row. The scan that
+ * produces them runs once an hour in `refreshStats`; running it per page
+ * view read four thousand documents for every visitor, and a judging week
+ * is a lot of visitors.
+ */
 export const buildings = query({
   args: {},
-  returns: v.object({ buildings: v.number(), records: v.number(), stamped: v.number(), since: v.string(), truncated: v.boolean() }),
+  returns: buildingsShape,
   handler: async (ctx) => {
-    const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
+    const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "buildings")).unique();
+    if (row) return row.value as { buildings: number; records: number; stamped: number; since: string; truncated: boolean };
+    return { buildings: 0, records: 0, stamped: 0, since: "", truncated: false };
+  },
+});
+
+export const refreshStats = internalMutation({
+  args: {},
+  returns: buildingsShape,
+  handler: async (ctx) => {
+    const value = await countBuildings(ctx);
+    const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "buildings")).unique();
+    if (row) await ctx.db.patch(row._id, { value, updatedAt: Date.now() });
+    else await ctx.db.insert("stats", { key: "buildings", value, updatedAt: Date.now() });
+    return value;
+  },
+});
+
+async function countBuildings(ctx: { db: any }): Promise<{ buildings: number; records: number; stamped: number; since: string; truncated: boolean }> {
+  {
+    const src = await ctx.db.query("sources").withIndex("by_slug", (q: any) => q.eq("slug", "nyc-hpd")).unique();
     if (!src) return { buildings: 0, records: 0, stamped: 0, since: "", truncated: false };
     const rows = await ctx.db
       .query("current")
-      .withIndex("by_source_identity", (q) => q.eq("sourceId", src._id))
+      .withIndex("by_source_identity", (q: any) => q.eq("sourceId", src._id))
       // One past the window, so the page can tell a total from a ceiling. A
       // scan that returns exactly its own limit is not a count, and this page
       // promises live numbers.
@@ -200,5 +228,5 @@ export const buildings = query({
       stamped,
       since: first ? new Date(first.capturedAt).toISOString().slice(0, 10) : "",
     };
-  },
-});
+  }
+}

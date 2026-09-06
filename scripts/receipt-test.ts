@@ -283,7 +283,7 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(!/no certification stamps/.test(b.headline), "never 'no stamps' over live violations");
   check(/PROVIDE HOT WATER/.test(t), "the city's own description is in the receipt");
   check(t.indexOf("class C") < t.indexOf("class B"), "class C shown before class B");
-  check(/We hold 3 rows for this, in 4 versions, across 1 file read 41 times between them since 2026-08-29\./.test(t), "the held line counts, and names how many files");
+  check(/We hold 3 rows for this, in 4 versions, since 2026-08-29; the file it comes from has been read 41 times\./.test(t), "the held line counts, and names how many files");
   check(/Read from New York City's file on 2026-09-02 03:12 UTC \(HTTP 200, 3,382 rows\)/.test(t), "the provenance line is dated");
 }
 
