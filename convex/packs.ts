@@ -199,7 +199,11 @@ export const expire = internalMutation({
       .take(100);
     for (const p of old) {
       if (!p.storageId) continue;
-      await ctx.storage.delete(p.storageId);
+      try {
+        await ctx.storage.delete(p.storageId);
+      } catch {
+        /* the file did not survive the move; the row still says expired */
+      }
       await ctx.db.patch(p._id, { storageId: undefined, status: "expired" });
     }
     if (old.length > 0) console.log(`[packs] expired ${old.length}`);

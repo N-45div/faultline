@@ -200,7 +200,13 @@ export const unpinSliceBodies = internalMutation({
         .take(n - freed);
       for (const snap of snaps) {
         if (!snap.bodyStorageId) continue;
-        await ctx.storage.delete(snap.bodyStorageId);
+        // A database import carries the row but not the file behind it, so
+        // the id may point at nothing. Clearing the reference is the point.
+        try {
+          await ctx.storage.delete(snap.bodyStorageId);
+        } catch {
+          /* already gone */
+        }
         await ctx.db.patch(snap._id, { bodyStorageId: undefined });
         freed++;
       }

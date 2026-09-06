@@ -612,6 +612,30 @@ Also today, before the outage: New Jersey's ordinals now follow the filing
 cannot fabricate an amendment; and the Firecrawl transport is wired through
 the component — the probe was the call that hit the disabled deployment.
 
+### 2026-09-06 - 070128f
+The first team's deployments were disabled on 4 September for exhausting the
+free plan's database I/O. Before the old production went dark I exported its
+full database — 17 MB, 79,267 documents — and today it was imported into a
+fresh project on a fresh team: production is now `clear-dogfish-72`, the
+site at https://clear-dogfish-72.convex.site. Every version since 29 August
+came across; the Spirit Airlines receipt on the new deployment says "kept
+every version of this file since 2026-08-29" and counts nine versions and
+208 reads, because that is what the tables say. Nine files, 12,875 rows,
+all nine emitting, no failures, mail and model configured.
+
+What did not come across: file storage. A database export carries the rows
+but not the files behind them, so the pinned snapshot bodies and the built
+evidence-pack PDFs are references to nothing. The pack route already answers
+404 for a missing file, and the two cleanup mutations now tolerate a delete
+of an id that is already gone. Packs are rebuilt on request; the bodies were
+our own composed slices and are not pinned any more.
+
+Convex features used to do it: `convex export` and `convex import
+--replace-all` across teams, per-deployment env, static hosting redeployed to
+a new host with no change to the app (`siteUrl()` reads the deployment's own
+`CONVEX_SITE_URL`). What needs Divij: the AgentMail webhook URL and the
+Google OAuth redirect URI both name the old host.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

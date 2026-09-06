@@ -57,11 +57,18 @@ export const status = query({
   returns: v.object({
     paused: v.array(v.string()),
     breakers: v.array(v.object({ provider: v.string(), failures: v.number(), openUntil: v.union(v.number(), v.null()) })),
+    /** Whether the deployment can send mail and call the model at all. */
+    mail: v.boolean(),
+    model: v.boolean(),
   }),
   handler: async (ctx) => {
     const now = Date.now();
     const rows = await ctx.db.query("breakers").collect();
     return {
+      // Without these the digest returns zero every minute and the inbox
+      // stores receipts it never sends — silently, unless the page says so.
+      mail: Boolean(process.env.AGENTMAIL_API_KEY && process.env.AGENTMAIL_INBOX_ID),
+      model: Boolean(process.env.OPENAI_API_KEY),
       paused: [...pausedSet()],
       breakers: rows
         .filter((r) => r.failures > 0 || r.openedUntil > now)
