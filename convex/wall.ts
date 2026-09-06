@@ -168,23 +168,21 @@ export const lastChecked = query({
  * The housing side, counted from what we hold rather than asserted. The city's
  * own status words are the only verdict on this page.
  */
-const SCAN = 4000;
-
-const buildingsShape = v.object({ buildings: v.number(), records: v.number(), stamped: v.number(), since: v.string(), truncated: v.boolean() });
+const buildingsShape = v.object({ buildings: v.number(), records: v.number(), since: v.string() });
 
 /**
- * The numbers the landing page shows, read from one small row. The scan that
- * produces them runs once an hour in `refreshStats`; running it per page
- * view read four thousand documents for every visitor, and a judging week
- * is a lot of visitors.
+ * The numbers the landing page shows, read from one small row. They are
+ * counters and a short list, never a scan: "records" is the source's own
+ * count of the rows it holds, kept by every commit; "buildings" is the number
+ * of buildings being watched. `refreshStats` writes the row once an hour.
  */
 export const buildings = query({
   args: {},
   returns: buildingsShape,
   handler: async (ctx) => {
     const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "buildings")).unique();
-    if (row) return row.value as { buildings: number; records: number; stamped: number; since: string; truncated: boolean };
-    return { buildings: 0, records: 0, stamped: 0, since: "", truncated: false };
+    if (row) return row.value as { buildings: number; records: number; since: string };
+    return { buildings: 0, records: 0, since: "" };
   },
 });
 
@@ -200,33 +198,17 @@ export const refreshStats = internalMutation({
   },
 });
 
-async function countBuildings(ctx: { db: any }): Promise<{ buildings: number; records: number; stamped: number; since: string; truncated: boolean }> {
-  {
-    const src = await ctx.db.query("sources").withIndex("by_slug", (q: any) => q.eq("slug", "nyc-hpd")).unique();
-    if (!src) return { buildings: 0, records: 0, stamped: 0, since: "", truncated: false };
-    const rows = await ctx.db
-      .query("current")
-      .withIndex("by_source_identity", (q: any) => q.eq("sourceId", src._id))
-      // One past the window, so the page can tell a total from a ceiling. A
-      // scan that returns exactly its own limit is not a count, and this page
-      // promises live numbers.
-      .take(SCAN + 1);
-    const seen = new Set<string>();
-    let stamped = 0;
-    for (const r of rows) {
-      seen.add(r.subjectKey);
-      const status = String(r.fields.currentstatus ?? "");
-      if (status === "FALSE CERTIFICATION" || status === "INVALID CERTIFICATION") stamped++;
-    }
-    const first = await ctx.db.query("snapshots").order("asc").first();
-    return {
-      truncated: rows.length > SCAN,
-      buildings: seen.size,
-      // The file's own row count is the honest total; the scan is what we can
-      // classify by class and stamp inside one query.
-      records: src.rowCount ?? rows.length,
-      stamped,
-      since: first ? new Date(first.capturedAt).toISOString().slice(0, 10) : "",
-    };
-  }
+async function countBuildings(ctx: { db: any }): Promise<{ buildings: number; records: number; since: string }> {
+  const src = await ctx.db.query("sources").withIndex("by_slug", (q: any) => q.eq("slug", "nyc-hpd")).unique();
+  if (!src) return { buildings: 0, records: 0, since: "" };
+  const watched = await ctx.db
+    .query("targets")
+    .withIndex("by_source_active", (q: any) => q.eq("sourceId", src._id).eq("active", true))
+    .take(5000);
+  const first = await ctx.db.query("snapshots").order("asc").first();
+  return {
+    buildings: watched.length,
+    records: src.currentCount ?? src.rowCount ?? 0,
+    since: first ? new Date(first.capturedAt).toISOString().slice(0, 10) : "",
+  };
 }

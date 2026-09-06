@@ -28,6 +28,8 @@ export default defineSchema({
     shadowCycles: v.number(),
     /** Every read of the file, 304s included: the number a receipt quotes. */
     readCount: v.optional(v.number()),
+    /** Rows in `current` for this source, kept by every commit — a count, not a scan. */
+    currentCount: v.optional(v.number()),
     /** Runs so far on `runsDay` (UTC date), the hard daily ceiling per source. */
     runsDay: v.optional(v.string()),
     runsToday: v.optional(v.number()),

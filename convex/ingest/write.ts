@@ -283,6 +283,10 @@ export const commitBatch = internalMutation({
       await upsertSubject(ctx, o.subject);
     }
 
+    // Rows that enter or leave `current` this batch. Kept as a counter on the
+    // source so the pages that quote "records we hold" never scan the table.
+    let entered = 0;
+    let left = 0;
     for (const o of args.observations) {
       const observationId = await ctx.db.insert("observations", {
         sourceId: args.sourceId,
@@ -311,6 +315,7 @@ export const commitBatch = internalMutation({
           prevUpdatedAt: cur.sigHash !== o.sigHash ? cur.updatedAt : cur.prevUpdatedAt,
         });
       } else {
+        entered++;
         await ctx.db.insert("current", {
           sourceId: args.sourceId,
           identityKey: o.identityKey,
@@ -332,8 +337,12 @@ export const commitBatch = internalMutation({
         .query("current")
         .withIndex("by_source_identity", (q) => q.eq("sourceId", args.sourceId).eq("identityKey", c.identityKey))
         .unique();
-      if (cur) await ctx.db.delete(cur._id);
+      if (cur) {
+        left++;
+        await ctx.db.delete(cur._id);
+      }
     }
+    if (entered || left) await ctx.db.patch(args.sourceId, { currentCount: Math.max(0, (source.currentCount ?? 0) + entered - left) });
 
     const changeIds: Id<"changes">[] = [];
     for (const c of args.changes) {

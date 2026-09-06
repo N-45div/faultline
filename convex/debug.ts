@@ -230,3 +230,23 @@ export const backfillReadCounts = internalMutation({
     return out;
   },
 });
+
+/**
+ * One-off after the current counter was added: count what each source holds,
+ * a page at a time, and store it. Reads every current row once.
+ */
+export const backfillCurrentCounts = internalMutation({
+  args: { slug: v.string(), cursor: v.optional(v.string()), soFar: v.optional(v.number()) },
+  returns: v.object({ slug: v.string(), count: v.number(), done: v.boolean(), cursor: v.union(v.string(), v.null()) }),
+  handler: async (ctx, { slug, cursor, soFar }) => {
+    const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+    if (!src) throw new Error(`no source ${slug}`);
+    const page = await ctx.db
+      .query("current")
+      .withIndex("by_source_identity", (q) => q.eq("sourceId", src._id))
+      .paginate({ cursor: cursor ?? null, numItems: 1000 });
+    const count = (soFar ?? 0) + page.page.length;
+    if (page.isDone) await ctx.db.patch(src._id, { currentCount: count });
+    return { slug, count, done: page.isDone, cursor: page.isDone ? null : page.continueCursor };
+  },
+});
