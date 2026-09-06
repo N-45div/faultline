@@ -58,7 +58,11 @@ export const nycRestaurants: SourceAdapter<Raw> = {
     // nothing.
     watch: (bbls) => `$limit=5000&$order=inspection_date DESC&$where=bbl in(${bbls.map((b) => `'${q(b)}'`).join(",")})`,
   },
-  cadence: { baseMs: 60 * 60_000, hotMs: 30 * 60_000, jitterPct: 15, gate: "always" },
+  // Twice a day. Every cycle re-reads the whole slice for every watched
+  // building (that is the point of this file), so the cycle is rare: 6,709
+  // rows an hour was a bandwidth bill, not vigilance. Inspections are posted
+  // daily; a closure seen twelve hours later is the same closure.
+  cadence: { baseMs: 12 * 60 * 60_000, hotMs: 6 * 60 * 60_000, jitterPct: 20, gate: "always" },
   targeting: "server_filter",
   subjectKind: "building",
   claimKind: "dohmh.inspection",

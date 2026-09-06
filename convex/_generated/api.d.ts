@@ -20,6 +20,7 @@ import type * as guard from "../guard.js";
 import type * as http from "../http.js";
 import type * as inbound from "../inbound.js";
 import type * as ingest_fetch from "../ingest/fetch.js";
+import type * as ingest_firecrawl from "../ingest/firecrawl.js";
 import type * as ingest_seed from "../ingest/seed.js";
 import type * as ingest_write from "../ingest/write.js";
 import type * as llm from "../llm.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   inbound: typeof inbound;
   "ingest/fetch": typeof ingest_fetch;
+  "ingest/firecrawl": typeof ingest_firecrawl;
   "ingest/seed": typeof ingest_seed;
   "ingest/write": typeof ingest_write;
   llm: typeof llm;

@@ -92,6 +92,23 @@ export const targetKeys = internalQuery({
   },
 });
 
+/** The stored fields for just the rows the diff found moved or missing. */
+export const prevFields = internalQuery({
+  args: { sourceId: v.id("sources"), identityKeys: v.array(v.string()) },
+  returns: v.array(v.object({ identityKey: v.string(), fields })),
+  handler: async (ctx, { sourceId, identityKeys }) => {
+    const out: { identityKey: string; fields: Doc<"current">["fields"] }[] = [];
+    for (const key of identityKeys) {
+      const r = await ctx.db
+        .query("current")
+        .withIndex("by_source_identity", (q) => q.eq("sourceId", sourceId).eq("identityKey", key))
+        .unique();
+      if (r) out.push({ identityKey: r.identityKey, fields: r.fields });
+    }
+    return out;
+  },
+});
+
 /**
  * The "before" side of the diff. Whole-file sources need every current row so
  * absence can be detected; filtered sources only need the keys they fetched.
@@ -103,10 +120,14 @@ export const prevFor = internalQuery({
     identityKeys: v.array(v.string()),
   },
   // An array, not a record: Convex caps object keys at 1,024 and a busy
-  // source has more current rows than that.
-  returns: v.array(v.object({ identityKey: v.string(), sigHash: v.string(), fullHash: v.string(), fields })),
+  // source has more current rows than that. Hashes only: the diff decides
+  // "unchanged" from the hashes alone, and that is nearly every row of every
+  // cycle. Sending each row's whole `fields` back too was ~1.7 MB per New
+  // Jersey cycle for bytes the diff never looked at — read `prevFields` for
+  // the few keys that actually moved.
+  returns: v.array(v.object({ identityKey: v.string(), sigHash: v.string(), fullHash: v.string() })),
   handler: async (ctx, { sourceId, mode, identityKeys }) => {
-    const pick = (r: Doc<"current">) => ({ identityKey: r.identityKey, sigHash: r.sigHash, fullHash: r.fullHash, fields: r.fields });
+    const pick = (r: Doc<"current">) => ({ identityKey: r.identityKey, sigHash: r.sigHash, fullHash: r.fullHash });
     if (mode === "all") {
       const rows = await ctx.db
         .query("current")

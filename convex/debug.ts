@@ -176,3 +176,36 @@ export const backfillRowCounts = internalMutation({
     return n;
   },
 });
+
+/**
+ * One-off, run in batches until it returns 0: free the slice bodies pinned
+ * before 4 September for server-filtered sources. Those bytes were our own
+ * composed JSON, never the state's file, and every row in them is still held
+ * as an observation. `npx convex run --prod debug:unpinSliceBodies`
+ */
+export const unpinSliceBodies = internalMutation({
+  args: { batch: v.optional(v.number()) },
+  returns: v.object({ freed: v.number(), remaining: v.boolean() }),
+  handler: async (ctx, { batch }) => {
+    const n = Math.min(batch ?? 100, 200);
+    const slices = ["nyc-hpd", "nyc-restaurants"];
+    let freed = 0;
+    for (const slug of slices) {
+      const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+      if (!src) continue;
+      const snaps = await ctx.db
+        .query("snapshots")
+        .withIndex("by_source_captured", (q) => q.eq("sourceId", src._id))
+        .filter((q) => q.neq(q.field("bodyStorageId"), undefined))
+        .take(n - freed);
+      for (const snap of snaps) {
+        if (!snap.bodyStorageId) continue;
+        await ctx.storage.delete(snap.bodyStorageId);
+        await ctx.db.patch(snap._id, { bodyStorageId: undefined });
+        freed++;
+      }
+      if (freed >= n) break;
+    }
+    return { freed, remaining: freed >= n };
+  },
+});

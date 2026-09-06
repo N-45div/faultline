@@ -39,7 +39,11 @@ export const nycHpd: SourceAdapter<Raw> = {
       `$limit=5000&$order=currentstatusdate DESC` +
       `&$where=bbl in(${bbls.map((b) => `'${q(b)}'`).join(",")}) AND currentstatusdate>='${dateOnly(cursor)}'`,
   },
-  cadence: { baseMs: 15 * 60_000, hotMs: 10 * 60_000, jitterPct: 15, gate: "always" },
+  // Hourly. At fifteen minutes this file alone read ~1,800 rows 96 times a
+  // day — a quarter of a gigabyte of database bandwidth daily, and the
+  // reason the deployment was switched off on 4 September. A stamp is not
+  // undone by being noticed forty minutes later.
+  cadence: { baseMs: 60 * 60_000, hotMs: 30 * 60_000, jitterPct: 15, gate: "always" },
   targeting: "server_filter",
   subjectKind: "building",
   claimKind: "hpd.violation_status",

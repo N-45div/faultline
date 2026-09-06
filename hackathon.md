@@ -587,6 +587,31 @@ Jersey's "as written" column carrying Excel's serial for a date cell — 46144
 and only text cells (ranges, lists) are kept verbatim (`engine/export.ts`,
 `convex/lookup.ts`, `convex/inbound.ts`, `convex/http.ts`, `src/Employer.tsx`).
 
+### 2026-09-04 - 0a0f411
+At 14:21 Convex disabled both deployments: the free plan's monthly limits
+were exhausted, and the live site returned 500 to anyone who opened it. My
+doing, over three days. The housing file was re-reading about 1,800 rows
+every fifteen minutes — a quarter of a gigabyte of database bandwidth a day
+— and pinning its two-megabyte slice to file storage nearly every cycle,
+because "changes > 0" was the pin rule and a city file always changes. The
+restaurant file added a 6,709-row re-read every hour on top. Deleting other
+projects does not refund consumed usage; the fix is a plan upgrade or the
+month's reset, and both are Divij's.
+
+What changed in code before anything was re-enabled, so it does not recur:
+housing reads hourly, restaurants twice a day; a server-filtered slice is
+never pinned to storage — it is JSON we composed, not the state's file, and
+every row of it is already an observation — with a one-off mutation to free
+the slices pinned so far; and the "before" side of every diff is now hashes
+only, with a row's stored fields fetched only for the handful of rows the
+diff found moved or missing. That last one alone cut New Jersey's per-cycle
+read from ~1.7 MB to a few kilobytes, on rows the diff never looked at.
+
+Also today, before the outage: New Jersey's ordinals now follow the filing
+(start cell, then headcount) rather than sheet order, so a re-sorted sheet
+cannot fabricate an amendment; and the Firecrawl transport is wired through
+the component — the probe was the call that hit the disabled deployment.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell

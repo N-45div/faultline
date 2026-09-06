@@ -6,6 +6,7 @@ import { adapters } from "../../engine/adapters/index";
 import { hashFields, sha256Hex } from "../../engine/canon";
 import { diffRows } from "../../engine/diff";
 import type { DiffResult, FetchBody, Observation, PrevIndex, SourceAdapter } from "../../engine/types";
+import { scrapePage } from "./firecrawl";
 
 // The one place bytes from the outside world are touched. Parse, hash and diff
 // here; hand the mutation only what it needs to write.
@@ -90,7 +91,18 @@ export const runSource = internalAction({
       }
       for (const identityKeys of keyBatches) {
         const rows = await ctx.runQuery(internal.ingest.write.prevFor, { sourceId: source._id, mode, identityKeys });
-        for (const r of rows) prev[r.identityKey] = { sigHash: r.sigHash, fullHash: r.fullHash, fields: r.fields };
+        for (const r of rows) prev[r.identityKey] = { sigHash: r.sigHash, fullHash: r.fullHash, fields: {} };
+      }
+      // The diff reads a previous row's fields only when the row moved or
+      // left the file. Fetch exactly those, in slices; unchanged rows — nearly
+      // all of them — never leave the database.
+      const seen = new Map(observations.map((o) => [o.identityKey, o.sigHash] as const));
+      const needFields = Object.entries(prev)
+        .filter(([key, p]) => !seen.has(key) || seen.get(key) !== p.sigHash)
+        .map(([key]) => key);
+      for (let i = 0; i < needFields.length; i += PREV_KEYS_PER_QUERY) {
+        const rows = await ctx.runQuery(internal.ingest.write.prevFields, { sourceId: source._id, identityKeys: needFields.slice(i, i + PREV_KEYS_PER_QUERY) });
+        for (const r of rows) if (prev[r.identityKey]) prev[r.identityKey]!.fields = r.fields;
       }
 
       const diff = diffRows(adapter, prev, observations);
@@ -99,9 +111,13 @@ export const runSource = internalAction({
       const kept = new Set(newVersions.map((o) => o.identityKey));
       if (allNew.length > newVersions.length) console.warn(`[${slug}] ${allNew.length - newVersions.length} rows deferred to next cycle`);
 
-      // Pin the exact bytes only when they proved something moved.
+      // Pin the exact bytes only when they proved something moved — and only
+      // for a whole file. A server-filtered source's "body" is a slice we
+      // composed ourselves, not the state's file; every row of it is already
+      // held as an observation, and pinning two megabytes of it every fifteen
+      // minutes is what filled the free plan's file storage on 4 September.
       let bodyStorageId: string | undefined;
-      if (diff.changes.length > 0) {
+      if (diff.changes.length > 0 && adapter.targeting === "whole_file") {
         bodyStorageId = await ctx.storage.store(new Blob([fetched.bytes as BlobPart], { type: "application/octet-stream" }));
       }
 
@@ -226,7 +242,7 @@ type Fetched =
     };
 
 async function fetchSource(
-  ctx: { runQuery: any },
+  ctx: { runQuery: any; runMutation: any; runAction: any },
   adapter: SourceAdapter<any>,
   source: { _id: any; cursor?: string; lastEtag?: string },
 ): Promise<Fetched> {
@@ -297,7 +313,26 @@ async function fetchSource(
     return { kind: "body", url, status: res.status, etag, lastModified, bytes, bodySha256: await sha256Hex(bytes), body, rowCount: -1 };
   }
 
-  throw new Error(`transport ${t.kind} not wired yet`);
+  if (t.kind === "firecrawl_scrape") {
+    // Fetched by Firecrawl from their side, not ours. The adapter parses the
+    // page's HTML exactly as it would a file we fetched directly; the only
+    // difference is who did the fetching, and that is recorded in the URL.
+    const page = await scrapePage(ctx, t.url);
+    const bytes = new TextEncoder().encode(page.html);
+    return {
+      kind: "body",
+      url: page.url,
+      status: page.status,
+      bytes,
+      bodySha256: await sha256Hex(bytes),
+      body: { kind: "text", text: page.html, status: page.status, url: page.url, fetchedAt },
+      rowCount: -1,
+    };
+  }
+
+  // Every transport kind is handled above; this is the compiler's proof.
+  const never: never = t;
+  throw new Error(`transport ${String((never as { kind?: string }).kind)} not wired`);
 }
 
 async function toObservations(adapter: SourceAdapter<any>, body: FetchBody, bodySha256: string, capturedAt: number): Promise<Observation[]> {
