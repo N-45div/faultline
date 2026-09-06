@@ -72,9 +72,12 @@ export const njWarn: SourceAdapter<Raw> = {
     const wb = XLSX.read(body.bytes, { type: "array", cellDates: false });
     const out: Raw[] = [];
     // One filing can appear twice in a company's month — two waves, two rows.
-    // The ordinal keeps them apart without putting a value in the identity
-    // that the state might later correct.
-    const seen = new Map<string, number>();
+    // The ordinal keeps them apart. It is assigned after the whole file is
+    // read, by sorting each group on the start cell and the headcount rather
+    // than by sheet order: sheet order is the one thing the state can change
+    // without changing a single filing, and an ordinal that followed it would
+    // report amendments that never happened.
+    const groups = new Map<string, Raw[]>();
     for (const name of wb.SheetNames) {
       const year = /^\s*(\d{4})/.exec(name)?.[1];
       if (!year) continue;
@@ -93,9 +96,7 @@ export const njWarn: SourceAdapter<Raw> = {
         const monthIdx = MONTHS.indexOf(monthPosted.toLowerCase());
         const noticeMonth = monthIdx >= 0 ? `${year}-${String(monthIdx + 1).padStart(2, "0")}` : "";
         const key = `${slug(company)}|${slug(city)}|${year}|${monthPosted.toLowerCase()}`;
-        const ordinal = (seen.get(key) ?? 0) + 1;
-        seen.set(key, ordinal);
-        out.push({
+        const row: Raw = {
           company,
           city,
           noticeMonth,
@@ -107,9 +108,17 @@ export const njWarn: SourceAdapter<Raw> = {
           effectiveRaw: typeof raw["Effective Date"] === "number" ? anyDate(raw["Effective Date"]) : str(raw["Effective Date"]),
           effectiveDate: anyDate(raw["Effective Date"]),
           employees: Number(raw["Workforce Affected"]) || 0,
-          ordinal,
-        });
+          ordinal: 0,
+        };
+        groups.set(key, [...(groups.get(key) ?? []), row]);
       }
+    }
+    for (const rows of groups.values()) {
+      rows.sort((a, b) => a.effectiveRaw.localeCompare(b.effectiveRaw) || a.employees - b.employees);
+      rows.forEach((r, i) => {
+        r.ordinal = i + 1;
+        out.push(r);
+      });
     }
     return out;
   },
