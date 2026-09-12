@@ -49,15 +49,15 @@ export default function App() {
   // The tab and the bookmark say where you are, not the repository's old name.
   useEffect(() => {
     const titles: [boolean, string][] = [
-      [Boolean(employerMatch), `${safeDecode(employerMatch?.[1] ?? "").replace(/-/g, " ")} · Notice`],
-      [Boolean(buildingMatch), "Building record · Notice"],
-      [isApp, "Receipts · Notice"],
-      [isJudge, "Tour · Notice"],
-      [isSignIn, "Sign in · Notice"],
-      [isPrivacy, "Privacy · Notice"],
-      [isTerms, "Terms · Notice"],
+      [Boolean(employerMatch), `${safeDecode(employerMatch?.[1] ?? "").replace(/-/g, " ")} · Faultline`],
+      [Boolean(buildingMatch), "Building record · Faultline"],
+      [isApp, "Receipts · Faultline"],
+      [isJudge, "Tour · Faultline"],
+      [isSignIn, "Sign in · Faultline"],
+      [isPrivacy, "Privacy · Faultline"],
+      [isTerms, "Terms · Faultline"],
     ];
-    document.title = titles.find(([on]) => on)?.[1] ?? "Notice — the address that writes back";
+    document.title = titles.find(([on]) => on)?.[1] ?? "Faultline — the address that writes back";
   }, [path]);
 
   let body;

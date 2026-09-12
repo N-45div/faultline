@@ -275,7 +275,7 @@ function renderPack(pdf: Pdf, d: PackData) {
     { size: 9.5, color: MUTED },
   );
   pdf.space(4);
-  pdf.text(`Notice - the address that writes back. Questions and updates: ${process.env.AGENTMAIL_INBOX_ID ?? "getnotice@agentmail.to"}`, {
+  pdf.text(`Faultline - the address that writes back. Questions and updates: ${process.env.AGENTMAIL_INBOX_ID ?? "getnotice@agentmail.to"}`, {
     size: 9.5,
     color: MUTED,
   });

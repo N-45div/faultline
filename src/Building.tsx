@@ -27,7 +27,7 @@ export default function Building({ bbl, onBack }: { bbl: string; onBack: () => v
   return (
     <>
       <p className="crumbs">
-        <a href="/app" onClick={(e) => { e.preventDefault(); onBack(); }}>← Notice</a>
+        <a href="/app" onClick={(e) => { e.preventDefault(); onBack(); }}>← Faultline</a>
       </p>
 
       <section className="hero" aria-label="Building record">

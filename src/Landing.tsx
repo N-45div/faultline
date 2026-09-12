@@ -40,7 +40,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
             <div className="mail-head">
               <span className="dot" />
               <span>
-                <strong>Re: Spirit Airlines</strong> · from Notice, 20 seconds later
+                <strong>Re: Spirit Airlines</strong> · from Faultline, 20 seconds later
               </span>
             </div>
             {r && r.kind === "layoff" ? (
@@ -194,7 +194,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
 
       <footer className="band foot-band">
         <div className="container foot-row">
-          <span>Notice · {INBOX}</span>
+          <span>Faultline · {INBOX}</span>
           <span className="muted">
             Built on Convex, AgentMail, Firecrawl and OpenAI. Reply STOP to any email to stop.{" "}
             <a href="/privacy" onClick={(e) => { e.preventDefault(); go("/privacy"); }}>Privacy</a> ·{" "}

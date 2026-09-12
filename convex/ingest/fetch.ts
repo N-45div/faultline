@@ -11,7 +11,7 @@ import { scrapePage } from "./firecrawl";
 // The one place bytes from the outside world are touched. Parse, hash and diff
 // here; hand the mutation only what it needs to write.
 
-const UA = "Notice/0.1 (+https://github.com/N-45div/notice; keeps dated copies of public filings)";
+const UA = "Faultline/0.1 (+https://github.com/N-45div/faultline; keeps dated copies of public filings)";
 const CURSOR_TRAIL_DAYS = 3;
 // A cycle is written in slices. Each row costs about four database operations,
 // so a slice this size stays far inside what one Convex function may do; the

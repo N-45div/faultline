@@ -1,6 +1,6 @@
 # Hackathon log
 
-- **Project:** Notice
+- **Project:** Faultline
 - **Event:** Convex All Gas Hackathon
 - **What it does:** Email a company name or a New York City address and get back what they filed with the government, dated, with every version the agency overwrote. Seven states' layoff files, New York City's housing records, and the city's restaurant inspections — a file the Health Department says, in its own words, keeps only restaurants that are open today.
 - **Live app:** https://clear-dogfish-72.convex.site
@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-03T00:35:00Z
+- **Last updated:** 2026-09-12T15:30:00Z
 
 ## Log
 

@@ -65,7 +65,7 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
   return (
     <>
       <p className="crumbs">
-        <a href="/" onClick={(e) => { e.preventDefault(); onBack(); }}>← Notice</a>
+        <a href="/" onClick={(e) => { e.preventDefault(); onBack(); }}>← Faultline</a>
       </p>
       <section className="hero" aria-label="Receipt">
         <p className="kicker">{r.kind === "layoff" ? "Layoff filing" : r.kind === "building" ? "Housing record" : "No match"}</p>

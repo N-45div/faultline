@@ -125,7 +125,7 @@ const share = (kind: "e" | "b") =>
         const lead = receipt.blocks[0]?.slice(0, 3).join(" ") ?? "";
         const description = (lead || "Every version kept, dated, because the state overwrites its file.").slice(0, 280);
         const path = kind === "e" && "canonical" in r && r.canonical ? `/e/${r.canonical}` : u.pathname;
-        html = meta(html, `${receipt.headline} · Notice`, description, `${u.origin}${path}`);
+        html = meta(html, `${receipt.headline} · Faultline`, description, `${u.origin}${path}`);
       }
     } catch (e) {
       console.warn(`[share] ${u.pathname}: ${(e as Error).message}`);

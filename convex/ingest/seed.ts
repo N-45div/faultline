@@ -4,7 +4,7 @@ import { internal } from "../_generated/api";
 import { addressTokens } from "../../engine/match";
 import { paused } from "../guard";
 
-const HEADERS = { "User-Agent": "Notice/0.1", Accept: "application/json" };
+const HEADERS = { "User-Agent": "Faultline/0.1", Accept: "application/json" };
 const HPD = "https://data.cityofnewyork.us/resource/wvxf-dwi5.json";
 
 /**

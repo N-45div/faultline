@@ -83,8 +83,8 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
   return (
     <header className={`topbar${open ? " open" : ""}`}>
       <div className="container bar">
-        <a className="brand" href="/" onClick={(e) => nav("/", e)} aria-label="Notice, home">
-          <span className="wordmark">Notice</span>
+        <a className="brand" href="/" onClick={(e) => nav("/", e)} aria-label="Faultline, home">
+          <span className="wordmark">Faultline</span>
           <span className="tagline">the address that writes back</span>
         </a>
 

@@ -563,7 +563,7 @@ export function noMatchReceipt(query: string, suggestions: string[], opts?: { pr
  */
 export function complianceLines(postal: string | undefined, why: string): string[] {
   const trimmed = (postal ?? "").trim();
-  return [trimmed ? `Notice · ${trimmed}` : `Notice · ${why}`, "Reply STOP and we will not email you again."];
+  return [trimmed ? `Faultline · ${trimmed}` : `Faultline · ${why}`, "Reply STOP and we will not email you again."];
 }
 
 // ---- rendering -------------------------------------------------------------

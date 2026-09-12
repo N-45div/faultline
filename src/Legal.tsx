@@ -59,7 +59,7 @@ export function Terms() {
 
       <h2 className="h2">Not legal advice</h2>
       <p>
-        Notice shows you what an employer or a landlord told the government, dated, beside the statute that applies.
+        Faultline shows you what an employer or a landlord told the government, dated, beside the statute that applies.
         It never says whether anything was lawful. Employers can claim exceptions and agencies correct records; those
         are questions for a lawyer. What you get here is the dated proof you bring them.
       </p>

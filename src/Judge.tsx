@@ -67,7 +67,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         </p>
       )}
       <p className="crumbs">
-        <a href="/" onClick={(e) => { e.preventDefault(); go("/"); }}>← Notice</a>
+        <a href="/" onClick={(e) => { e.preventDefault(); go("/"); }}>← Faultline</a>
       </p>
 
       <section className="tour-intro">
