@@ -9,7 +9,7 @@
 - **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held)
 - **Components:** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex
 - **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, HTTP actions, crons, scheduled functions, file storage, realtime queries
-- **Auth:** Convex Auth (email + password; Google once a client id is set), optional everywhere
+- **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
 - **Last updated:** 2026-09-03T00:35:00Z
@@ -656,6 +656,38 @@ What the counters say the deployment holds: 18,913 current rows across nine
 files. What the guards say it can cost: at most 270 reads a day across all
 sources, each reading hashes rather than rows.
 
+### 2026-09-12 - fb4d89e
+The tenth file, and the one the amendment chain was modelled on. Wisconsin
+publishes what no other state does: every notice has a number (2026082401),
+every row links to the PDF with `?version=N`, and a second table each month
+lists which notices were revised and how — in a four-code vocabulary the
+page's own legend spells out: AW, change to number of affected workers; LS,
+change to layoff schedule; OC, other change; RN, rescission. Where the other
+states overwrite a row and say nothing, Wisconsin says "version 8". Of the
+fifty notices on the page today, forty-six are past version 1. The receipt
+now quotes it: "Wisconsin's notice number 2026081201, version 8 — revised 7
+times by the state's own count; the latest revision: Change to Layoff
+Schedule; Change to Number of Affected Workers."
+
+This is also Firecrawl's first real job. dwd.wisconsin.gov does not resolve
+from this deployment at all, so the `firecrawl_scrape` transport — wired on 4
+September, untested until today — fetches the page from Firecrawl's side
+through the component and hands back the HTML, which is parsed like any
+other state's table. One credit a read, four reads a day.
+
+Two other things today. Sign-in is Convex Auth with email and password only:
+the Google provider is gone from the code and from the deployment, because
+an outside identity provider is one more thing to fail in front of a judge
+and nothing on the site needs it. And the tour now has a sign-in step of its
+own — create an account, follow Spirit Airlines, watch it appear under
+"What you follow" from a live query — so auth is on the judge's path rather
+than a line in a paragraph.
+
+Also fixed: both New York City files were failing on the new deployment
+with "too many system operations" — 250 point lookups in one query ran past
+its one-second limit on a cold deployment. Sixty per query now; both files
+read clean the next cycle.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
@@ -696,7 +728,7 @@ are the dated proof you bring them.
 | 6 Sep | Ten receipts to ten plaintiff-side firms and tenant organisers — the thirty-day test; employer share pages (done 3 Sep); AgentMail Developer plan + custom domain, warmup starts |
 | 7 Sep | Judging-week protections done 3 Sep (breakers, "last verified" badges, kill switch, chaos test, pack GC, copy lint); left: a second adversarial review of everything shipped since 31 Aug |
 | 8–10 Sep | New Jersey and NYC restaurant inspections DONE 3 Sep (the food file the city rebuilds from every pull). OATH dropped: its own description does not support "dismissed violations are removed", location is blank on 3/4 of rows, hearing result on nearly all. New Jersey DONE 3 Sep (2,367 filings; the state that publishes no notice date). Illinois PROBED 3 Sep and parked: its WARN list is an Angular app whose API (`/iebs/Apps/api/public/search`) 302s to a login for every request, and the department's own page offers only per-year PDFs — a source that would break in front of a judge. Left: Illinois (90/60-day laws, overwritten files); Wisconsin (dwd.wisconsin.gov does not resolve from this network at all — try from another network or from inside a deployment fetch before writing the adapter; the one state that publishes revision codes — the model for the amendment chain); the NYC feeds that are provably lossy where HPD is not: restaurant inspections (closed restaurants vanish) and OATH hearings (dismissed violations are removed from the property record) |
-| 11–13 Sep | Firecrawl: HTML-only states and employer newsroom captures; share images; teaser post |
+| 11–13 Sep | Firecrawl DONE 12 Sep: Wisconsin through the component (the host does not resolve from the deployment). Left: newsroom captures if time; share images; teaser post |
 | 14–16 Sep | Lawyer export DONE 4 Sep (CSV by email and on every employer page; no limitations column, on purpose). Left: hardening — redaction, chaos test with keys removed (employer, site, notice date, first separation, count, exception text, amendments, limitations date) |
 | 17–18 Sep | Video |
 | 19–20 Sep | This file, final; posts; submission ready |

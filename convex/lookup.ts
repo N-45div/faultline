@@ -64,6 +64,7 @@ export const LAYOFF_STATES = {
   "nc-warn": "US-NC",
   "va-warn": "US-VA",
   "nj-warn": "US-NJ",
+  "wi-warn": "US-WI",
 } as const;
 
 export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Promise<LayoffNoticeRow[]> {
@@ -100,6 +101,9 @@ export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Pro
           noticeMonth: f.noticeMonth ? String(f.noticeMonth) : undefined,
           // Maryland and New Jersey both write more than one date in this cell.
           effectiveDateRaw: f.effectiveDateRaw ? String(f.effectiveDateRaw) : undefined,
+          stateNoticeId: f.noticeId ? String(f.noticeId) : undefined,
+          stateVersion: f.version ? Number(f.version) : undefined,
+          stateUpdates: f.updates ? String(f.updates) : undefined,
           effectiveDate: String(f.effectiveDate),
           postedDate: String(f.postedDate ?? f.processedDate ?? ""),
           // California's column is "Processed Date" — the day it handled the
@@ -290,6 +294,7 @@ const COVERAGE: Record<string, string> = {
   "nc-warn": "the current year",
   "va-warn": "back to 2010",
   "nj-warn": "back to 2004",
+  "wi-warn": "the current year, with every revision the state numbers",
   "nyc-hpd": "the buildings we hold",
   "nyc-restaurants": "active restaurants only, three years back",
 };
@@ -299,6 +304,7 @@ const PUBLISHER_NAME: Record<string, string> = {
   "ca-warn": "California",
   "va-warn": "Virginia",
   "nj-warn": "New Jersey",
+  "wi-warn": "Wisconsin",
   "md-warn": "Maryland",
   "nc-warn": "North Carolina",
   "co-warn": "Colorado",
@@ -430,6 +436,7 @@ export const STATE_FILE: Record<string, string> = {
   "US-NC": "https://www.commerce.nc.gov/data-tools-reports/labor-market-data-tools/workforce-warn-reports/report-workforce-warn-summary-list-2026",
   "US-VA": "https://virginiaworks.gov/im-an-employer/retain-and-grow/warn-notices/",
   "US-NJ": "https://www.nj.gov/labor/business-services/layoffs-and-closing/file-warn-notice/",
+  "US-WI": "https://dwd.wisconsin.gov/dislocatedworker/warn/",
 };
 
 /**

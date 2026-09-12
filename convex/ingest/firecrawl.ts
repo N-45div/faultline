@@ -33,17 +33,18 @@ export async function scrapePage(ctx: { runAction: any }, url: string): Promise<
  * Internal, so nobody but the deployment owner can spend a credit with it.
  */
 export const probe = internalAction({
-  args: { url: v.string(), chars: v.optional(v.number()) },
+  args: { url: v.string(), chars: v.optional(v.number()), format: v.optional(v.union(v.literal("markdown"), v.literal("html"))), offset: v.optional(v.number()) },
   returns: v.object({ status: v.number(), url: v.string(), htmlBytes: v.number(), markdownBytes: v.number(), credits: v.number(), head: v.string() }),
-  handler: async (ctx, { url, chars }) => {
+  handler: async (ctx, { url, chars, format, offset }) => {
     const s = await scrapePage(ctx, url);
+    const text = format === "html" ? s.html : s.markdown;
     return {
       status: s.status,
       url: s.url,
       htmlBytes: s.html.length,
       markdownBytes: s.markdown.length,
       credits: s.credits,
-      head: s.markdown.slice(0, chars ?? 3000),
+      head: text.slice(offset ?? 0, (offset ?? 0) + (chars ?? 3000)),
     };
   },
 });

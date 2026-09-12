@@ -28,7 +28,7 @@ export interface LayoffNoticeRow {
    * different clock, and must not be read as "the state was slow to publish".
    */
   postedIsProcessed?: boolean;
-  jurisdiction: "US-NY" | "US-CA" | "US-MD" | "US-CO" | "US-NC" | "US-VA" | "US-NJ";
+  jurisdiction: "US-NY" | "US-CA" | "US-MD" | "US-CO" | "US-NC" | "US-VA" | "US-NJ" | "US-WI";
   /**
    * "2026-02", when the state publishes only the month it posted the notice
    * and never the day. New Jersey is the only one so far.
@@ -41,6 +41,11 @@ export interface LayoffNoticeRow {
    * date out of several.
    */
   effectiveDateRaw?: string;
+  /** Wisconsin numbers its notices and its revisions; nobody else does. */
+  stateNoticeId?: string;
+  stateVersion?: number;
+  /** What the state says changed, in its own words ("Change to Layoff Schedule"). */
+  stateUpdates?: string;
   layoffOrClosure?: string;
   reason?: string;
   amendments?: Amendment[];
@@ -152,7 +157,7 @@ function heldLines(opts: ReceiptOpts): string[] {
   return out;
 }
 
-const STATE = { "US-NY": "New York", "US-CA": "California", "US-MD": "Maryland", "US-CO": "Colorado", "US-NC": "North Carolina", "US-VA": "Virginia", "US-NJ": "New Jersey" } as const;
+const STATE = { "US-NY": "New York", "US-CA": "California", "US-MD": "Maryland", "US-CO": "Colorado", "US-NC": "North Carolina", "US-VA": "Virginia", "US-NJ": "New Jersey", "US-WI": "Wisconsin" } as const;
 const STATE_PAGE = {
   "US-NY": "https://dol.ny.gov/warn-notices",
   "US-CA": "https://edd.ca.gov/en/jobs_and_training/Layoff_Services_WARN/",
@@ -161,6 +166,7 @@ const STATE_PAGE = {
   "US-NC": "https://www.commerce.nc.gov/data-tools-reports/labor-market-data-tools/workforce-warn-reports/report-workforce-warn-summary-list-2026",
   "US-VA": "https://virginiaworks.gov/im-an-employer/retain-and-grow/warn-notices/",
   "US-NJ": "https://www.nj.gov/labor/business-services/layoffs-and-closing/file-warn-notice/",
+  "US-WI": "https://dwd.wisconsin.gov/dislocatedworker/warn/",
 } as const;
 
 
@@ -380,6 +386,16 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
         ? `${state}'s file says it processed this on ${r.postedDate}, ${days(g.postingLagDays)} after the notice`
         : `${state} put this online on ${r.postedDate}, ${days(g.postingLagDays)} after the notice`;
       lines.push(g.postedAfterEffective && !r.postedIsProcessed ? `${posted} — after the ${event} had started.` : `${posted}.`);
+    }
+    // The state's own revision record, where a state keeps one. Wisconsin
+    // numbers every notice and every revision; "version 8" is the state
+    // saying, itself, that this notice has been amended seven times.
+    if (r.stateNoticeId && r.stateVersion) {
+      lines.push(
+        `${state}'s notice number ${r.stateNoticeId}, version ${r.stateVersion}${
+          r.stateVersion > 1 ? ` — revised ${r.stateVersion - 1} ${r.stateVersion === 2 ? "time" : "times"} by the state's own count` : ""
+        }${r.stateUpdates ? `; the latest revision: ${r.stateUpdates}` : ""}.`,
+      );
     }
     for (const a of r.amendments ?? []) lines.push(...amendmentLines(a));
     return lines.filter(Boolean);

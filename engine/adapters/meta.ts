@@ -10,6 +10,7 @@ export const ADAPTERS = [
   { id: "va-warn", version: 1, targeting: "whole_file" },
   { id: "nj-warn", version: 1, targeting: "whole_file" },
   { id: "nyc-restaurants", version: 1, targeting: "server_filter" },
+  { id: "wi-warn", version: 1, targeting: "whole_file" },
 ] as const;
 
 export type AdapterId = (typeof ADAPTERS)[number]["id"];

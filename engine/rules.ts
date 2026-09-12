@@ -24,6 +24,9 @@ export const WARN_STATUTORY_DAYS: Record<string, number> = {
   // week per year of service. Its file publishes no notice date, so we can
   // state the rule and never a count against it.
   "US-NJ": 90,
+  // Wisconsin's Business Closing and Mass Layoff law (Wis. Stat. § 109.07):
+  // 60 days, at lower thresholds than the federal act.
+  "US-WI": 60,
 };
 
 /**
@@ -38,6 +41,7 @@ export const OWN_ACT: Record<string, string> = {
   "US-CA": "Cal-WARN",
   "US-MD": "Maryland's Economic Stabilization Act",
   "US-NJ": "New Jersey's WARN Act",
+  "US-WI": "Wisconsin's Business Closing and Mass Layoff law",
 };
 
 /** "New York's WARN Act sets 90 days" / "federal WARN sets 60 days". */
@@ -66,6 +70,7 @@ export const WARN_EXCEPTIONS: Record<string, string[]> = {
   // never computed for it. Here so the fallback is the federal list and not a
   // silent default if that ever changes.
   "US-NJ": ["faltering company", "unforeseeable business circumstances", "natural disaster"],
+  "US-WI": ["faltering company", "unforeseeable business circumstances", "natural disaster", "strike or lockout"],
 };
 
 export interface NoticeGapInput {

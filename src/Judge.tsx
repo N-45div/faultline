@@ -11,6 +11,7 @@ const PUBLISHER: Record<string, string> = {
   "ca-warn": "California",
   "va-warn": "Virginia",
   "nj-warn": "New Jersey",
+  "wi-warn": "Wisconsin",
   "md-warn": "Maryland",
   "nc-warn": "North Carolina",
   "co-warn": "Colorado",
@@ -70,11 +71,12 @@ export default function Judge({ go }: { go: (p: string) => void }) {
       </p>
 
       <section className="tour-intro">
-        <p className="kicker">For judges · five minutes, no sign-in</p>
-        <h1 className="lede-title">An email address that answers with the public record.</h1>
+        <p className="kicker">For judges · five minutes · sign-in only for step 6</p>
+        <h1 className="lede-title">A versioned ledger of government files, with an email address on the front.</h1>
         <p className="lede-sub">
-          Everything below is live. The numbers are read from the deployment as you look at them, and every button
-          sends a real email to a real inbox that writes back on its own.
+          Nine public files, read on Convex crons, diffed row by row, every version kept — because the agencies
+          overwrite theirs. AgentMail is the front door, OpenAI reads the letters people forward. Everything below is
+          live: the numbers are Convex queries rendered as you look, and every button sends a real email.
         </p>
       </section>
 
@@ -223,6 +225,25 @@ export default function Judge({ go }: { go: (p: string) => void }) {
 
       <section className="tour-step">
         <span className="num">7</span>
+        <h2 className="h2">Or follow from the web: one email, one password, Convex Auth.</h2>
+        <p>
+          Sign-in is email and password through Convex Auth — no outside provider, nothing to configure, and nothing
+          on the site needs it. Make an account, open any employer, press "Follow this filing", and it appears under
+          "What you follow" on the receipts page the same second, from a live query. Email alerts go only to an
+          address that has written to the inbox itself, so nobody can sign up as you and have us mail you.
+        </p>
+        <p className="tour-ctas">
+          <a className="cta" href="/signin" onClick={(e) => { e.preventDefault(); go("/signin"); }}>
+            Create an account →
+          </a>
+          <a className="cta" href="/e/spirit-airlines" onClick={(e) => { e.preventDefault(); go("/e/spirit-airlines"); }}>
+            Then follow Spirit Airlines →
+          </a>
+        </p>
+      </section>
+
+      <section className="tour-step">
+        <span className="num">8</span>
         <h2 className="h2">Buildings too — the city's own stamp, kept.</h2>
         <p>
           New York City stamps a landlord's "it's fixed" as FALSE CERTIFICATION, in those words, then overwrites the
@@ -239,7 +260,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
       </section>
 
       <section className="tour-step">
-        <span className="num">8</span>
+        <span className="num">9</span>
         <h2 className="h2">Ask for the evidence pack.</h2>
         <p>
           Email <strong>PACK Spirit Airlines</strong> and a PDF arrives in your thread within a minute: the record as
@@ -255,15 +276,18 @@ export default function Judge({ go }: { go: (p: string) => void }) {
       </section>
 
       <section className="tour-step">
-        <span className="num">9</span>
+        <span className="num">10</span>
         <h2 className="h2">Under the hood, in one paragraph.</h2>
         <p>
           Convex: schema, indexes, full-text search, queries, mutations, actions, node actions, HTTP actions, crons,
-          scheduled functions, file storage, realtime queries, static hosting; the AgentMail and Firecrawl
-          components. Ingest is a snapshot, then slices of 150 rows, then a finish, because a city file is bigger
-          than one transaction. Two states rename their file on every publish, so the transport reads the state's own
-          page and takes today's link from it. OpenAI: the official SDK, one zod schema for both the strict output
-          and validation, a byte-stable cached prefix, PDF file input, hosted web search, free moderation.
+          scheduled functions, file storage, realtime queries, Convex Auth, static hosting; the AgentMail and
+          Firecrawl components. Ingest is a snapshot, then slices of 150 rows, then a finish, because a city file is
+          bigger than one transaction. Two states rename their file on every publish, so the transport reads the
+          state's own page and takes today's link from it. Wisconsin's page does not resolve from the deployment at
+          all, so Firecrawl fetches it from its side and hands back the HTML — that is the one state that numbers its
+          own revisions, and we hold each one as the state numbers it. OpenAI: the official SDK, one zod schema for
+          both the strict output and validation, a byte-stable cached prefix, PDF file input, hosted web search,
+          free moderation.
         </p>
         <p className="fine">
           The build log is in the repository as hackathon.md, one entry per commit.{" "}

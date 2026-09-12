@@ -22,7 +22,9 @@ const ROWS_PER_BATCH = 150;
 const MAX_ROWS_PER_CYCLE = 3000;
 // The "before" side is read in slices too, for the same reason: a closed-world
 // source asks for one row per key it fetched, and a city fetches thousands.
-const PREV_KEYS_PER_QUERY = 250;
+// Sixty, not 250: a query has one second, and 250 point lookups on a cold
+// deployment ran past it — "too many system operations", five cycles running.
+const PREV_KEYS_PER_QUERY = 60;
 
 export const runSource = internalAction({
   args: { slug: v.string() },

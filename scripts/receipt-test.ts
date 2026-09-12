@@ -270,6 +270,20 @@ check(!/\b(source|adapter|snapshot|diff|monitor|crawl|webhook|watch)\b/i.test(te
   check(base64Utf8("é→") === "w6nihpI=", "base64 encodes UTF-8 bytes, not code units");
 }
 
+// Wisconsin numbers its notices and its revisions. The receipt says so in
+// the state's own count, and never calls a version-1 notice "revised".
+{
+  const wi = (v: number, updates?: string): LayoffNoticeRow => ({
+    company: "Durr CTS, Inc.", siteAddress: "De Pere WI", workers: 75, noticeDate: "2026-08-12", effectiveDate: "2026-10-13", postedDate: "",
+    jurisdiction: "US-WI", layoffOrClosure: "Facility Closure", stateNoticeId: "2026081201", stateVersion: v, stateUpdates: updates,
+  });
+  const t8 = receiptText(layoffReceipt("Durr", "x", [wi(8, "Change to Layoff Schedule; Change to Number of Affected Workers")], { versionsSince: "2026-08-29" }));
+  check(/Wisconsin's notice number 2026081201, version 8 — revised 7 times by the state's own count; the latest revision: Change to Layoff Schedule; Change to Number of Affected Workers\./.test(t8), "the state's own revision count is quoted");
+  check(/inside the 60 days Wisconsin's Business Closing and Mass Layoff law sets/.test(t8), "Wisconsin's own law is named");
+  const t1 = receiptText(layoffReceipt("Durr", "x", [wi(1)], { versionsSince: "2026-08-29" }));
+  check(/version 1\.$/m.test(t1) && !/revised/.test(t1), "a first version is not called revised");
+}
+
 // A building with live violations is not "no stamps": count them by class,
 // in the city's own words, and name the stamps only when there are some.
 {
