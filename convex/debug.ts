@@ -250,3 +250,46 @@ export const backfillCurrentCounts = internalMutation({
     return { slug, count, done: page.isDone, cursor: page.isDone ? null : page.continueCursor };
   },
 });
+
+/** One-off after the changelog counters were added: count emitted changes per source, a page at a time. */
+export const backfillChangeCounts = internalMutation({
+  args: { slug: v.string(), cursor: v.optional(v.string()), added: v.optional(v.number()), changed: v.optional(v.number()), removed: v.optional(v.number()) },
+  returns: v.object({ slug: v.string(), added: v.number(), changed: v.number(), removed: v.number(), done: v.boolean(), cursor: v.union(v.string(), v.null()) }),
+  handler: async (ctx, { slug, cursor, added, changed, removed }) => {
+    const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+    if (!src) throw new Error(`no source ${slug}`);
+    const page = await ctx.db
+      .query("changes")
+      .withIndex("by_source_emit", (q) => q.eq("sourceId", src._id).eq("emit", true))
+      .paginate({ cursor: cursor ?? null, numItems: 1000 });
+    const t = { added: added ?? 0, changed: changed ?? 0, removed: removed ?? 0 };
+    for (const c of page.page) t[c.kind]++;
+    if (page.isDone) await ctx.db.patch(src._id, { addedCount: t.added, changedCount: t.changed, removedCount: t.removed });
+    return { slug, ...t, done: page.isDone, cursor: page.isDone ? null : page.continueCursor };
+  },
+});
+
+/**
+ * One-off: delete "changed" events whose list of changed fields is empty —
+ * the phantom edits a definition change produced before the diff engine
+ * learned to treat them as silent. Run per source until done.
+ */
+export const purgePhantomEdits = internalMutation({
+  args: { slug: v.string(), cursor: v.optional(v.string()), purged: v.optional(v.number()) },
+  returns: v.object({ slug: v.string(), purged: v.number(), done: v.boolean(), cursor: v.union(v.string(), v.null()) }),
+  handler: async (ctx, { slug, cursor, purged }) => {
+    const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+    if (!src) throw new Error(`no source ${slug}`);
+    const page = await ctx.db
+      .query("changes")
+      .withIndex("by_source_emit", (q) => q.eq("sourceId", src._id))
+      .paginate({ cursor: cursor ?? null, numItems: 500 });
+    let n = purged ?? 0;
+    for (const c of page.page) {
+      if (c.kind !== "changed" || c.changed.length !== 0) continue;
+      await ctx.db.delete(c._id);
+      n++;
+    }
+    return { slug, purged: n, done: page.isDone, cursor: page.isDone ? null : page.continueCursor };
+  },
+});

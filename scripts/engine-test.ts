@@ -93,6 +93,15 @@ for (const id of Object.keys(adapters)) {
   const one = diffRows(a, prev, changedObs);
   check(one.changes.length === 1 && one.changes[0].kind === "changed" && one.changes[0].changed.join() === sig, `edit "${sig}" → 1 change on [${one.changes[0]?.changed.join(",")}]`);
 
+  // 3b. Our definition changing is not the state editing: a signature that
+  // moved with no significant field moving is a silent update, never "changed".
+  {
+    const key = obs[0].identityKey;
+    const redefined: PrevIndex = { ...prev, [key]: { ...prev[key], sigHash: "definition-changed", fullHash: "definition-changed" } };
+    const r = diffRows(a, redefined, obs);
+    check(r.changes.filter((c) => c.identityKey === key).length === 0 && r.silentUpdates >= 1, `signature moved, fields did not → 0 changes, silent update`);
+  }
+
   // 4. A new row → added. A dropped row → removed only for open-world sources.
   const dropped = obs.slice(1);
   const rem = diffRows(a, prev, dropped);

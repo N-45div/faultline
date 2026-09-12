@@ -363,7 +363,18 @@ export const commitBatch = internalMutation({
         await ctx.db.delete(cur._id);
       }
     }
-    if (entered || left) await ctx.db.patch(args.sourceId, { currentCount: Math.max(0, (source.currentCount ?? 0) + entered - left) });
+    // The changelog counters: what the government did to this file since we
+    // began holding it. Shadow cycles do not count — the first read of a file
+    // is not the state adding two thousand rows.
+    const tally = { added: 0, changed: 0, removed: 0 };
+    if (emit) for (const c of args.changes) tally[c.kind]++;
+    if (entered || left || tally.added || tally.changed || tally.removed)
+      await ctx.db.patch(args.sourceId, {
+        currentCount: Math.max(0, (source.currentCount ?? 0) + entered - left),
+        addedCount: (source.addedCount ?? 0) + tally.added,
+        changedCount: (source.changedCount ?? 0) + tally.changed,
+        removedCount: (source.removedCount ?? 0) + tally.removed,
+      });
 
     const changeIds: Id<"changes">[] = [];
     for (const c of args.changes) {

@@ -942,3 +942,11 @@ a {
   .filelist li, .commits li { grid-template-columns: 1fr; }
   .filelist li .hash { grid-column: 1; }
 }
+
+/* ---- the scorecard ---- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin: 0.5rem 0 0.75rem; }
+.tablewrap { overflow-x: auto; margin: 0.5rem 0; }
+.score { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.score th, .score td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); vertical-align: top; }
+.score th { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.75; }
+.score td:nth-child(n+3) { white-space: nowrap; }

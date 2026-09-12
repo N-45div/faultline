@@ -13,6 +13,7 @@ import { toSlug } from "./Receipts";
 const LINKS: [string, string][] = [
   ["/app", "Receipts"],
   ["/files", "Files"],
+  ["/scorecard", "Scorecard"],
   ["/judge", "Tour"],
   ["/pricing", "Pricing"],
 ];

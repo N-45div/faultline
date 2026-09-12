@@ -9,6 +9,7 @@ const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
 
 export default function Landing({ go }: { go: (p: string) => void }) {
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });
+  const log = useQuery(api.wall.changelog, {});
   const b = useQuery(api.wall.buildings, {});
   const sample = useQuery(api.lookup.employer, { q: "spirit airlines" });
   const hero = ny?.shortest[0];
@@ -77,6 +78,37 @@ export default function Landing({ go }: { go: (p: string) => void }) {
           </div>
         </div>
       </section>
+
+      {log && log.since && (
+        <section className="band">
+          <div className="container">
+            <p className="kicker">The changelog of government · since {log.since}</p>
+            <div className="proof">
+              <div>
+                <p className="big">{log.deleted.toLocaleString()}</p>
+                <p className="muted">
+                  rows the agencies deleted from a file we hold whole.{" "}
+                  <a href="/deleted" onClick={(e) => { e.preventDefault(); go("/deleted"); }}>Still here →</a>
+                </p>
+              </div>
+              <div>
+                <p className="big">{log.edited.toLocaleString()}</p>
+                <p className="muted">
+                  rows edited in place, each with its before and after.{" "}
+                  <a href="/files" onClick={(e) => { e.preventDefault(); go("/files"); }}>Before and after →</a>
+                </p>
+              </div>
+              <div>
+                <p className="big">{log.added.toLocaleString()}</p>
+                <p className="muted">
+                  rows added since we began holding the files.{" "}
+                  <a href="/scorecard" onClick={(e) => { e.preventDefault(); go("/scorecard"); }}>The scorecard →</a>
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {ny && hero && (
         <section className="band">

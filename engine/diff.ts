@@ -38,6 +38,14 @@ export function diffRows(
       continue;
     }
     const changed = changedPaths(before.fields, obs.fields, adapter.significant, adapter.noise);
+    // A signature can move without any significant field moving: an adapter's
+    // significant list or a noise rule changed between two reads. That is our
+    // definition changing, not the state editing a row. It emitted 2,144
+    // "edits" to New Jersey's file once; it is a silent update.
+    if (changed.length === 0) {
+      silentUpdates++;
+      continue;
+    }
     if (isSuppressed(adapter.suppress ?? [], before.fields, obs.fields, changed)) {
       suppressed++;
       continue;

@@ -9,6 +9,7 @@ import Nav from "./Nav";
 import Receipts from "./Receipts";
 import "./styles.css";
 import { Commit, Deleted, FileLog, FilesIndex } from "./Files";
+import Scorecard from "./Scorecard";
 
 // Every string on these pages is read by a person who got a letter this month.
 // No engine nouns: nothing here is a source, a diff, a snapshot or a job.
@@ -50,7 +51,8 @@ export default function App() {
   const commitMatch = /^\/commit\/([^/]+)/.exec(path);
   const isFiles = path === "/files";
   const isDeleted = path === "/deleted";
-  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms && !fileMatch && !commitMatch && !isFiles && !isDeleted;
+  const isScorecard = path === "/scorecard";
+  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms && !fileMatch && !commitMatch && !isFiles && !isDeleted && !isScorecard;
   // The tab and the bookmark say where you are, not the repository's old name.
   useEffect(() => {
     const titles: [boolean, string][] = [
@@ -65,6 +67,7 @@ export default function App() {
       [Boolean(commitMatch), "Commit · Faultline"],
       [isFiles, "The files · Faultline"],
       [isDeleted, "Deleted by the government · Faultline"],
+      [isScorecard, "Scorecard · Faultline"],
     ];
     document.title = titles.find(([on]) => on)?.[1] ?? "Faultline — the address that writes back";
   }, [path]);
@@ -85,6 +88,7 @@ export default function App() {
   else if (commitMatch) body = <Commit id={safeDecode(commitMatch[1])} go={go} />;
   else if (isFiles) body = <FilesIndex go={go} />;
   else if (isDeleted) body = <Deleted go={go} />;
+  else if (isScorecard) body = <Scorecard go={go} />;
   else body = <Landing go={go} />;
 
   return (
