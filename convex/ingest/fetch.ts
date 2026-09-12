@@ -85,7 +85,16 @@ export const runSource = internalAction({
       const prev: PrevIndex = {};
       const mode = adapter.presence === "open_world" ? "all" : "keys";
       const keyBatches: string[][] = [];
-      if (mode === "all") keyBatches.push([]);
+      if (adapter.presence === "subject_world") {
+        // Every row we hold for every watched subject, whether or not it came
+        // back: a building whose restaurants were all scrubbed returns nothing,
+        // and that nothing is the fact worth recording.
+        const subjects: string[] = await ctx.runQuery(internal.ingest.write.targetKeys, { sourceId: source._id });
+        for (let i = 0; i < subjects.length; i += 40) {
+          const rows = await ctx.runQuery(internal.ingest.write.prevForSubjects, { sourceId: source._id, subjectKeys: subjects.slice(i, i + 40) });
+          for (const r of rows) prev[r.identityKey] = { sigHash: r.sigHash, fullHash: r.fullHash, fields: {} };
+        }
+      } else if (mode === "all") keyBatches.push([]);
       else {
         // A file can carry the same row twice; asking twice costs twice.
         const unique = [...new Set(observations.map((o) => o.identityKey))];
@@ -107,7 +116,9 @@ export const runSource = internalAction({
         for (const r of rows) if (prev[r.identityKey]) prev[r.identityKey]!.fields = r.fields;
       }
 
-      const diff = diffRows(adapter, prev, observations);
+      // A page that hit its own limit is not the whole slice, and a missing
+      // row in a partial read is not a deletion.
+      const diff = diffRows(adapter, prev, observations, { trustAbsence: !fetched.truncated });
       const allNew = observations.filter((o) => !prev[o.identityKey] || prev[o.identityKey].fullHash !== o.fullHash);
       const newVersions = allNew.slice(0, MAX_ROWS_PER_CYCLE);
       const kept = new Set(newVersions.map((o) => o.identityKey));
@@ -241,6 +252,8 @@ type Fetched =
       body: FetchBody;
       rowCount: number;
       cursor?: string;
+      /** A page came back at its own limit: the slice is not the whole slice. */
+      truncated?: boolean;
     };
 
 async function fetchSource(
@@ -260,13 +273,18 @@ async function fetchSource(
     }
     const rows: unknown[] = [];
     let lastUrl = "";
+    let truncated = false;
     for (let i = 0; i < keys.length; i += t.maxKeysPerQuery) {
       const chunk = keys.slice(i, i + t.maxKeysPerQuery);
       lastUrl = encodeURI(`https://${t.domain}/resource/${t.resourceId}.json?${t.watch(chunk, cursor)}`);
       const res = await fetch(lastUrl, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status} from ${t.domain}`);
       const page = JSON.parse(await res.text());
-      if (Array.isArray(page)) rows.push(...page);
+      if (Array.isArray(page)) {
+        rows.push(...page);
+        const limit = Number(/\$limit=(\d+)/.exec(lastUrl)?.[1] ?? 0);
+        if (limit && page.length >= limit) truncated = true;
+      }
     }
     const text = JSON.stringify(rows);
     const bytes = new TextEncoder().encode(text);
@@ -274,6 +292,7 @@ async function fetchSource(
       kind: "body",
       url: lastUrl,
       status: 200,
+      truncated,
       bytes,
       bodySha256: await sha256Hex(bytes),
       body: { kind: "text", text, status: 200, url: lastUrl, fetchedAt },

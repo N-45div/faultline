@@ -12,6 +12,7 @@ import { toSlug } from "./Receipts";
 
 const LINKS: [string, string][] = [
   ["/app", "Receipts"],
+  ["/files", "Files"],
   ["/judge", "Tour"],
   ["/pricing", "Pricing"],
 ];
@@ -58,7 +59,12 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
     }
     go(to);
   };
-  const current = (to: string) => (to === "/pricing" ? false : path === to || (to === "/app" && (path.startsWith("/e/") || path.startsWith("/b/"))));
+  const current = (to: string) =>
+    to === "/pricing"
+      ? false
+      : path === to ||
+        (to === "/app" && (path.startsWith("/e/") || path.startsWith("/b/"))) ||
+        (to === "/files" && (path.startsWith("/file/") || path.startsWith("/commit/") || path === "/deleted"));
 
   const copy = async () => {
     try {

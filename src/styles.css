@@ -891,3 +891,54 @@ a {
 .stale {
   color: var(--accent);
 }
+
+/* ---- git for government files: the log, the diff, the deleted ---- */
+.hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  word-break: break-all;
+}
+.filelist li,
+.commits li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+}
+.filelist li .hash { grid-column: 3; }
+.commits li { grid-template-columns: auto auto 1fr auto; }
+.commits li.quiet { opacity: 0.6; }
+.diffstat { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; }
+.diffstat .add, .diff .add { color: #1a7f37; }
+.diffstat .mod { color: #9a6700; }
+.diffstat .del, .diff .del { color: #cf222e; }
+.diffstat span + span { margin-left: 0.5rem; }
+.diff {
+  margin: 0.4rem 0;
+  padding: 0.6rem 0.8rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+.diff .ctx { opacity: 0.6; }
+.changes li { display: block; padding: 0.7rem 0; }
+.changes li strong { display: block; margin: 0.25rem 0; }
+.changes .tag { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.15em 0.5em; border-radius: 4px; }
+.changes .tag.removed { background: #cf222e; color: #fff; }
+.changes .tag.changed { background: #9a6700; color: #fff; }
+.changes .tag.added { background: #1a7f37; color: #fff; }
+@media (prefers-color-scheme: dark) {
+  .diffstat .add, .diff .add { color: #57d26f; }
+  .diffstat .mod { color: #e3b341; }
+  .diffstat .del, .diff .del { color: #ff7b72; }
+}
+@media (max-width: 640px) {
+  .filelist li, .commits li { grid-template-columns: 1fr; }
+  .filelist li .hash { grid-column: 1; }
+}

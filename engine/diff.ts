@@ -6,9 +6,10 @@ import { canonicalise } from "./canon";
  * att.com/outages produce two different bodies and zero changes here.
  */
 export function diffRows(
-  adapter: Pick<SourceAdapter<any>, "significant" | "noise" | "suppress" | "presence" | "health" | "render">,
+  adapter: Pick<SourceAdapter<any>, "significant" | "noise" | "suppress" | "presence" | "health" | "render" | "renderRemoved">,
   prev: PrevIndex,
   next: Observation[],
+  opts: { trustAbsence?: boolean } = {},
 ): DiffResult {
   const degraded = next.length < adapter.health.minRows;
   const changes: Change[] = [];
@@ -52,9 +53,11 @@ export function diffRows(
     });
   }
 
-  // Absence is only a fact when the whole file was seen and looked healthy.
-  // One captcha page must never become "192 filings vanished".
-  if (adapter.presence === "open_world" && !degraded) {
+  // Absence is only a fact when the whole file was seen and looked healthy —
+  // or, for a slice that is exhaustive per subject, when the read was not
+  // truncated. One captcha page must never become "192 filings vanished".
+  const absenceProvable = (adapter.presence === "open_world" || adapter.presence === "subject_world") && !degraded && opts.trustAbsence !== false;
+  if (absenceProvable) {
     for (const identityKey of Object.keys(prev)) {
       if (seen.has(identityKey)) continue;
       const before = prev[identityKey];
@@ -64,7 +67,7 @@ export function diffRows(
         subject: subjectFromFields(before.fields),
         before: before.fields,
         changed: [],
-        sentence: renderRemoved(before.fields),
+        sentence: adapter.renderRemoved ? adapter.renderRemoved(before.fields) : renderRemoved(before.fields),
       });
     }
   }

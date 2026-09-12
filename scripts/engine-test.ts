@@ -97,7 +97,7 @@ for (const id of Object.keys(adapters)) {
   const dropped = obs.slice(1);
   const rem = diffRows(a, prev, dropped);
   const removed = rem.changes.filter((c) => c.kind === "removed").length;
-  check(a.presence === "open_world" ? removed === 1 : removed === 0, `drop one row → ${removed} removed (${a.presence})`);
+  check(a.presence === "closed_world" ? removed === 0 : removed === 1, `drop one row → ${removed} removed (${a.presence})`);
   if (removed) console.log(`       "${rem.changes.find((c) => c.kind === "removed")!.sentence}"`);
 
   // 5. A captcha-sized body → degraded, zero removals.

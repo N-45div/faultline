@@ -85,8 +85,15 @@ export interface SourceAdapter<Raw = Fields> {
   significant: string[];
   noise: NoiseRule[];
   suppress?: SuppressRule[];
-  /** Whole-file sources can prove absence; server-filtered slices cannot. */
-  presence: "closed_world" | "open_world";
+  /**
+   * Whole-file sources can prove absence; server-filtered slices cannot —
+   * except a slice that is exhaustive per subject: when every row for a
+   * building is fetched every time, a row we hold for that building that is
+   * no longer returned has left the file. "subject_world" says so.
+   */
+  presence: "closed_world" | "open_world" | "subject_world";
+  /** How to say a row left the file, in the record's own words. Optional; a plain sentence otherwise. */
+  renderRemoved?(before: Fields): string;
   /** The timeline sentence. Templated from the record's own words. No model. */
   render(after: Fields, before?: Fields): string;
   /** Below minRows the cycle is degraded: record nothing as removed. */

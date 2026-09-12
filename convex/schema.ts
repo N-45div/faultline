@@ -121,7 +121,11 @@ export default defineSchema({
     snapshotId: v.id("snapshots"),
   })
     .index("by_source_emit", ["sourceId", "emit", "detectedAt"])
-    .index("by_subject", ["subjectKey", "detectedAt"]),
+    .index("by_subject", ["subjectKey", "detectedAt"])
+    // The diff of one read: every change that one snapshot produced.
+    .index("by_snapshot", ["snapshotId", "detectedAt"])
+    // Everything the government deleted, newest first, across every file.
+    .index("by_kind", ["kind", "detectedAt"]),
 
   /** The public wall. Capped at 50 per source; the oldest is deleted in the same mutation. */
   recentChanges: defineTable({

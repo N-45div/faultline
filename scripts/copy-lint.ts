@@ -12,8 +12,11 @@ const BAN = /\b(sources?|adapters?|snapshots?|diffs?|diffed|monitor(?:ing)?|craw
 // Words that are a name, not a leak: the "Monitor" plan is called that.
 const ALLOW = [/^"MONITOR"$/, /^"Monitor: /, /^>Monitor<$/, /^"monitor"$/, /\bMonitor plan\b/i];
 
+// Files.tsx is the one page that speaks git on purpose — log, commit, diff —
+// because that is the plainest proof the old version existed. It is the
+// developer-facing surface, not a receipt, and its words are the point.
 const files = [
-  ...readdirSync("src").filter((f) => f.endsWith(".tsx")).map((f) => join("src", f)),
+  ...readdirSync("src").filter((f) => f.endsWith(".tsx") && f !== "Files.tsx").map((f) => join("src", f)),
   "engine/receipt.ts",
   "engine/rules.ts",
   "convex/digest.ts",

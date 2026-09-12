@@ -125,7 +125,12 @@ export default function Judge({ go }: { go: (p: string) => void }) {
 
       <section className="tour-step">
         <span className="num">2</span>
-        <h2 className="h2">Every version is kept, because the states overwrite theirs.</h2>
+        <h2 className="h2">Every version is kept, because the states overwrite theirs — read it like a repository.</h2>
+        <p className="tour-ctas">
+          <a className="cta primary" href="/files" onClick={(e) => { e.preventDefault(); go("/files"); }}>
+            Open the commit logs: every read a commit, every edit a diff, every deletion kept →
+          </a>
+        </p>
         <p>
           {files.length > 0 ? `${files.length} government files are` : "Government files are"} read on a schedule. Each
           row is hashed on the fields that matter and diffed

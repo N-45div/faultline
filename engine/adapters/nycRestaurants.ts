@@ -119,9 +119,18 @@ export const nycRestaurants: SourceAdapter<Raw> = {
     { op: "trimCase", path: "action" },
     { op: "trimCase", path: "violationDescription" },
   ],
-  // A server-filtered slice: absence here is not proof of anything, so a row
-  // that stops coming back is never reported as removed.
-  presence: "closed_world",
+  // The watch fetches every row for every watched building, with no date
+  // filter, so a row we hold for a building that no longer comes back has
+  // left the city's file. That is the event this whole file exists for: the
+  // Health Department's own description says only open restaurants are kept.
+  presence: "subject_world",
+  renderRemoved(before) {
+    const name = String(before.dba || "A restaurant");
+    const where = String(before.__subjectLabel);
+    const on = String(before.inspectionDate);
+    const what = before.violationDescription ? ` — "${String(before.violationDescription)}"` : "";
+    return `New York City's file no longer holds the ${on} inspection of ${name} at ${where}${what}. The city keeps only restaurants that are open today; we kept the record.`;
+  },
   render(after, before) {
     const name = String(after.dba || "A restaurant");
     const where = String(after.__subjectLabel);

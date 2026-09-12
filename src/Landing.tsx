@@ -19,21 +19,25 @@ export default function Landing({ go }: { go: (p: string) => void }) {
       <section className="band hero-band">
         <div className="container hero-grid">
           <div>
-            <h1 className="lede-title">They told you one story. They filed another.</h1>
+            <h1 className="lede-title">The government overwrites its files. We keep every version.</h1>
             <p className="lede-sub">
-              Email us a company name or a building address. We send back what they told the government — the dates,
-              the gap against the law, and the government's own page — and we keep every version, because those
-              files get overwritten.
+              Email us a company name or a New York City address and get back what they filed — the dates, the gap
+              against the law, the government's own page — including the versions the agency has since deleted.
+              Ten public files, read on a schedule and kept like a repository: every read is a commit with a hash,
+              every edit is a diff, and every deleted row is still here.
             </p>
             <div className="lede-ctas">
               <a className="cta primary" href={mailto("Spirit Airlines")}>
                 Email {INBOX}
               </a>
-              <a className="cta" href="/app" onClick={(e) => { e.preventDefault(); go("/app"); }}>
-                Look one up on the web →
+              <a className="cta" href="/files" onClick={(e) => { e.preventDefault(); go("/files"); }}>
+                See the commit logs →
               </a>
             </div>
-            <p className="fine">Free. Nothing to install, nothing to sign up for. Reply FOLLOW to hear when a filing changes.</p>
+            <p className="fine">
+              Free. Nothing to install, nothing to sign up for. Reply FOLLOW to hear when a filing changes;{" "}
+              <a href="/deleted" onClick={(e) => { e.preventDefault(); go("/deleted"); }}>see what the government deleted</a>.
+            </p>
           </div>
 
           <div className="mail-card" aria-label="A real receipt">

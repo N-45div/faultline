@@ -15,6 +15,7 @@ import type * as corroborateData from "../corroborateData.js";
 import type * as crons from "../crons.js";
 import type * as debug from "../debug.js";
 import type * as digest from "../digest.js";
+import type * as files from "../files.js";
 import type * as follows from "../follows.js";
 import type * as guard from "../guard.js";
 import type * as http from "../http.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   debug: typeof debug;
   digest: typeof digest;
+  files: typeof files;
   follows: typeof follows;
   guard: typeof guard;
   http: typeof http;

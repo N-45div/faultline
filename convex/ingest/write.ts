@@ -110,6 +110,27 @@ export const targetKeys = internalQuery({
   },
 });
 
+/**
+ * Every current row of these subjects, hashes only: the "before" side for a
+ * slice that is exhaustive per subject, where a row that does not come back
+ * for a fetched building has left the file.
+ */
+export const prevForSubjects = internalQuery({
+  args: { sourceId: v.id("sources"), subjectKeys: v.array(v.string()) },
+  returns: v.array(v.object({ identityKey: v.string(), sigHash: v.string(), fullHash: v.string() })),
+  handler: async (ctx, { sourceId, subjectKeys }) => {
+    const out: { identityKey: string; sigHash: string; fullHash: string }[] = [];
+    for (const key of subjectKeys) {
+      const rows = await ctx.db
+        .query("current")
+        .withIndex("by_source_subject", (q) => q.eq("sourceId", sourceId).eq("subjectKey", key))
+        .take(500);
+      for (const r of rows) out.push({ identityKey: r.identityKey, sigHash: r.sigHash, fullHash: r.fullHash });
+    }
+    return out;
+  },
+});
+
 /** The stored fields for just the rows the diff found moved or missing. */
 export const prevFields = internalQuery({
   args: { sourceId: v.id("sources"), identityKeys: v.array(v.string()) },
