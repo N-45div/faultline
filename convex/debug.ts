@@ -293,3 +293,36 @@ export const purgePhantomEdits = internalMutation({
     return { slug, purged: n, done: page.isDone, cursor: page.isDone ? null : page.continueCursor };
   },
 });
+
+/**
+ * One-off: delete the "changed" events of one commit whose bytes are the
+ * same as the read before it. Identical bytes mean the state changed
+ * nothing, so every "edit" on that commit came from our side — an adapter
+ * re-sorting ordinals, a date format — and is withdrawn. Refuses to touch a
+ * commit whose bytes actually differ from the read before.
+ */
+export const purgeArtefactEdits = internalMutation({
+  args: { snapshotId: v.id("snapshots") },
+  returns: v.object({ purged: v.number(), hash: v.string(), previousHash: v.string() }),
+  handler: async (ctx, { snapshotId }) => {
+    const snap = await ctx.db.get(snapshotId);
+    if (!snap) throw new Error("no such snapshot");
+    const before = await ctx.db
+      .query("snapshots")
+      .withIndex("by_source_captured", (q) => q.eq("sourceId", snap.sourceId).lt("capturedAt", snap.capturedAt))
+      .order("desc")
+      .filter((q) => q.neq(q.field("httpStatus"), 304))
+      .first();
+    if (!before) throw new Error("no earlier read to compare against");
+    if (before.bodySha256 !== snap.bodySha256)
+      throw new Error(`bytes differ from the read before (${before.bodySha256.slice(0, 12)} vs ${snap.bodySha256.slice(0, 12)}); not an artefact`);
+    const rows = await ctx.db.query("changes").withIndex("by_snapshot", (q) => q.eq("snapshotId", snapshotId)).take(2000);
+    let purged = 0;
+    for (const c of rows) {
+      if (c.kind !== "changed") continue;
+      await ctx.db.delete(c._id);
+      purged++;
+    }
+    return { purged, hash: snap.bodySha256.slice(0, 12), previousHash: before.bodySha256.slice(0, 12) };
+  },
+});
