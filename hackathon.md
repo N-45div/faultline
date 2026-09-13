@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-13T10:13:00Z
+- **Last updated:** 2026-09-13T20:21:00Z
 
 ## Log
 
@@ -824,6 +824,72 @@ publicly listed violation: read as an HPD notice at 0.99 confidence, 3,408
 input tokens, a tenth of a cent, and the building's record back in the
 thread fifteen seconds later. HEIC is not read yet — an iPhone's default —
 so the ask will be for a JPEG or a PDF until it is.
+
+### 2026-09-14 - 72e4024
+On request, not only on change. ASK and a building's address — or a bare ASK
+in a thread already about a building — brings back each repair the owner
+certified there that is still inside HPD's 70 days, in the city's words,
+newest first. A violation the city already closed is not asked about on
+request, and if someone says one is still broken, the next step they get is
+HPD's route for a new complaint, not a challenge to a certification that no
+longer exists. The city's later stamp is told to whoever said still broken
+first; a person who answered twice is quoted on the still broken, not the
+later not sure. Six new engine checks.
+
+### 2026-09-14 - e15a6c3
+An answer is one person's word about a real building, so it is not published
+as one. The person gets a private page — one unguessable link per address,
+sent only to that address — with every claim they were asked about, what the
+city's file said then and says now, and every answer with its note and its
+photo. The building's public page shows an answer only after HPD itself stamps
+that certification FALSE or INVALID, only if the person said still broken
+before the stamp, and never in their words: "Still broken, said someone who
+follows this building", the date, and the city's stamp beside it.
+
+Two fixes the live run on the 13th pointed at. A second answer is a second
+dated row, not an overwrite of the first. And saying still broken or not sure
+now follows the building, with a sentence saying so and STOP to end it:
+before, a person who used ASK and never replied FOLLOW would have had the
+city's second word dropped by the digest, which writes only to followers.
+
+### 2026-09-14 - c3c87f2
+The landing page's housing numbers come from the city, not from the
+buildings we hold: one grouped query to HPD's file once a day, stored with the
+exact query URL, which the page links. Since 14 August, owners certified 7,510
+repairs as done (6,370 on time, 1,140 late) and the city stamped 1,641
+certifications false or invalid (652 false, 989 invalid). The page says the
+two counts are different violations, not a rate.
+
+### 2026-09-14 - c2d89cf
+The front. A building page now asks who lives there: how many repairs the
+owner says are done that are still inside their 70 days, and a one-click ASK
+for that address; every certified row shows the day its 70 days run out.
+/r/<token> is a person's own record. The landing page has a band with the
+city's counts and the ASK line, and the tour has a step a judge can email —
+ASK 155 Linden Boulevard, Brooklyn.
+
+### 2026-09-14 - a22a5f4
+The whole loop runs in convex-test against an in-memory Convex. A tenant asks
+in a building's thread, answers with a note, and is told when the city stamps
+the certification false a week later — through the digest and the real
+AgentMail send path, with only fetch replaced — while the public query shows
+the word only after the stamp and never the note. Three more: a second answer,
+where the city's word quotes the still broken; STOP, after which nothing is
+sent and the record is still kept; and an ASK with nothing inside its 70 days.
+Four tests, under a second.
+
+Verified live on production on 13 September from the test inbox. At 20:15:35
+UTC, "ASK 155 Linden Boulevard, Brooklyn" went out; twenty seconds later the
+reply held three certifications from 10 September, each with 19 November as
+the end of its 70 days, and the private link. "#19105970 STILL BROKEN" went
+out at 20:17:37 and was answered seventeen seconds later with HPD's next step,
+the follow notice and the same link, and the private page listed the answer
+with its note. The test's answers, follow and link were then removed.
+
+### 2026-09-14 - 9b1d003
+Now that the adapter reads the owner's real certification date, "certified
+by" read like HPD's certify-by deadline, which is a different column. Every
+sentence now says certified on.
 
 ## About
 
