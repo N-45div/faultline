@@ -27,9 +27,15 @@ const MAX_ROWS_PER_CYCLE = 3000;
 const PREV_KEYS_PER_QUERY = 60;
 
 export const runSource = internalAction({
-  args: { slug: v.string() },
+  args: {
+    slug: v.string(),
+    /** Operator's one-off: read a sliced source this many days back instead of the usual trail. */
+    trailDays: v.optional(v.number()),
+    /** …and only these subjects, so a deeper read of one building is a small read. */
+    subjectKeys: v.optional(v.array(v.string())),
+  },
   returns: v.null(),
-  handler: async (ctx, { slug }) => {
+  handler: async (ctx, { slug, trailDays, subjectKeys }) => {
     const adapter = adapters[slug];
     if (!adapter) throw new Error(`no adapter for ${slug}`);
     const source = await ctx.runQuery(internal.ingest.write.getBySlug, { slug });
@@ -37,7 +43,7 @@ export const runSource = internalAction({
 
     const startedAt = Date.now();
     try {
-      const fetched = await fetchSource(ctx, adapter, source);
+      const fetched = await fetchSource(ctx, adapter, source, trailDays, subjectKeys);
       const next = {
         nextRunAt: startedAt + jitter(adapter.cadence.baseMs, adapter.cadence.jitterPct),
         cursor: fetched.cursor,
@@ -260,14 +266,17 @@ async function fetchSource(
   ctx: { runQuery: any; runMutation: any; runAction: any },
   adapter: SourceAdapter<any>,
   source: { _id: any; cursor?: string; lastEtag?: string },
+  trailDays?: number,
+  onlyKeys?: string[],
 ): Promise<Fetched> {
   const t = adapter.transport;
   const headers: Record<string, string> = { "User-Agent": UA, Accept: "*/*" };
   const fetchedAt = new Date().toISOString();
 
   if (t.kind === "socrata") {
-    const keys: string[] = await ctx.runQuery(internal.ingest.write.targetKeys, { sourceId: source._id });
-    const cursor = daysAgoIso(CURSOR_TRAIL_DAYS);
+    const all: string[] = await ctx.runQuery(internal.ingest.write.targetKeys, { sourceId: source._id });
+    const keys = onlyKeys && onlyKeys.length > 0 ? all.filter((k) => onlyKeys.includes(k)) : all;
+    const cursor = daysAgoIso(Math.min(60, Math.max(1, trailDays ?? CURSOR_TRAIL_DAYS)));
     if (keys.length === 0) {
       return { kind: "unchanged", url: adapter.datasetUrl, cursor };
     }

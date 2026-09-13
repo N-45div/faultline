@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { ADAPTERS } from "../engine/adapters/meta";
 
 /** Idempotent. New sources start in shadow mode: observed, diffed, not emitted. */
@@ -89,5 +90,24 @@ export const status = query({
       consecutiveFailures: s.consecutiveFailures,
       shadowCycles: s.shadowCycles,
     }));
+  },
+});
+
+/**
+ * One deeper read of a sliced source, by an operator's hand: the same lock
+ * the tick takes, the same runner, a longer trail. Used once when a building
+ * is added whose recent history should be in the file from the start.
+ */
+export const runDeep = internalMutation({
+  args: { slug: v.string(), trailDays: v.number(), subjectKeys: v.optional(v.array(v.string())) },
+  returns: v.null(),
+  handler: async (ctx, { slug, trailDays, subjectKeys }) => {
+    const s = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+    if (!s) throw new Error(`no source ${slug}`);
+    const now = Date.now();
+    if (s.lockedUntil && s.lockedUntil > now) throw new Error(`${slug} is running; try again in a minute`);
+    await ctx.db.patch(s._id, { lockedUntil: now + 10 * 60_000, nextRunAt: now + 60 * 60_000 });
+    await ctx.scheduler.runAfter(0, internal.ingest.fetch.runSource, { slug, trailDays, subjectKeys });
+    return null;
   },
 });

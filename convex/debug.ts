@@ -326,3 +326,37 @@ export const purgeArtefactEdits = internalMutation({
     return { purged, hash: snap.bodySha256.slice(0, 12), previousHash: before.bodySha256.slice(0, 12) };
   },
 });
+
+/**
+ * After a live test of the tenant loop from the operator's own test inbox:
+ * remove that address's follow, queued lines and answers, so no real
+ * building carries a test answer as if a tenant had given it.
+ */
+export const forgetTester = internalMutation({
+  args: { email: v.string(), subjectKeys: v.optional(v.array(v.string())) },
+  returns: v.object({ subscriptions: v.number(), alerts: v.number(), attestations: v.number() }),
+  handler: async (ctx, { email, subjectKeys }) => {
+    const only = subjectKeys ? new Set(subjectKeys) : null;
+    let subscriptions = 0;
+    for (const s of await ctx.db.query("subscriptions").withIndex("by_email", (q) => q.eq("email", email)).collect()) {
+      if (only && !only.has(s.subjectKey)) continue;
+      await ctx.db.delete(s._id);
+      subscriptions++;
+    }
+    let alerts = 0;
+    for (const status of ["pending", "sent"] as const) {
+      for (const a of await ctx.db.query("alertQueue").withIndex("by_email_status", (q) => q.eq("email", email).eq("status", status)).take(500)) {
+        if (only && !only.has(a.subjectKey)) continue;
+        await ctx.db.delete(a._id);
+        alerts++;
+      }
+    }
+    let attestations = 0;
+    for (const a of await ctx.db.query("attestations").withIndex("by_email_asked", (q) => q.eq("email", email)).take(500)) {
+      if (a.photoStorageId) await ctx.storage.delete(a.photoStorageId);
+      await ctx.db.delete(a._id);
+      attestations++;
+    }
+    return { subscriptions, alerts, attestations };
+  },
+});
