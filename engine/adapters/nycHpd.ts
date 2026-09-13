@@ -66,7 +66,9 @@ export const nycHpd: SourceAdapter<Raw> = {
       class: r.class ?? "",
       currentstatus: r.currentstatus ?? "",
       currentstatusdate: dateOnly(r.currentstatusdate ?? ""),
-      certifiedbydate: r.certifiedbydate ? dateOnly(r.certifiedbydate) : null,
+      // The city's column is `certifieddate`; the field keeps its old name so
+      // every stored row's shape stays the same.
+      certifiedbydate: r.certifieddate ? dateOnly(r.certifieddate) : null,
       inspectiondate: r.inspectiondate ? dateOnly(r.inspectiondate) : null,
       violationstatus: r.violationstatus ?? "",
       novdescription: (r.novdescription ?? "").replace(/\s+/g, " ").trim().slice(0, 512),
@@ -77,7 +79,11 @@ export const nycHpd: SourceAdapter<Raw> = {
       __subjectLabel: label(r),
     };
   },
-  significant: ["currentstatus", "currentstatusdate", "certifiedbydate"],
+  // The certification date is kept and shown, but it is not a signal on its
+  // own: the status moves to NOV CERTIFIED when it is set. Leaving it out of
+  // the signature also means correcting the column name above re-stores rows
+  // silently instead of announcing nine thousand edits the city never made.
+  significant: ["currentstatus", "currentstatusdate"],
   noise: [
     { op: "dateOnly", path: "currentstatusdate" },
     { op: "dateOnly", path: "certifiedbydate" },
