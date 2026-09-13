@@ -46,6 +46,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
   const guard = useQuery(api.breaker.status, {});
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });
   const b = useQuery(api.wall.buildings, {});
+  const pulse = useQuery(api.wall.housingPulse, {});
   const sample = useQuery(api.lookup.employer, { q: "spirit airlines" });
   const r = sample?.receipt;
 
@@ -71,7 +72,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
       </p>
 
       <section className="tour-intro">
-        <p className="kicker">For judges · five minutes · sign-in only for step 6</p>
+        <p className="kicker">For judges · six minutes · sign-in only for step 7</p>
         <h1 className="lede-title">A versioned ledger of government files, with an email address on the front.</h1>
         <p className="lede-sub">
           Ten public files, read on Convex crons, diffed row by row, every version we read kept — because the agencies
@@ -266,6 +267,43 @@ export default function Judge({ go }: { go: (p: string) => void }) {
 
       <section className="tour-step">
         <span className="num">9</span>
+        <h2 className="h2">They marked it fixed. Is it? Ask the person living with it.</h2>
+        <p>
+          When an owner certifies a repair, HPD closes the violation after 70 days unless it reinspects — and a tenant may
+          challenge the certification to trigger that inspection. Email <strong>ASK 155 Linden Boulevard, Brooklyn</strong>:
+          you get each repair the owner certified there that is still inside its 70 days, in the city's words. Reply with a
+          number and STILL BROKEN. The answer comes back dated, with HPD's own next step and a private page that sets your
+          word beside the city's. It stays off the public building page unless the city later stamps that certification
+          FALSE or INVALID — and then the person who said so first is told, with both dates.
+        </p>
+        {pulse && (
+          <p className="fine">
+            In the last 30 days owners certified {(pulse.onTime + pulse.late).toLocaleString()} repairs citywide, and the
+            city stamped {(pulse.falseCert + pulse.invalidCert).toLocaleString()} certifications FALSE or INVALID —{" "}
+            <a href={pulse.url} target="_blank" rel="noreferrer">
+              the city's own query
+            </a>
+            .
+          </p>
+        )}
+        <p className="fine">
+          The reply is read with no model: a number and three phrases, from the lines you typed, never the quoted
+          question. A photograph of an HPD notice goes through OpenAI instead, which reads the violation number and
+          address off it. Answers live in their own Convex table, never merged into the city's row, and the whole loop —
+          ask, answer, the city's second word, the email that follows — runs end to end in convex-test.
+        </p>
+        <p className="tour-ctas">
+          <a className="cta primary" href={mailto("ASK 155 Linden Boulevard, Brooklyn")}>
+            Email "ASK 155 Linden Boulevard, Brooklyn"
+          </a>
+          <a className="cta" href="/b/3050840061" onClick={(e) => { e.preventDefault(); go("/b/3050840061"); }}>
+            See the building's record →
+          </a>
+        </p>
+      </section>
+
+      <section className="tour-step">
+        <span className="num">10</span>
         <h2 className="h2">Ask for the evidence pack.</h2>
         <p>
           Email <strong>PACK Spirit Airlines</strong> and a PDF arrives in your thread within a minute: the record as
@@ -281,7 +319,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
       </section>
 
       <section className="tour-step">
-        <span className="num">10</span>
+        <span className="num">11</span>
         <h2 className="h2">Under the hood, in one paragraph.</h2>
         <p>
           Convex: schema, indexes, full-text search, queries, mutations, actions, node actions, HTTP actions, crons,

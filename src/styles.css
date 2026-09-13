@@ -950,3 +950,35 @@ a {
 .score th, .score td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); vertical-align: top; }
 .score th { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.75; }
 .score td:nth-child(n+3) { white-space: nowrap; }
+
+/* The tenant loop: the ask on a building page, and a person's own record. */
+.loop {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px 24px 16px;
+  margin: 0 0 28px;
+}
+.loop h3 {
+  font-size: 20px;
+  line-height: 1.3;
+  margin: 0 0 10px;
+}
+.loop p {
+  margin: 0 0 12px;
+  max-width: 680px;
+}
+.wall.record li {
+  grid-template-columns: 110px 1fr;
+}
+.said {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg);
+}
+@media (max-width: 560px) {
+  .wall.record li {
+    grid-template-columns: 1fr;
+  }
+}

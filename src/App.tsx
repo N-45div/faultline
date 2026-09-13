@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Building from "./Building";
+import YourRecord from "./Record";
 import SignIn from "./SignIn";
 import Employer from "./Employer";
 import Judge from "./Judge";
@@ -52,7 +53,8 @@ export default function App() {
   const isFiles = path === "/files";
   const isDeleted = path === "/deleted";
   const isScorecard = path === "/scorecard";
-  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms && !fileMatch && !commitMatch && !isFiles && !isDeleted && !isScorecard;
+  const recordMatch = /^\/r\/([^/]+)/.exec(path);
+  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms && !fileMatch && !commitMatch && !isFiles && !isDeleted && !isScorecard && !recordMatch;
   // The tab and the bookmark say where you are, not the repository's old name.
   useEffect(() => {
     const titles: [boolean, string][] = [
@@ -66,8 +68,9 @@ export default function App() {
       [Boolean(fileMatch), `Commit log · ${safeDecode(fileMatch?.[1] ?? "")} · Faultline`],
       [Boolean(commitMatch), "Commit · Faultline"],
       [isFiles, "The files · Faultline"],
-      [isDeleted, "Deleted by the government · Faultline"],
+      [isDeleted, "Gone from the files · Faultline"],
       [isScorecard, "Scorecard · Faultline"],
+      [Boolean(recordMatch), "Your record · Faultline"],
     ];
     document.title = titles.find(([on]) => on)?.[1] ?? "Faultline — the address that writes back";
   }, [path]);
@@ -89,6 +92,7 @@ export default function App() {
   else if (isFiles) body = <FilesIndex go={go} />;
   else if (isDeleted) body = <Deleted go={go} />;
   else if (isScorecard) body = <Scorecard go={go} />;
+  else if (recordMatch) body = <YourRecord token={safeDecode(recordMatch[1])} go={go} />;
   else body = <Landing go={go} />;
 
   return (

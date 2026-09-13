@@ -11,6 +11,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });
   const log = useQuery(api.wall.changelog, {});
   const b = useQuery(api.wall.buildings, {});
+  const pulse = useQuery(api.wall.housingPulse, {});
   const sample = useQuery(api.lookup.employer, { q: "spirit airlines" });
   const hero = ny?.shortest[0];
   const r = sample?.receipt;
@@ -38,6 +39,10 @@ export default function Landing({ go }: { go: (p: string) => void }) {
             <p className="fine">
               Free. Nothing to install, nothing to sign up for. Reply FOLLOW to hear when a filing changes;{" "}
               <a href="/deleted" onClick={(e) => { e.preventDefault(); go("/deleted"); }}>see what is gone from its files</a>.
+            </p>
+            <p className="fine">
+              Live in New York City? Email <a href={mailto("ASK ")}>ASK and your address</a>: when your landlord tells the
+              city a repair is done, tell us whether it is, and keep your answer, dated.
             </p>
           </div>
 
@@ -142,6 +147,40 @@ export default function Landing({ go }: { go: (p: string) => void }) {
                 <p className="muted">notices dated the same day the layoff began, or after it</p>
               </div>
             </div>
+          </div>
+        </section>
+      )}
+
+      {pulse && (
+        <section className="band">
+          <div className="container">
+            <p className="kicker">They marked it fixed. Is it? · New York City, the last 30 days</p>
+            <div className="proof">
+              <div>
+                <p className="big">{(pulse.onTime + pulse.late).toLocaleString()}</p>
+                <p className="muted">repairs owners certified to the city as done</p>
+              </div>
+              <div>
+                <p className="big">{(pulse.falseCert + pulse.invalidCert).toLocaleString()}</p>
+                <p className="muted">certifications the city stamped FALSE or INVALID</p>
+              </div>
+              <div>
+                <p className="big">70 days</p>
+                <p className="muted">
+                  until HPD closes a certified violation it hasn't reinspected. A tenant may challenge the certification
+                  inside them.
+                </p>
+              </div>
+            </div>
+            <p className="fine">
+              Email <a href={mailto("ASK ")}>ASK and your building's address</a> and we'll send each repair its owner
+              certified, with the day its 70 days run out. Reply STILL BROKEN and your answer is kept, dated, beside the
+              city's record — private to you unless the city's own record later agrees. The two counts are different
+              violations, not a rate; both come from{" "}
+              <a href={pulse.url} target="_blank" rel="noreferrer">
+                one query on the city's own file →
+              </a>
+            </p>
           </div>
         </section>
       )}
