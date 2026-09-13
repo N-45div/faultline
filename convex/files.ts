@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { internalQuery, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { PUBLISHER } from "./wall";
 
@@ -175,6 +175,8 @@ export const commit = query({
       status: v.number(),
       rows: v.number(),
       url: v.string(),
+      /** The bytes as served are held for 14 days after a read that changed something. */
+      bytesHeld: v.boolean(),
       changes: v.array(changeShape),
       more: v.boolean(),
     }),
@@ -196,6 +198,7 @@ export const commit = query({
       status: snap.httpStatus,
       rows: snap.rowCount,
       url: snap.requestUrl,
+      bytesHeld: snap.bodyStorageId !== undefined,
       changes: ch
         .slice(0, 300)
         .sort((a, b) => order[a.kind] - order[b.kind] || a.identityKey.localeCompare(b.identityKey))
@@ -234,6 +237,8 @@ export const erasures = query({
       before: v.optional(fields),
       snapshotId: v.string(),
       subjectKey: v.string(),
+      /** How many rows under this name left the file together. */
+      rows: v.number(),
     }),
   ),
   handler: async (ctx, { limit }) => {
@@ -244,13 +249,27 @@ export const erasures = query({
       .take(Math.min(limit ?? 60, 200));
     const slugs = new Map<Id<"sources">, string>();
     const out = [];
-    // A row that flapped in and out of a file is one deletion to a reader,
-    // shown once at its latest removal — not three entries in a row.
-    const seen = new Set<string>();
+    // One name, one commit, one entry. Virginia held three "AeroFarms —
+    // Rescinded" rows and withdrew all three in one read; a reader wants
+    // "AeroFarms, 3 rows", not the same name three times down the page. Grouped
+    // within a commit only — a row that left, came back and left again is two
+    // events on two dates — and counted by distinct row, so one row cannot be
+    // "2 rows".
+    const seen = new Map<string, number>();
+    const rowsOf: Set<string>[] = [];
+    const merged: typeof rows = [];
     for (const c of rows) {
-      const key = `${c.sourceId}/${c.identityKey}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
+      const key = `${c.snapshotId}/${labelOf(c.before, c.identityKey)}`;
+      let at = seen.get(key);
+      if (at === undefined) {
+        at = merged.length;
+        seen.set(key, at);
+        merged.push(c);
+        rowsOf.push(new Set());
+      }
+      rowsOf[at].add(c.identityKey);
+    }
+    for (const [i, c] of merged.entries()) {
       let slug = slugs.get(c.sourceId);
       if (!slug) {
         slug = (await ctx.db.get(c.sourceId))?.slug ?? "";
@@ -266,8 +285,26 @@ export const erasures = query({
         before: publicFields(c.before),
         snapshotId: String(c.snapshotId),
         subjectKey: c.subjectKey,
+        rows: rowsOf[i].size,
       });
     }
     return out;
+  },
+});
+
+/** The pinned bytes of one read, for the /raw/ route. */
+export const rawBody = internalQuery({
+  args: { id: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({ storageId: v.id("_storage"), slug: v.string(), capturedAt: v.number(), sha256: v.string(), requestUrl: v.string() }),
+  ),
+  handler: async (ctx, { id }) => {
+    const snapId = ctx.db.normalizeId("snapshots", id);
+    if (!snapId) return null;
+    const snap = await ctx.db.get(snapId);
+    if (!snap?.bodyStorageId) return null;
+    const src = await ctx.db.get(snap.sourceId);
+    return { storageId: snap.bodyStorageId, slug: src?.slug ?? "file", capturedAt: snap.capturedAt, sha256: snap.bodySha256, requestUrl: snap.requestUrl };
   },
 });

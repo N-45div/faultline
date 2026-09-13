@@ -54,6 +54,32 @@ http.route({
   }),
 });
 
+// The file as the state served it on the day of a commit: the exact bytes we
+// hashed, with the hash in the headers. A commit page links here; the bytes
+// are held for 14 days after a read that changed something, then released.
+http.route({
+  pathPrefix: "/raw/",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const id = new URL(req.url).pathname.split("/").filter(Boolean).pop() ?? "";
+    const raw = await ctx.runQuery(internal.files.rawBody, { id });
+    if (!raw) return new Response("Not held. The bytes of a read are kept for 14 days after a commit that changed something.", { status: 404 });
+    const blob = await ctx.storage.get(raw.storageId);
+    if (!blob) return new Response("Not held.", { status: 404 });
+    const ext = /\.(xlsx|xls|csv|json|html?|pdf)(?:$|\?)/i.exec(raw.requestUrl)?.[1]?.toLowerCase() ?? "bin";
+    const name = `${raw.slug}-${new Date(raw.capturedAt).toISOString().slice(0, 10)}-${raw.sha256.slice(0, 12)}.${ext}`;
+    return new Response(blob, {
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${name}"`,
+        "X-Faultline-SHA256": raw.sha256,
+        "X-Faultline-Captured-At": new Date(raw.capturedAt).toISOString(),
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
+  }),
+});
+
 // The lawyer's export on the web: the same rows the employer page shows, one
 // filing per line. Public record data, no spend, no account — the receipt
 // already shows every value here; this is the same thing as a file.

@@ -64,7 +64,7 @@ export function FilesIndex({ go }: { go: (p: string) => void }) {
           ))}
         </ul>
         <p className="fine">
-          <a href="/deleted" onClick={(e) => { e.preventDefault(); go("/deleted"); }}>What the government deleted →</a>
+          <a href="/deleted" onClick={(e) => { e.preventDefault(); go("/deleted"); }}>What is gone from the files →</a>
         </p>
       </section>
     </>
@@ -169,7 +169,7 @@ export function Commit({ id, go }: { id: string; go: (p: string) => void }) {
       <section className="hero">
         <p className="kicker">Commit <code className="hash">{c.hash}</code> · {when(c.at)}</p>
         <h2>
-          {counts.removed > 0 && `${n(counts.removed)} ${counts.removed === 1 ? "row" : "rows"} the state deleted. `}
+          {counts.removed > 0 && `${n(counts.removed)} ${counts.removed === 1 ? "row" : "rows"} gone from the state's file. `}
           {counts.changed > 0 && `${n(counts.changed)} ${counts.changed === 1 ? "row" : "rows"} it edited in place. `}
           {counts.added > 0 && `${n(counts.added)} new.`}
           {c.changes.length === 0 && "Nothing moved in this read."}
@@ -178,10 +178,21 @@ export function Commit({ id, go }: { id: string; go: (p: string) => void }) {
           {c.status} · {n(c.rows)} rows · SHA-256 <code className="hash">{c.fullHash}</code>
           {c.url && (
             <>
-              {" "}· <a href={c.url} target="_blank" rel="noreferrer">the file</a>
+              {" "}· <a href={c.url} target="_blank" rel="noreferrer">the file today</a>
+            </>
+          )}
+          {c.bytesHeld && (
+            <>
+              {" "}· <a href={`/raw/${id}`}>the file as served that day ↓</a>
             </>
           )}
         </p>
+        {c.bytesHeld && (
+          <p className="fine">
+            The download is the exact bytes we hashed: take them anywhere and the SHA-256 will match. Bytes are held for
+            14 days after a read that changed something.
+          </p>
+        )}
       </section>
       <section className="wall" aria-label="Changes">
         <ul className="changes">
@@ -189,7 +200,7 @@ export function Commit({ id, go }: { id: string; go: (p: string) => void }) {
             const to = ch.subjectKey && /^\d{10}$/.test(ch.subjectKey) ? `/b/${ch.subjectKey}` : null;
             return (
               <li key={ch.id} className={ch.kind}>
-                <span className={`tag ${ch.kind}`}>{ch.kind === "removed" ? "deleted by the state" : ch.kind === "changed" ? "edited in place" : "added"}</span>
+                <span className={`tag ${ch.kind}`}>{ch.kind === "removed" ? "gone from the state's file" : ch.kind === "changed" ? "edited in place" : "added"}</span>
                 <strong>{to ? <a href={to} onClick={(e) => { e.preventDefault(); go(to); }}>{ch.label}</a> : ch.label}</strong>
                 <Diff before={ch.before} after={ch.after} changed={ch.changed} />
                 <span className="muted">{ch.sentence}</span>
@@ -211,23 +222,27 @@ export function Deleted({ go }: { go: (p: string) => void }) {
         <a href="/files" onClick={(e) => { e.preventDefault(); go("/files"); }}>← The files</a>
       </p>
       <section className="hero">
-        <p className="kicker">Deleted by the government</p>
+        <p className="kicker">Gone from the government's files</p>
         <h2>Rows that left a state's file. The state's site can no longer show them. This one can.</h2>
         <p className="fine">
-          A row counts as deleted only when the read was complete: a whole state file, or every row for a building we
-          watch. New York City's housing file is read three days at a time, so it never appears here — absence from a
+          Each entry says what we can prove: the row was in the file the state served on one date and not in the file
+          it served on the next. Why it left — a withdrawal, a correction, a purge — is the state's to say. A row counts
+          as gone only when the read was complete: a whole state file, or every row for a building we watch. New York City's housing file is read three days at a time, so it never appears here — absence from a
           partial read proves nothing. Its restaurant file is read whole for every watched building, so a closed
           restaurant's scrubbed history does.
         </p>
       </section>
       <section className="wall" aria-label="Deleted rows">
-        {rows && rows.length === 0 && <p className="muted">Nothing has been deleted from a whole file since we began holding it.</p>}
+        {rows && rows.length === 0 && <p className="muted">Nothing has left a whole file since we began holding it.</p>}
         <ul className="changes">
           {(rows ?? []).map((r) => (
             <li key={r.id} className="removed">
               <time dateTime={new Date(r.at).toISOString()}>{when(r.at)}</time>
               <span className="tag removed">{r.publisher}</span>
-              <strong>{r.label}</strong>
+              <strong>
+                {r.label}
+                {r.rows > 1 && <span className="muted"> · {r.rows} rows</span>}
+              </strong>
               {r.before && <Diff before={r.before} changed={[]} />}
               <span className="muted">
                 {r.sentence}{" "}
