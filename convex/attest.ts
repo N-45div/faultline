@@ -1,13 +1,78 @@
 import { v } from "convex/values";
-import { internalAction, internalMutation, query } from "./_generated/server";
+import { internalAction, internalMutation, query, type MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { askFrom, askLine } from "../engine/hpd";
+import type { Doc } from "./_generated/dataModel";
+import { askFrom, askLine, challengeDeadline, CITY_SAYS_FALSE, type Ask } from "../engine/hpd";
 
 // The tenant's word beside the city's. The city's row says the owner
-// certified a repair; the person who lives there says whether it happened.
+// certified a repair; the person who lives with it says whether it happened.
 // The two are kept apart, both dated, and neither is edited by the other.
+// A person's words are theirs: they are read back on their own page, behind a
+// link only they were sent, and reach a public page only once the city's own
+// record agrees with them — and even then without the words themselves.
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
+export function siteBase(): string {
+  return (process.env.CONVEX_SITE_URL ?? "").replace(/\/$/, "");
+}
+
+/**
+ * Each claim put to a person becomes a row waiting for their word, dated from
+ * the moment it was asked. Asking again about the same unanswered claim does
+ * not make a second row.
+ */
+export async function recordAsks(ctx: MutationCtx, email: string, subjectKey: string, asks: Ask[], now: number): Promise<void> {
+  for (const a of asks) {
+    const last = await ctx.db
+      .query("attestations")
+      .withIndex("by_email_violation", (q) => q.eq("email", email).eq("violationId", a.violationId))
+      .order("desc")
+      .first();
+    if (last && last.answer === undefined && last.askedStatus === a.status) continue;
+    await ctx.db.insert("attestations", {
+      email,
+      subjectKey,
+      violationId: a.violationId,
+      askedAt: now,
+      askedStatus: a.status,
+      askedStatusDate: a.statusDate,
+      certifiedBy: a.certifiedBy,
+      hazardClass: a.hazardClass,
+      description: a.description,
+    });
+  }
+}
+
+function newToken(): string {
+  let t = "";
+  for (let i = 0; i < 40; i++) t += "0123456789abcdef"[Math.floor(Math.random() * 16)];
+  return t;
+}
+
+/** One unguessable link per address, made the first time it is needed. */
+export async function recordToken(ctx: MutationCtx, email: string): Promise<string> {
+  const existing = await ctx.db.query("records").withIndex("by_email", (q) => q.eq("email", email)).first();
+  if (existing) return existing.token;
+  const token = newToken();
+  await ctx.db.insert("records", { email, token, createdAt: Date.now() });
+  return token;
+}
+
+/** The city's rows we hold for one building, as their fields. */
+export async function heldForBuilding(ctx: MutationCtx, bbl: string): Promise<Doc<"current">["fields"][]> {
+  const hpd = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
+  if (!hpd) return [];
+  const rows = await ctx.db
+    .query("current")
+    .withIndex("by_source_subject", (q) => q.eq("sourceId", hpd._id).eq("subjectKey", bbl))
+    .take(1000);
+  return rows.map((r) => r.fields);
+}
+
+export function recordUrl(token: string): string {
+  return `${siteBase()}/r/${token}`;
+}
 
 /** The photo a person attached to their answer, fetched from the mail and kept with it. */
 export const storePhoto = internalAction({
@@ -51,51 +116,152 @@ export const attachPhoto = internalMutation({
   },
 });
 
-const said = v.object({
-  violationId: v.string(),
-  askedStatus: v.string(),
-  askedStatusDate: v.string(),
-  certifiedBy: v.union(v.string(), v.null()),
-  hazardClass: v.string(),
-  description: v.string(),
-  answer: v.union(v.literal("fixed"), v.literal("still_broken"), v.literal("not_sure")),
-  saidAt: v.number(),
-  note: v.optional(v.string()),
-  hasPhoto: v.boolean(),
-  laterStatus: v.optional(v.string()),
-  laterStatusDate: v.optional(v.string()),
+const answerValidator = v.union(v.literal("fixed"), v.literal("still_broken"), v.literal("not_sure"));
+
+/**
+ * The building page's share of the answers: none of their words, and only the
+ * ones the city later agreed with — someone said a certified repair was still
+ * broken, and afterwards HPD stamped that certification FALSE or INVALID.
+ * Before that, an answer is one person's word about a real building, and it
+ * stays on that person's own page.
+ */
+export const corroborated = query({
+  args: { bbl: v.string() },
+  returns: v.object({
+    kept: v.number(),
+    rows: v.array(
+      v.object({
+        violationId: v.string(),
+        hazardClass: v.string(),
+        description: v.string(),
+        saidOn: v.string(),
+        laterStatus: v.string(),
+        laterStatusDate: v.string(),
+      }),
+    ),
+  }),
+  handler: async (ctx, { bbl }) => {
+    const answered = await ctx.db
+      .query("attestations")
+      .withIndex("by_subject_said", (q) => q.eq("subjectKey", bbl).gt("saidAt", 0))
+      .take(500);
+    const people = new Set(answered.map((r) => `${r.email}|${r.violationId}`));
+    const first = new Map<string, Doc<"attestations">>();
+    for (const r of answered) {
+      if (r.answer !== "still_broken" || !r.laterStatus || !CITY_SAYS_FALSE.has(r.laterStatus)) continue;
+      if (r.saidAt === undefined || r.laterAt === undefined || r.saidAt >= r.laterAt) continue;
+      const seen = first.get(r.violationId);
+      if (!seen || r.saidAt < (seen.saidAt ?? 0)) first.set(r.violationId, r);
+    }
+    return {
+      kept: people.size,
+      rows: [...first.values()]
+        .sort((a, b) => (b.laterAt ?? 0) - (a.laterAt ?? 0))
+        .map((r) => ({
+          violationId: r.violationId,
+          hazardClass: r.hazardClass,
+          description: r.description,
+          saidOn: new Date(r.saidAt ?? 0).toISOString().slice(0, 10),
+          laterStatus: r.laterStatus ?? "",
+          laterStatusDate: r.laterStatusDate ?? "",
+        })),
+    };
+  },
 });
 
 /**
- * What the people who live in a building said, beside what the city's file
- * says — answers only, newest first. No address of the person, no photo
- * bytes: the photo's existence is a fact; the photo is theirs.
+ * A person's own page, opened by the link in their email: every claim they
+ * were asked about, what the city's file said then and says now, and every
+ * answer they gave, each dated, with their note and their photo.
  */
-export const forBuilding = query({
-  args: { bbl: v.string() },
-  returns: v.array(said),
-  handler: async (ctx, { bbl }) => {
+export const record = query({
+  args: { token: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      since: v.number(),
+      items: v.array(
+        v.object({
+          id: v.string(),
+          violationId: v.string(),
+          subjectKey: v.string(),
+          where: v.string(),
+          hazardClass: v.string(),
+          description: v.string(),
+          askedAt: v.number(),
+          askedStatus: v.string(),
+          askedStatusDate: v.string(),
+          certifiedBy: v.union(v.string(), v.null()),
+          deadline: v.union(v.string(), v.null()),
+          answer: v.optional(answerValidator),
+          saidAt: v.optional(v.number()),
+          note: v.optional(v.string()),
+          photoUrl: v.optional(v.string()),
+          laterStatus: v.optional(v.string()),
+          laterStatusDate: v.optional(v.string()),
+          nowStatus: v.optional(v.string()),
+          nowStatusDate: v.optional(v.string()),
+        }),
+      ),
+    }),
+  ),
+  handler: async (ctx, { token }) => {
+    if (token.length < 20) return null;
+    const rec = await ctx.db.query("records").withIndex("by_token", (q) => q.eq("token", token)).unique();
+    if (!rec) return null;
     const rows = await ctx.db
       .query("attestations")
-      .withIndex("by_subject_said", (q) => q.eq("subjectKey", bbl).gte("saidAt", 0))
+      .withIndex("by_email_asked", (q) => q.eq("email", rec.email))
       .order("desc")
-      .take(50);
-    return rows
-      .filter((r) => r.answer !== undefined && r.saidAt !== undefined)
-      .map((r) => ({
+      .take(100);
+    const hpd = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
+    const labels = new Map<string, string>();
+    const items = [];
+    for (const r of rows) {
+      let where = labels.get(r.subjectKey);
+      if (where === undefined) {
+        const s = await ctx.db
+          .query("subjects")
+          .withIndex("by_kind_key", (q) => q.eq("kind", "building").eq("key", r.subjectKey))
+          .unique();
+        where = s?.label ?? r.subjectKey;
+        labels.set(r.subjectKey, where);
+      }
+      const cur = hpd
+        ? await ctx.db
+            .query("current")
+            .withIndex("by_source_identity", (q) => q.eq("sourceId", hpd._id).eq("identityKey", `${r.subjectKey}/${r.violationId}`))
+            .unique()
+        : null;
+      const photoUrl = r.photoStorageId ? await ctx.storage.getUrl(r.photoStorageId) : null;
+      items.push({
+        id: String(r._id),
         violationId: r.violationId,
+        subjectKey: r.subjectKey,
+        where,
+        hazardClass: r.hazardClass,
+        description: r.description,
+        askedAt: r.askedAt,
         askedStatus: r.askedStatus,
         askedStatusDate: r.askedStatusDate,
         certifiedBy: r.certifiedBy,
-        hazardClass: r.hazardClass,
-        description: r.description,
-        answer: r.answer!,
-        saidAt: r.saidAt!,
-        note: r.note,
-        hasPhoto: r.photoStorageId !== undefined,
-        laterStatus: r.laterStatus,
-        laterStatusDate: r.laterStatusDate,
-      }));
+        deadline: challengeDeadline({
+          violationId: r.violationId,
+          status: r.askedStatus,
+          statusDate: r.askedStatusDate,
+          certifiedBy: r.certifiedBy,
+          hazardClass: r.hazardClass,
+          description: r.description,
+        }),
+        ...(r.answer ? { answer: r.answer } : {}),
+        ...(r.saidAt !== undefined ? { saidAt: r.saidAt } : {}),
+        ...(r.note ? { note: r.note } : {}),
+        ...(photoUrl ? { photoUrl } : {}),
+        ...(r.laterStatus ? { laterStatus: r.laterStatus, laterStatusDate: r.laterStatusDate ?? "" } : {}),
+        ...(cur ? { nowStatus: String(cur.fields.currentstatus ?? ""), nowStatusDate: String(cur.fields.currentstatusdate ?? "") } : {}),
+      });
+    }
+    return { since: rec.createdAt, items };
   },
 });
 

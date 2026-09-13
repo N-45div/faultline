@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { complianceLines } from "../engine/receipt";
 import { paused } from "./guard";
+import { recordAsks, recordToken, recordUrl } from "./attest";
 
 // One email per person per day, at most — and the first one goes out within a
 // minute of the change that caused it. Ingest never sends; it queues. This runs
@@ -108,33 +109,22 @@ export const flush = internalMutation({
       const askLines: string[] = [];
       for (const g of asks.slice(0, MAX_LINES_PER_EMAIL)) {
         askLines.push(`- ${g.sentence}`);
-        const a = g.ask!;
-        const dup = await ctx.db
-          .query("attestations")
-          .withIndex("by_email_violation", (q) => q.eq("email", email).eq("violationId", a.violationId))
-          .order("desc")
-          .first();
-        if (dup && dup.answer === undefined && dup.askedStatus === a.status) continue;
-        await ctx.db.insert("attestations", {
-          email,
-          subjectKey: g.subjectKey,
-          violationId: a.violationId,
-          askedAt: now,
-          askedStatus: a.status,
-          askedStatusDate: a.statusDate,
-          certifiedBy: a.certifiedBy,
-          hazardClass: a.hazardClass,
-          description: a.description,
-        });
+        await recordAsks(ctx, email, g.subjectKey, [g.ask!], now);
       }
+      // The city's second word, and the page that holds the person's own.
+      const secondWords = rows.filter((r) => r.secondWord).length;
+      const record = askLines.length > 0 || secondWords > 0 ? recordUrl(await recordToken(ctx, email)) : null;
       const more = rows.length - used - Math.min(asks.length, MAX_LINES_PER_EMAIL);
       const subjectCount = bySubject.size;
       const onlyAsks = lines.length === 0 && askLines.length > 0;
+      const onlySecondWord = askLines.length === 0 && secondWords > 0 && secondWords === lines.length;
       const headline = onlyAsks
         ? askLines.length === 1
           ? "They say it's fixed. Is it?"
           : `They say ${askLines.length} things are fixed. Are they?`
-        : rows.length === 1
+        : onlySecondWord
+          ? "The city checked a repair you told us about."
+          : rows.length === 1
           ? "A filing you follow changed."
           : `${rows.length} changes to ${subjectCount === 1 ? "a filing" : `${subjectCount} filings`} you follow.`;
       const text = [
@@ -147,16 +137,17 @@ export const flush = internalMutation({
           ? [
               "",
               "Reply with the number and one of FIXED, STILL BROKEN or NOT SURE — for example: #12345678 STILL BROKEN. Add a photo if you have one.",
-              "Your answer is kept beside the city's record, dated. If the city later stamps the certification false, we'll tell you.",
+              "Your answer stays private to you, dated, beside the city's record. If the city later stamps the certification false, we'll tell you.",
             ]
           : []),
         ...(more > 0 ? [`- …and ${more} more.`] : []),
+        ...(record ? ["", `Your answers, beside the city's record: ${record}`] : []),
         "",
         `Check it on the government's own page: ${rows[0].sourceUrl}`,
         "We kept the version before this one, dated. Reply PACK and the name for the whole record as a PDF.",
         "",
         "We send at most one of these a day.",
-        ...complianceLines(process.env.NOTICE_POSTAL, "you are getting this because you replied FOLLOW."),
+        ...complianceLines(process.env.NOTICE_POSTAL, "you are getting this because you follow a filing or a building with us."),
       ].join(NL);
 
       // Answer in the thread where this filing or building was followed, so
@@ -176,7 +167,7 @@ export const flush = internalMutation({
         await ctx.scheduler.runAfter(0, internal.mail.send, {
           agentInboxId: inbox,
           to: email,
-          subject: onlyAsks ? "Is it fixed?" : rows.length === 1 ? "A filing you follow changed" : "Filings you follow changed",
+          subject: onlyAsks ? "Is it fixed?" : onlySecondWord ? "The city checked" : rows.length === 1 ? "A filing you follow changed" : "Filings you follow changed",
           text,
           onFailure: { alertIds: claimed, email },
         });

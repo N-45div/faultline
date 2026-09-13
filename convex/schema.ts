@@ -237,6 +237,8 @@ export default defineSchema({
     sentAt: v.optional(v.number()),
     /** A line that asks a question: the fixed claim it is about, so the reply can be matched to it. */
     ask: v.optional(askShape),
+    /** The city's second word about a violation this person answered about. */
+    secondWord: v.optional(v.boolean()),
   })
     .index("by_status_created", ["status", "createdAt"])
     .index("by_email_status", ["email", "status"]),
@@ -270,6 +272,18 @@ export default defineSchema({
     .index("by_email_violation", ["email", "violationId"])
     .index("by_violation", ["violationId"])
     .index("by_subject_said", ["subjectKey", "saidAt"]),
+
+  /**
+   * A person's private page: one unguessable link per address, sent only to
+   * that address. The link is the key; there is no account behind it.
+   */
+  records: defineTable({
+    email: v.string(),
+    token: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_token", ["token"]),
 
   // ---- the product ---------------------------------------------------------
   cases: defineTable({

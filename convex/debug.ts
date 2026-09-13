@@ -357,6 +357,8 @@ export const forgetTester = internalMutation({
       await ctx.db.delete(a._id);
       attestations++;
     }
+    // The private link goes with the answers it opened.
+    for (const r of await ctx.db.query("records").withIndex("by_email", (q) => q.eq("email", email)).collect()) await ctx.db.delete(r._id);
     return { subscriptions, alerts, attestations };
   },
 });

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { askFrom, askLine, saysFalse } from "../../engine/hpd";
+import { askFrom, askLine, saysFalse, secondWordLine } from "../../engine/hpd";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -548,7 +548,7 @@ async function enqueueAlerts(
   }
   // The city's second word. When HPD stamps a certification false or
   // invalid on a violation somebody answered about, their answer gets the
-  // city's date beside it, and they hear it — whether or not they still follow.
+  // city's date beside it, and they hear it unless they have told us to stop.
   await citySecondWord(ctx, changes, sourceUrl);
 
   if (followers.size === 0 && nameWatches.length === 0) return;
@@ -603,7 +603,7 @@ async function enqueueAlerts(
   }
 }
 
-async function citySecondWord(
+export async function citySecondWord(
   ctx: { db: any },
   changes: { subjectKey: string; kind: "added" | "changed" | "removed"; after?: Record<string, string | number | boolean | null> }[],
   sourceUrl: string,
@@ -621,20 +621,29 @@ async function citySecondWord(
       .take(50);
     const on = String(c.after.currentstatusdate ?? "");
     const where = String(c.after.__subjectLabel ?? c.subjectKey);
+    // One line per person per stamp: the first time they said it was still
+    // broken, or else their latest word.
+    const told = new Map<string, Doc<"attestations">>();
     for (const r of rows) {
       if (r.laterStatus === status) continue;
       await ctx.db.patch(r._id, { laterStatus: status, laterStatusDate: on, laterAt: now });
-      if (!r.answer) continue;
-      const said = r.answer === "still_broken" ? "still broken" : r.answer === "fixed" ? "fixed" : "not sure";
-      const lead = r.answer === "still_broken" ? "The city agrees with you: " : "";
-      const saidOn = new Date(r.saidAt ?? now).toISOString().slice(0, 10);
+      if (!r.answer || r.saidAt === undefined) continue;
+      const prior = told.get(r.email);
+      const better =
+        !prior ||
+        (r.answer === "still_broken" && (prior.answer !== "still_broken" || r.saidAt < (prior.saidAt ?? 0))) ||
+        (prior.answer !== "still_broken" && r.answer !== "still_broken" && r.saidAt > (prior.saidAt ?? 0));
+      if (better) told.set(r.email, r);
+    }
+    for (const r of told.values()) {
       await ctx.db.insert("alertQueue", {
         email: r.email,
         subjectKey: r.subjectKey,
-        sentence: `${lead}HPD stamped #${violationId} at ${where} ${status} on ${on}. You said ${said} on ${saidOn}; both dates are on the building's record.`,
+        sentence: secondWordLine({ answer: r.answer!, saidOn: new Date(r.saidAt!).toISOString().slice(0, 10), violationId, where, status, on }),
         sourceUrl,
         status: "pending",
         createdAt: now,
+        secondWord: true,
       });
     }
   }

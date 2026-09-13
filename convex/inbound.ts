@@ -8,7 +8,8 @@ import { looksLikeAddress } from "../engine/match";
 import { classifyInbound, emailAddressOf, stripHtml } from "../engine/intent";
 import { complianceLines, noMatchReceipt, receiptHtml, receiptText, type Receipt } from "../engine/receipt";
 import { buildReceipt, guessCompanyFromText, noticesFor, siteUrl, STATE_FILE } from "./lookup";
-import { HOW_TO_TELL_HPD, HPD_PAGES } from "../engine/hpd";
+import { askLine, fixedClaim, HPD_PAGES, nextStepFor, pickAsks } from "../engine/hpd";
+import { heldForBuilding, recordAsks, recordToken, recordUrl } from "./attest";
 import { base64Utf8, layoffCsv } from "../engine/export";
 import { urlSlug } from "../engine/canon";
 
@@ -120,6 +121,12 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
     (a) => /pdf/.test(ctOf(a)) || /\.pdf$/.test(fnOf(a)) || /^image\/(jpeg|png|webp|gif)/.test(ctOf(a)) || /\.(jpe?g|png|webp|gif)$/.test(fnOf(a)),
   );
   const docAttachmentId = String(docAtt?.attachment_id ?? docAtt?.id ?? "");
+  // An iPhone photo arrives as HEIC, which the model cannot read yet. Say so,
+  // and say what works, above whatever else the reply says.
+  const heicNote =
+    !docAtt && ["lookup", "letter", "empty"].includes(intent.kind) && attachments.some((a) => /^image\/hei[cf]/.test(ctOf(a)) || /\.hei[cf]$/.test(fnOf(a)))
+      ? ["Your photo came as HEIC, the iPhone's own format, which we can't read yet. Send it again as a JPEG or a PDF, or send a screenshot of it: a screenshot is a PNG, which we can read."]
+      : [];
   if (docAtt && docAttachmentId && process.env.OPENAI_API_KEY && ["lookup", "letter", "empty"].includes(intent.kind)) {
     const isImage = /^image\//.test(ctOf(docAtt)) || /\.(jpe?g|png|webp|gif)$/.test(fnOf(docAtt));
     const mime = isImage ? (ctOf(docAtt).startsWith("image/") ? ctOf(docAtt) : `image/${/\.png$/.test(fnOf(docAtt)) ? "png" : /\.webp$/.test(fnOf(docAtt)) ? "webp" : /\.gif$/.test(fnOf(docAtt)) ? "gif" : "jpeg"}`) : "application/pdf";
@@ -207,6 +214,73 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       }
       break;
     }
+    case "ask": {
+      const found = await askBuilding(ctx, intent.query, threadId);
+      if (!found) {
+        if (intent.query && looksLikeAddress(intent.query)) {
+          await ctx.scheduler.runAfter(0, internal.ingest.seed.resolveAddress, { q: intent.query, inboxId });
+          receipt = {
+            kind: "none",
+            query: `ask:${intent.query}`,
+            headline: `We don't hold ${intent.query} yet — we're pulling this building's records from the city now.`,
+            blocks: [["Send ASK and the address again in a few minutes, and we'll send each repair the owner has certified there."]],
+            links: [],
+            footer: [],
+          };
+        } else {
+          receipt = {
+            kind: "none",
+            query: "ask",
+            headline: "ASK needs a New York City building address after it.",
+            blocks: [["For example: ASK 155 Linden Boulevard, Brooklyn. We'll send each repair the owner has certified there, and ask you whether it was done."]],
+            links: [],
+            footer: [],
+          };
+        }
+        break;
+      }
+      const { bbl, label } = found;
+      const asks = pickAsks(await heldForBuilding(ctx, bbl), new Date(now).toISOString().slice(0, 10), 3);
+      const page = `${siteUrl()}/b/${bbl}`;
+      if (asks.length === 0) {
+        receipt = {
+          kind: "none",
+          query: `ask:${bbl}`,
+          subjectKey: bbl,
+          headline: `No repair at ${label} is certified as done right now, so there is nothing to ask.`,
+          blocks: [
+            [
+              "HPD closes a certified violation after 70 days unless it reinspects; none of the certifications we hold for this building is inside those 70 days.",
+              "Reply FOLLOW and we'll ask you the day the owner certifies one.",
+            ],
+          ],
+          links: [{ label: "This building's record", url: page }],
+          footer: [],
+        };
+        break;
+      }
+      await recordAsks(ctx, from, bbl, asks, now);
+      const record = recordUrl(await recordToken(ctx, from));
+      receipt = {
+        kind: "none",
+        query: `ask:${bbl}`,
+        subjectKey: bbl,
+        headline: asks.length === 1 ? "They say it's fixed. Is it?" : `They say ${asks.length} things are fixed. Are they?`,
+        blocks: [
+          asks.map((a) => `- ${askLine(a, label)}`),
+          [
+            `Reply with the number and one of FIXED, STILL BROKEN or NOT SURE — for example: #${asks[0].violationId} STILL BROKEN. Add a photo if you have one.`,
+            "Your answer stays private to you, dated, beside the city's record. It shows on the building's page only if the city's own record later agrees.",
+          ],
+        ],
+        links: [
+          { label: "Your answers, beside the city's record", url: record },
+          { label: "This building's record", url: page },
+        ],
+        footer: [],
+      };
+      break;
+    }
     case "answer": {
       if (!open) throw new Error("answer without an open ask");
       const word = intent.answer === "fixed" ? "fixed" : intent.answer === "still_broken" ? "still broken" : "not sure";
@@ -215,10 +289,31 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
         (a) => /^image\//i.test(String(a?.content_type ?? "")) || /\.(jpe?g|png|heic|heif|webp)$/i.test(String(a?.filename ?? "")),
       );
       const imageId = String(imageAtt?.attachment_id ?? imageAtt?.id ?? "");
-      await ctx.db.patch(open._id, { answer: intent.answer, saidAt: now, note: intent.note || undefined });
+      // A second answer is a second dated word, not an edit of the first:
+      // "not sure" on Monday and "still broken" on Friday are both true.
+      let attestationId = open._id;
+      if (open.answer === undefined) {
+        await ctx.db.patch(open._id, { answer: intent.answer, saidAt: now, note: intent.note || undefined });
+      } else {
+        attestationId = await ctx.db.insert("attestations", {
+          email: open.email,
+          subjectKey: open.subjectKey,
+          violationId: open.violationId,
+          askedAt: open.askedAt,
+          askedStatus: open.askedStatus,
+          askedStatusDate: open.askedStatusDate,
+          certifiedBy: open.certifiedBy,
+          hazardClass: open.hazardClass,
+          description: open.description,
+          answer: intent.answer,
+          saidAt: now,
+          ...(intent.note ? { note: intent.note } : {}),
+          ...(open.laterStatus ? { laterStatus: open.laterStatus, laterStatusDate: open.laterStatusDate, laterAt: open.laterAt } : {}),
+        });
+      }
       if (imageAtt && imageId) {
         await ctx.scheduler.runAfter(0, internal.attest.storePhoto, {
-          attestationId: open._id,
+          attestationId,
           attachment: { agentInboxId: target.agentInboxId, messageId, attachmentId: imageId, filename: String(imageAtt.filename ?? "photo") },
         });
       }
@@ -228,17 +323,30 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
         .withIndex("by_kind_key", (q) => q.eq("kind", "building").eq("key", open.subjectKey))
         .unique();
       const where = building?.label ?? open.subjectKey;
-      const next =
+      const owner = fixedClaim(open.askedStatus) === "owner";
+      const next: string[] =
         intent.answer === "still_broken"
-          ? [HOW_TO_TELL_HPD, "If the city later stamps this certification FALSE or INVALID, we'll tell you in this thread."]
+          ? [nextStepFor(open.askedStatus), ...(owner ? ["If the city later stamps this certification FALSE or INVALID, we'll tell you in this thread."] : [])]
           : intent.answer === "fixed"
-            ? ["Noted as fixed. We'll stop asking about this one."]
+            ? ["Noted as fixed."]
             : ["Left open. Reply again when you know."];
+      // Someone who says it isn't fixed, or isn't sure, has asked in effect to
+      // hear what the city does next. They follow the building from here, are
+      // told so in the same breath, and STOP ends it.
+      if (intent.answer !== "fixed") {
+        const already = await ctx.db
+          .query("subscriptions")
+          .withIndex("by_email", (q) => q.eq("email", from).eq("subjectKey", open.subjectKey))
+          .unique();
+        await upsertSubscription(ctx, open.subjectKey, from, threadId, messageId, now);
+        if (!already?.active) next.push("You now follow this building: we'll write to this thread when its record changes, at most once a day. Reply STOP to end it.");
+      }
+      const record = recordUrl(await recordToken(ctx, from));
       receipt = {
         kind: "none",
         query: "answer",
         subjectKey: open.subjectKey,
-        headline: `Your word is on the record: ${word}, ${today}.`,
+        headline: `Kept, dated: you said ${word} on ${today}.`,
         blocks: [
           [
             `The city's file: #${open.violationId} at ${where}${open.hazardClass ? ` (class ${open.hazardClass})` : ""}${open.description ? ` — "${open.description}"` : ""}: ${open.askedStatus} as of ${open.askedStatusDate}${open.certifiedBy ? `; owner certified by ${open.certifiedBy}` : ""}.`,
@@ -247,8 +355,11 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
           next,
         ],
         links: [
+          { label: "Your answers, beside the city's record", url: record },
           { label: "This building's record", url: `${siteUrl()}/b/${open.subjectKey}` },
-          { label: "HPD on certifications, in its own words", url: HPD_PAGES.certification },
+          owner
+            ? { label: "HPD on certifications, in its own words", url: HPD_PAGES.certification }
+            : { label: "HPD on reporting a condition, in its own words", url: HPD_PAGES.tenant },
         ],
         footer: [],
       };
@@ -369,7 +480,7 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
     }
   }
 
-  const delivered = await deliver(ctx, target, receipt, preface, csvAttachment);
+  const delivered = await deliver(ctx, target, receipt, [...heicNote, ...preface], csvAttachment);
   return { intent: intent.kind, query, kind: receipt.kind, text: delivered.text, sent: delivered.sent };
 }
 
@@ -643,4 +754,23 @@ async function finishNotice(ctx: MutationCtx, t: Target, x: Record<string, any>)
     },
     [],
   );
+}
+
+/** The building an ASK is about: the address after the word, or this thread's building. */
+async function askBuilding(ctx: MutationCtx, query: string, threadId: string): Promise<{ bbl: string; label: string } | null> {
+  let found: string | null = null;
+  if (query) {
+    const built = await buildReceipt(ctx.db, query);
+    if (built.receipt.kind === "building" && built.receipt.subjectKey) found = built.receipt.subjectKey;
+  } else {
+    const prior = await latestMatchedInThread(ctx, threadId);
+    if (prior?.matchedSubjectKey && /^\d{10}$/.test(prior.matchedSubjectKey)) found = prior.matchedSubjectKey;
+  }
+  if (!found) return null;
+  const key = found;
+  const subject = await ctx.db
+    .query("subjects")
+    .withIndex("by_kind_key", (q) => q.eq("kind", "building").eq("key", key))
+    .unique();
+  return { bbl: key, label: subject?.label ?? key };
 }
