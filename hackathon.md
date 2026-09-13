@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-12T15:30:00Z
+- **Last updated:** 2026-09-13T05:13:00Z
 
 ## Log
 
@@ -687,6 +687,74 @@ Also fixed: both New York City files were failing on the new deployment
 with "too many system operations" — 250 point lookups in one query ran past
 its one-second limit on a cold deployment. Sixty per query now; both files
 read clean the next cycle.
+
+### 2026-09-13 - c70ef08
+Git for the files the government overwrites, as pages. `/files` lists every
+file with its rows held, its reads, and the hash of its latest commit.
+`/file/<slug>` is the commit log: every read is a line, and runs of reads that
+changed nothing collapse into one ("21 reads, nothing changed, back to
+2 September"), so the eye lands on the reads that moved something.
+`/commit/<id>` is the diff: each row the state added, edited or dropped, with
+the before and the after per field, in words rather than column names.
+`/deleted` is the feed of rows gone from a whole file — the ones the state's
+own site can no longer show.
+
+The restaurant file learned to prove absence. Its watch fetches every row for
+every watched building with no date filter, so a row we hold for a building
+that no longer comes back has left the city's file — the event that file
+exists for, since the Health Department keeps only restaurants open today.
+A third kind of presence, `subject_world`, says so; a page that hit its own
+`$limit` is a partial read and proves nothing, so absence is trusted only
+when no page was truncated. The removal is worded in the city's own terms:
+"The city keeps only restaurants that are open today; we kept the record."
+
+### 2026-09-13 - f60f8f9
+The changelog of government, as arithmetic kept at commit time rather than a
+scan: each source row carries how many rows it holds and how many the state
+has added, edited and dropped since we began holding the file, and the
+landing page's counters read ten documents. The scorecard — each state's
+file against its own statute, from the rows we hold — is recomputed once a
+day by a cron and read from one stats row; nothing on a page view scans a
+file.
+
+And a bug that had made New Jersey look edited. The diff emits "changed"
+when a row's signature moves; a signature can move because our own list of
+significant fields changed between two reads, with no field of the state's
+moving at all. New Jersey showed 2,144 edits that way. A change with nothing
+in its changed list is now a silent update, never an edit; the 2,076 already
+written were withdrawn; the engine test proves the case.
+
+### 2026-09-13 - 2343588
+The last 68 New Jersey "edits" sat on a commit whose bytes were the same as
+the read before it — `d54ff48952a5` both times. Identical bytes mean the
+state changed nothing, so those edits were ours: the adapter had begun
+assigning ordinals by sorted order rather than sheet order. A guarded
+mutation withdraws the "changed" events of one commit only if its hash
+matches the previous read's, and refuses otherwise. New Jersey now reads
+2 added, 0 edited, 0 gone since 29 August, which is what the state did.
+
+### 2026-09-13 - 73f5bc4
+The file as the state served it, downloadable from its commit. `/raw/<id>`
+streams the pinned bytes with `X-Faultline-SHA256` and
+`X-Faultline-Captured-At` in the headers and a name like
+`ny-warn-2026-09-10-26c72116a01b.csv`; take it anywhere and the hash will
+match the commit page. Bytes are held for fourteen days after a read that
+changed something, then released — file storage is what filled the free plan
+on 4 September.
+
+Also: the feed of the deleted groups rows by name within one commit, counted
+by distinct row. A second adversarial review caught that grouping across
+history could turn one row dropped twice into "2 rows"; it cannot now.
+
+### 2026-09-13 - ddb7e6e
+Three claims pulled back to what the data proves, all from that review.
+"We keep every version" became "every version we read": reads are
+scheduled, and an edit made and undone between two reads is not held.
+"Deleted by the government" became "gone from the state's file": what we
+can show is that a row was in the file served on one date and not in the
+file served on the next; why is the state's to say. And the scorecard's
+median, computed from the notice date to the day the state posted, is now
+labelled notice-to-posting rather than "days late".
 
 ## About
 
