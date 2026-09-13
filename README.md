@@ -13,7 +13,7 @@ States publish layoff notices (WARN) and cities publish housing and food-safety 
 - New York City's restaurant inspection file holds "violation citation[s] … conducted up to three years prior to the most recent inspection for restaurants … in an active status on the RECORD DATE … only restaurants in an active status are included in the dataset." A restaurant closes; its history leaves the file.
 - California republishes one spreadsheet at one URL. When a notice is edited, the earlier version is gone.
 - New Jersey publishes the *month* it posted a layoff notice, never the date the employer gave — so the one number a worker needs cannot be computed from the state's file at all.
-- Wisconsin is the one state that numbers its own revisions: every notice has a number, every PDF link carries `?version=N`. Forty-six of its fifty current notices are past version 1.
+- Wisconsin numbers every notice and lists each revision in an update table of its own, in four codes: AW, LS, OC, RN. It also puts `?version=N` on every PDF link, and on 13 September republished its page with 42 of those numbers changed, 26 of them downward, and nothing else on the page changed. We had read that number as the state's revision count. It is not, and we no longer quote it.
 
 Faultline reads ten of these files on a schedule, diffs every row against the last version it holds, and keeps all of them. Then it answers email.
 

@@ -79,8 +79,11 @@ export const wiWarn: SourceAdapter<Raw> = {
   normalise(r): Fields {
     return {
       noticeId: r.noticeId,
-      // The state's revision number. When it moves, the state itself is
-      // saying this notice was amended.
+      // The number on the PDF link's ?version= parameter, kept as served. It is
+      // not a revision count: on 13 September the page republished with 42 of
+      // them changed, 26 downward, and nothing else on the page changed. It is
+      // dropped from every hash and never quoted. The state's record of its
+      // revisions is its update table, below.
       version: r.version,
       company: r.company,
       note: r.note || null,
@@ -103,8 +106,9 @@ export const wiWarn: SourceAdapter<Raw> = {
       __subjectLabel: subjectLabel(r),
     };
   },
-  significant: ["version", "employeesAffected", "effectiveDate", "layoffOrClosure", "updateCodes"],
+  significant: ["employeesAffected", "effectiveDate", "layoffOrClosure", "updateCodes"],
   noise: [
+    { op: "drop", path: "version" },
     { op: "trimCase", path: "company" },
     { op: "trimCase", path: "siteAddress" },
     { op: "trimCase", path: "note" },
@@ -114,11 +118,11 @@ export const wiWarn: SourceAdapter<Raw> = {
   render(after, before) {
     const g = warnNoticeGap({ jurisdiction: "US-WI", noticeDate: String(after.noticeDate), effectiveDate: String(after.effectiveDate) });
     const base = noticeSentence(String(after.company), Number(after.employeesAffected) || 0, String(after.siteAddress), g);
-    if (before && Number(before.version) !== Number(after.version)) {
-      const what = after.updates ? ` — ${String(after.updates)}` : "";
-      return `Wisconsin revised this notice: version ${String(before.version)} became version ${String(after.version)}${what}. ${base}`;
+    if (before) {
+      const what = after.updates ? ` Its update table records: ${String(after.updates)}.` : "";
+      return `Wisconsin changed this notice in place.${what} ${base}`;
     }
-    return `${base} Wisconsin's notice number ${String(after.noticeId)}, version ${String(after.version)}.`;
+    return `${base} Wisconsin's notice number ${String(after.noticeId)}.`;
   },
   health: { minRows: 20, expectedKeys: ["Company", "City", "Notice Received", "Layoff Begin Date"] },
   budget: { credits: 1, maxFetchesPerDay: 4 },

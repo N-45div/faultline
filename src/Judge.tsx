@@ -327,8 +327,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           Firecrawl components. Ingest is a snapshot, then slices of 150 rows, then a finish, because a city file is
           bigger than one transaction. Two states rename their file on every publish, so the transport reads the
           state's own page and takes today's link from it. Wisconsin's page does not resolve from the deployment at
-          all, so Firecrawl fetches it from its side and hands back the HTML — that is the one state that numbers its
-          own revisions, and we hold each one as the state numbers it. OpenAI: the official SDK, one zod schema for
+          all, so Firecrawl fetches it from its side and hands back the HTML — that is the one state that numbers its notices and lists each revision in an update table of its own, and we quote that table. OpenAI: the official SDK, one zod schema for
           both the strict output and validation, a byte-stable cached prefix, PDF file input, hosted web search,
           free moderation.
         </p>

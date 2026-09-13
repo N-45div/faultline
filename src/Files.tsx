@@ -22,7 +22,7 @@ const FIELD: Record<string, string> = {
   employeesAffected: "workers",
   layoffOrClosure: "type",
   reason: "stated reason",
-  version: "state's version",
+  version: "link's version parameter",
   currentstatus: "status",
   currentstatusdate: "status date",
   certifiedbydate: "owner certified by",

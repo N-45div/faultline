@@ -43,7 +43,6 @@ export interface LayoffNoticeRow {
   effectiveDateRaw?: string;
   /** Wisconsin numbers its notices and its revisions; nobody else does. */
   stateNoticeId?: string;
-  stateVersion?: number;
   /** What the state says changed, in its own words ("Change to Layoff Schedule"). */
   stateUpdates?: string;
   layoffOrClosure?: string;
@@ -387,15 +386,13 @@ export function layoffReceipt(query: string, subjectKey: string, rows: LayoffNot
         : `${state} put this online on ${r.postedDate}, ${days(g.postingLagDays)} after the notice`;
       lines.push(g.postedAfterEffective && !r.postedIsProcessed ? `${posted} — after the ${event} had started.` : `${posted}.`);
     }
-    // The state's own revision record, where a state keeps one. Wisconsin
-    // numbers every notice and every revision; "version 8" is the state
-    // saying, itself, that this notice has been amended seven times.
-    if (r.stateNoticeId && r.stateVersion) {
-      lines.push(
-        `${state}'s notice number ${r.stateNoticeId}, version ${r.stateVersion}${
-          r.stateVersion > 1 ? ` — revised ${r.stateVersion - 1} ${r.stateVersion === 2 ? "time" : "times"} by the state's own count` : ""
-        }${r.stateUpdates ? `; the latest revision: ${r.stateUpdates}` : ""}.`,
-      );
+    // The state's own record of revisions, where a state keeps one. Wisconsin
+    // numbers every notice and lists its revisions in an update table, in its
+    // own codes. The ?version= on its PDF links is not that record: on 13
+    // September 42 of those numbers changed, most of them downward, with
+    // nothing else on the page changing.
+    if (r.stateNoticeId) {
+      lines.push(`${state}'s notice number ${r.stateNoticeId}${r.stateUpdates ? `; its update table records: ${r.stateUpdates}` : ""}.`);
     }
     for (const a of r.amendments ?? []) lines.push(...amendmentLines(a));
     return lines.filter(Boolean);

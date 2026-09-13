@@ -362,3 +362,39 @@ export const forgetTester = internalMutation({
     return { subscriptions, alerts, attestations };
   },
 });
+
+/**
+ * One-off, after a field turns out to mean nothing: withdraw the "changed"
+ * events whose only moved field is that one, and their lines on the public
+ * wall. Wisconsin's ?version= link parameter moved on 42 notices on 13
+ * September with nothing else on the page moving; it was never a revision.
+ * The captures themselves stay: they are what the state served.
+ */
+export const withdrawFieldOnlyEdits = internalMutation({
+  args: { slug: v.string(), field: v.string(), cursor: v.optional(v.string()), withdrawn: v.optional(v.number()) },
+  returns: v.object({ withdrawn: v.number(), wallLines: v.number(), done: v.boolean(), cursor: v.union(v.string(), v.null()) }),
+  handler: async (ctx, { slug, field, cursor, withdrawn }) => {
+    const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+    if (!src) throw new Error(`no source ${slug}`);
+    const page = await ctx.db
+      .query("changes")
+      .withIndex("by_source_emit", (q) => q.eq("sourceId", src._id))
+      .paginate({ cursor: cursor ?? null, numItems: 500 });
+    const gone = new Set<string>();
+    for (const c of page.page) {
+      if (c.kind !== "changed" || c.changed.length !== 1 || c.changed[0] !== field) continue;
+      gone.add(String(c._id));
+      await ctx.db.delete(c._id);
+    }
+    let wallLines = 0;
+    if (gone.size > 0) {
+      const wall = await ctx.db.query("recentChanges").withIndex("by_source", (q) => q.eq("sourceId", src._id)).take(500);
+      for (const w of wall) {
+        if (!gone.has(String(w.changeId))) continue;
+        await ctx.db.delete(w._id);
+        wallLines++;
+      }
+    }
+    return { withdrawn: (withdrawn ?? 0) + gone.size, wallLines, done: page.isDone, cursor: page.isDone ? null : page.continueCursor };
+  },
+});

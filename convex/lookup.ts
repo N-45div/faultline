@@ -102,7 +102,6 @@ export async function noticesFor(db: DatabaseReader, subjectKeys: string[]): Pro
           // Maryland and New Jersey both write more than one date in this cell.
           effectiveDateRaw: f.effectiveDateRaw ? String(f.effectiveDateRaw) : undefined,
           stateNoticeId: f.noticeId ? String(f.noticeId) : undefined,
-          stateVersion: f.version ? Number(f.version) : undefined,
           stateUpdates: f.updates ? String(f.updates) : undefined,
           effectiveDate: String(f.effectiveDate),
           postedDate: String(f.postedDate ?? f.processedDate ?? ""),
