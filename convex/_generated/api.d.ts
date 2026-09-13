@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as attest from "../attest.js";
 import type * as auth from "../auth.js";
 import type * as breaker from "../breaker.js";
 import type * as corroborate from "../corroborate.js";
@@ -40,6 +41,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  attest: typeof attest;
   auth: typeof auth;
   breaker: typeof breaker;
   corroborate: typeof corroborate;

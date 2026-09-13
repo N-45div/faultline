@@ -89,24 +89,67 @@ export const flush = internalMutation({
       for (const r of rows) bySubject.set(r.subjectKey, [...(bySubject.get(r.subjectKey) ?? []), r]);
 
       const lines: string[] = [];
+      const asks: Doc<"alertQueue">[] = [];
       let used = 0;
       for (const [, group] of bySubject) {
         for (const g of group) {
+          if (g.ask) {
+            asks.push(g);
+            continue;
+          }
           if (used >= MAX_LINES_PER_EMAIL) break;
           lines.push(`- ${g.sentence}`);
           used++;
         }
       }
-      const more = rows.length - used;
+      // The questions: one block, the claims listed, the three words that
+      // answer. Each claim asked becomes a row waiting for the person's word,
+      // dated from the moment it was sent. Silence stays silence.
+      const askLines: string[] = [];
+      for (const g of asks.slice(0, MAX_LINES_PER_EMAIL)) {
+        askLines.push(`- ${g.sentence}`);
+        const a = g.ask!;
+        const dup = await ctx.db
+          .query("attestations")
+          .withIndex("by_email_violation", (q) => q.eq("email", email).eq("violationId", a.violationId))
+          .order("desc")
+          .first();
+        if (dup && dup.answer === undefined && dup.askedStatus === a.status) continue;
+        await ctx.db.insert("attestations", {
+          email,
+          subjectKey: g.subjectKey,
+          violationId: a.violationId,
+          askedAt: now,
+          askedStatus: a.status,
+          askedStatusDate: a.statusDate,
+          certifiedBy: a.certifiedBy,
+          hazardClass: a.hazardClass,
+          description: a.description,
+        });
+      }
+      const more = rows.length - used - Math.min(asks.length, MAX_LINES_PER_EMAIL);
       const subjectCount = bySubject.size;
-      const headline =
-        rows.length === 1
+      const onlyAsks = lines.length === 0 && askLines.length > 0;
+      const headline = onlyAsks
+        ? askLines.length === 1
+          ? "They say it's fixed. Is it?"
+          : `They say ${askLines.length} things are fixed. Are they?`
+        : rows.length === 1
           ? "A filing you follow changed."
           : `${rows.length} changes to ${subjectCount === 1 ? "a filing" : `${subjectCount} filings`} you follow.`;
       const text = [
         headline,
         "",
         ...lines,
+        ...(lines.length > 0 && askLines.length > 0 ? ["", "And a question:"] : []),
+        ...askLines,
+        ...(askLines.length > 0
+          ? [
+              "",
+              "Reply with the number and one of FIXED, STILL BROKEN or NOT SURE — for example: #12345678 STILL BROKEN. Add a photo if you have one.",
+              "Your answer is kept beside the city's record, dated. If the city later stamps the certification false, we'll tell you.",
+            ]
+          : []),
         ...(more > 0 ? [`- …and ${more} more.`] : []),
         "",
         `Check it on the government's own page: ${rows[0].sourceUrl}`,
@@ -116,7 +159,12 @@ export const flush = internalMutation({
         ...complianceLines(process.env.NOTICE_POSTAL, "you are getting this because you replied FOLLOW."),
       ].join(NL);
 
-      const withThread = active.find((s) => s.messageId);
+      // Answer in the thread where this filing or building was followed, so
+      // "Is it fixed?" about a building never lands under an employer's
+      // subject line. Failing that, any thread — except a question, which
+      // starts its own with its own subject.
+      const subjects = new Set(rows.map((r) => r.subjectKey));
+      const withThread = active.find((s) => s.messageId && subjects.has(s.subjectKey)) ?? (onlyAsks ? undefined : active.find((s) => s.messageId));
       if (withThread?.messageId) {
         await ctx.scheduler.runAfter(0, internal.mail.reply, {
           agentInboxId: inbox,
@@ -128,7 +176,7 @@ export const flush = internalMutation({
         await ctx.scheduler.runAfter(0, internal.mail.send, {
           agentInboxId: inbox,
           to: email,
-          subject: rows.length === 1 ? "A filing you follow changed" : "Filings you follow changed",
+          subject: onlyAsks ? "Is it fixed?" : rows.length === 1 ? "A filing you follow changed" : "Filings you follow changed",
           text,
           onFailure: { alertIds: claimed, email },
         });

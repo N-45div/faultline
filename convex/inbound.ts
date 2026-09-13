@@ -7,7 +7,8 @@ import { skipReason } from "../engine/hygiene";
 import { looksLikeAddress } from "../engine/match";
 import { classifyInbound, emailAddressOf, stripHtml } from "../engine/intent";
 import { complianceLines, noMatchReceipt, receiptHtml, receiptText, type Receipt } from "../engine/receipt";
-import { buildReceipt, guessCompanyFromText, noticesFor, STATE_FILE } from "./lookup";
+import { buildReceipt, guessCompanyFromText, noticesFor, siteUrl, STATE_FILE } from "./lookup";
+import { HOW_TO_TELL_HPD, HPD_PAGES } from "../engine/hpd";
 import { base64Utf8, layoffCsv } from "../engine/export";
 import { urlSlug } from "../engine/canon";
 
@@ -55,7 +56,12 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   const from = emailAddressOf(String(m.from ?? ""));
   const subject = String(m.subject ?? "");
   const body = String(m.extracted_text ?? m.text ?? (m.html ? stripHtml(String(m.html)) : ""));
-  const intent = classifyInbound(subject, body);
+  let intent = classifyInbound(subject, body);
+  // An answer needs a question. Without one open for this address, the words
+  // are read the ordinary way — "fixed" in a stranger's first email is a
+  // company or a letter, not a reply.
+  const open = intent.kind === "answer" ? await openAsk(ctx, from, intent.violationId) : null;
+  if (intent.kind === "answer" && !open) intent = classifyInbound(subject, body, { answers: false });
   const query = intent.kind === "lookup" ? intent.query : intent.kind;
   const now = Date.now();
   const threadId = String(m.thread_id ?? "");
@@ -193,6 +199,53 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
           footer: [],
         };
       }
+      break;
+    }
+    case "answer": {
+      if (!open) throw new Error("answer without an open ask");
+      const word = intent.answer === "fixed" ? "fixed" : intent.answer === "still_broken" ? "still broken" : "not sure";
+      const today = new Date(now).toISOString().slice(0, 10);
+      const imageAtt = attachments.find(
+        (a) => /^image\//i.test(String(a?.content_type ?? "")) || /\.(jpe?g|png|heic|heif|webp)$/i.test(String(a?.filename ?? "")),
+      );
+      const imageId = String(imageAtt?.attachment_id ?? imageAtt?.id ?? "");
+      await ctx.db.patch(open._id, { answer: intent.answer, saidAt: now, note: intent.note || undefined });
+      if (imageAtt && imageId) {
+        await ctx.scheduler.runAfter(0, internal.attest.storePhoto, {
+          attestationId: open._id,
+          attachment: { agentInboxId: target.agentInboxId, messageId, attachmentId: imageId, filename: String(imageAtt.filename ?? "photo") },
+        });
+      }
+      await ctx.db.patch(inboxId, { matchedSubjectKey: open.subjectKey });
+      const building = await ctx.db
+        .query("subjects")
+        .withIndex("by_kind_key", (q) => q.eq("kind", "building").eq("key", open.subjectKey))
+        .unique();
+      const where = building?.label ?? open.subjectKey;
+      const next =
+        intent.answer === "still_broken"
+          ? [HOW_TO_TELL_HPD, "If the city later stamps this certification FALSE or INVALID, we'll tell you in this thread."]
+          : intent.answer === "fixed"
+            ? ["Noted as fixed. We'll stop asking about this one."]
+            : ["Left open. Reply again when you know."];
+      receipt = {
+        kind: "none",
+        query: "answer",
+        subjectKey: open.subjectKey,
+        headline: `Your word is on the record: ${word}, ${today}.`,
+        blocks: [
+          [
+            `The city's file: #${open.violationId} at ${where}${open.hazardClass ? ` (class ${open.hazardClass})` : ""}${open.description ? ` — "${open.description}"` : ""}: ${open.askedStatus} as of ${open.askedStatusDate}${open.certifiedBy ? `; owner certified by ${open.certifiedBy}` : ""}.`,
+            `Your word: ${word}, ${today}${intent.note ? ` — "${intent.note}"` : ""}${imageAtt && imageId ? ", with your photo" : ""}.`,
+          ],
+          next,
+        ],
+        links: [
+          { label: "This building's record", url: `${siteUrl()}/b/${open.subjectKey}` },
+          { label: "HPD on certifications, in its own words", url: HPD_PAGES.certification },
+        ],
+        footer: [],
+      };
       break;
     }
     case "csv": {
@@ -498,4 +551,22 @@ async function upsertSubscription(ctx: MutationCtx, subjectKey: string, email: s
   }
   // It arrived from this address, so this address asked for it.
   await ctx.db.insert("subscriptions", { subjectKey, email, threadId, messageId, createdAt: now, active: true, confirmed: true });
+}
+
+/**
+ * The question this answer belongs to: the one whose number the person
+ * quoted, else the latest one still waiting for their word, else the latest
+ * one at all — the receipt names which, so a mismatch is visible.
+ */
+async function openAsk(ctx: MutationCtx, email: string, violationId: string | null) {
+  if (violationId) {
+    const rows = await ctx.db
+      .query("attestations")
+      .withIndex("by_email_violation", (q) => q.eq("email", email).eq("violationId", violationId))
+      .order("desc")
+      .take(1);
+    if (rows[0]) return rows[0];
+  }
+  const recent = await ctx.db.query("attestations").withIndex("by_email_asked", (q) => q.eq("email", email)).order("desc").take(20);
+  return recent.find((r) => r.answer === undefined) ?? recent[0] ?? null;
 }

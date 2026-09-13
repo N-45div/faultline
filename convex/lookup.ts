@@ -314,7 +314,7 @@ const PUBLISHER_NAME: Record<string, string> = {
 
 const SLUG_OF: Record<string, string> = Object.fromEntries(Object.entries(LAYOFF_STATES).map(([s, j]) => [j, s]));
 
-function siteUrl(): string {
+export function siteUrl(): string {
   return (process.env.CONVEX_SITE_URL ?? "").replace(/\/$/, "");
 }
 

@@ -4,6 +4,16 @@ import { authTables } from "@convex-dev/auth/server";
 
 const fields = v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()));
 
+/** A fixed claim on a housing violation, as the ask carries it to the digest. */
+const askShape = v.object({
+  violationId: v.string(),
+  status: v.string(),
+  statusDate: v.string(),
+  certifiedBy: v.union(v.string(), v.null()),
+  hazardClass: v.string(),
+  description: v.string(),
+});
+
 export default defineSchema({
   // ---- sign-in (users, sessions, accounts, verification codes) --------------
   ...authTables,
@@ -225,9 +235,41 @@ export default defineSchema({
     status: v.union(v.literal("pending"), v.literal("sent")),
     createdAt: v.number(),
     sentAt: v.optional(v.number()),
+    /** A line that asks a question: the fixed claim it is about, so the reply can be matched to it. */
+    ask: v.optional(askShape),
   })
     .index("by_status_created", ["status", "createdAt"])
     .index("by_email_status", ["email", "status"]),
+
+  /**
+   * The tenant's own word beside the city's. When a followed building's
+   * violation is certified corrected or closed, the follower is asked whether
+   * it is fixed; the answer is kept here, dated, and never merged into the
+   * city's row. Silence is not an answer.
+   */
+  attestations: defineTable({
+    email: v.string(),
+    subjectKey: v.string(),
+    violationId: v.string(),
+    askedAt: v.number(),
+    askedStatus: v.string(),
+    askedStatusDate: v.string(),
+    certifiedBy: v.union(v.string(), v.null()),
+    hazardClass: v.string(),
+    description: v.string(),
+    answer: v.optional(v.union(v.literal("fixed"), v.literal("still_broken"), v.literal("not_sure"))),
+    saidAt: v.optional(v.number()),
+    note: v.optional(v.string()),
+    photoStorageId: v.optional(v.id("_storage")),
+    /** What the city said next about the same violation, once it did. */
+    laterStatus: v.optional(v.string()),
+    laterStatusDate: v.optional(v.string()),
+    laterAt: v.optional(v.number()),
+  })
+    .index("by_email_asked", ["email", "askedAt"])
+    .index("by_email_violation", ["email", "violationId"])
+    .index("by_violation", ["violationId"])
+    .index("by_subject_said", ["subjectKey", "saidAt"]),
 
   // ---- the product ---------------------------------------------------------
   cases: defineTable({

@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { askFrom, askLine, saysFalse } from "../../engine/hpd";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -545,6 +546,11 @@ async function enqueueAlerts(
       .take(MAX_NAME_WATCHES);
     for (const s of watches) if (s.active) nameWatches.push({ query: s.subjectKey.slice(2).replace(/-/g, " "), sub: s });
   }
+  // The city's second word. When HPD stamps a certification false or
+  // invalid on a violation somebody answered about, their answer gets the
+  // city's date beside it, and they hear it — whether or not they still follow.
+  await citySecondWord(ctx, changes, sourceUrl);
+
   if (followers.size === 0 && nameWatches.length === 0) return;
 
   const now = Date.now();
@@ -579,15 +585,57 @@ async function enqueueAlerts(
         console.warn(`[alerts] batch cap ${MAX_ALERTS_PER_BATCH} reached; the rest of this batch is not queued`);
         return;
       }
+      // A fixed claim on a housing violation is not news to relay; it is a
+      // question for the person who lives there. The line carries the claim
+      // so the reply can be matched to it.
+      const ask = c.kind !== "removed" && c.after ? askFrom(c.after) : null;
       await ctx.db.insert("alertQueue", {
         email: w.email,
         subjectKey: c.subjectKey,
-        sentence: c.sentence,
+        sentence: ask ? askLine(ask, String(c.after?.__subjectLabel ?? c.subjectKey)) : c.sentence,
+        sourceUrl,
+        status: "pending",
+        createdAt: now,
+        ...(ask ? { ask } : {}),
+      });
+      queued++;
+    }
+  }
+}
+
+async function citySecondWord(
+  ctx: { db: any },
+  changes: { subjectKey: string; kind: "added" | "changed" | "removed"; after?: Record<string, string | number | boolean | null> }[],
+  sourceUrl: string,
+) {
+  const now = Date.now();
+  for (const c of changes) {
+    if (c.kind === "removed" || !c.after) continue;
+    const status = String(c.after.currentstatus ?? "");
+    if (!saysFalse(status)) continue;
+    const violationId = String(c.after.violationid ?? "");
+    if (!violationId) continue;
+    const rows: Doc<"attestations">[] = await ctx.db
+      .query("attestations")
+      .withIndex("by_violation", (q: any) => q.eq("violationId", violationId))
+      .take(50);
+    const on = String(c.after.currentstatusdate ?? "");
+    const where = String(c.after.__subjectLabel ?? c.subjectKey);
+    for (const r of rows) {
+      if (r.laterStatus === status) continue;
+      await ctx.db.patch(r._id, { laterStatus: status, laterStatusDate: on, laterAt: now });
+      if (!r.answer) continue;
+      const said = r.answer === "still_broken" ? "still broken" : r.answer === "fixed" ? "fixed" : "not sure";
+      const lead = r.answer === "still_broken" ? "The city agrees with you: " : "";
+      const saidOn = new Date(r.saidAt ?? now).toISOString().slice(0, 10);
+      await ctx.db.insert("alertQueue", {
+        email: r.email,
+        subjectKey: r.subjectKey,
+        sentence: `${lead}HPD stamped #${violationId} at ${where} ${status} on ${on}. You said ${said} on ${saidOn}; both dates are on the building's record.`,
         sourceUrl,
         status: "pending",
         createdAt: now,
       });
-      queued++;
     }
   }
 }
