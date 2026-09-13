@@ -58,7 +58,14 @@ export type Transport =
       discover?: { pageUrl: string; find: (html: string) => string | null };
     }
   | { kind: "http_binary"; url: string; decode: "xlsx"; conditional: { etag: true; treat304As: "no_change" } }
-  | { kind: "firecrawl_scrape"; url: string; formats: ("markdown" | "json")[]; creditsPerFetch: number };
+  | {
+      kind: "firecrawl_scrape";
+      url: string;
+      formats: ("markdown" | "json")[];
+      creditsPerFetch: number;
+      /** Milliseconds for the page's own scripts to run before it is captured. */
+      waitForMs?: number;
+    };
 
 export interface SourceAdapter<Raw = Fields> {
   id: string;

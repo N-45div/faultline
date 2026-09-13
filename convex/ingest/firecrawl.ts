@@ -14,9 +14,9 @@ const firecrawl = new FirecrawlClient(components.firecrawl);
 export type Scraped = { status: number; url: string; html: string; markdown: string; credits: number };
 
 /** One page, as HTML and markdown. Throws on a non-2xx from the target. */
-export async function scrapePage(ctx: { runAction: any }, url: string): Promise<Scraped> {
+export async function scrapePage(ctx: { runAction: any }, url: string, opts: { waitForMs?: number } = {}): Promise<Scraped> {
   // The client only needs runAction; the ingest loop passes a narrower ctx.
-  const doc = await firecrawl.scrape(ctx as Parameters<FirecrawlClient["scrape"]>[0], url, { formats: ["html", "markdown"], onlyMainContent: false, timeout: 60_000 });
+  const doc = await firecrawl.scrape(ctx as Parameters<FirecrawlClient["scrape"]>[0], url, { formats: ["html", "markdown"], onlyMainContent: false, timeout: 60_000 + (opts.waitForMs ?? 0), ...(opts.waitForMs ? { waitFor: opts.waitForMs } : {}) });
   const status = Number(doc.metadata?.statusCode ?? 200);
   if (doc.metadata?.error || status >= 400) throw new Error(`Firecrawl: ${doc.metadata?.error ?? `HTTP ${status}`} from ${url}`);
   return {

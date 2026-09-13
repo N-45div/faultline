@@ -347,7 +347,7 @@ async function fetchSource(
     // Fetched by Firecrawl from their side, not ours. The adapter parses the
     // page's HTML exactly as it would a file we fetched directly; the only
     // difference is who did the fetching, and that is recorded in the URL.
-    const page = await scrapePage(ctx, t.url);
+    const page = await scrapePage(ctx, t.url, { waitForMs: t.waitForMs });
     const bytes = new TextEncoder().encode(page.html);
     return {
       kind: "body",
