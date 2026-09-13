@@ -26,6 +26,7 @@
     "src",
     "convex",
     "engine",
-    "scripts"
+    "scripts",
+    "tests"
   ]
 }
