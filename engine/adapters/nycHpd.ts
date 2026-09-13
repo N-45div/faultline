@@ -96,7 +96,7 @@ export const nycHpd: SourceAdapter<Raw> = {
     const cls = after.class ? ` (class ${after.class})` : "";
     if (status === "FALSE CERTIFICATION" || status === "INVALID CERTIFICATION") {
       const certified = after.certifiedbydate
-        ? ` The owner had certified it corrected by ${after.certifiedbydate}.`
+        ? ` The owner had certified it corrected on ${after.certifiedbydate}.`
         : "";
       return `HPD stamped a violation at ${where} ${status} on ${on}${cls}.${certified}`;
     }

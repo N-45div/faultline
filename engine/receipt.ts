@@ -459,7 +459,7 @@ export function buildingReceipt(query: string, subjectKey: string, label: string
     ...stamps.filter((s) => !STAMPED.has(s.status)).sort((a, b) => (CLASS_RANK[a.hazardClass] ?? 3) - (CLASS_RANK[b.hazardClass] ?? 3) || (a.date < b.date ? 1 : -1)),
   ].slice(0, 6);
   const blocks = shown.map((s) => {
-    const head = `${s.status} on ${s.date}${s.hazardClass ? ` (class ${s.hazardClass})` : ""}${s.certifiedBy ? ` — the owner had certified it corrected by ${s.certifiedBy}.` : "."}`;
+    const head = `${s.status} on ${s.date}${s.hazardClass ? ` (class ${s.hazardClass})` : ""}${s.certifiedBy ? ` — the owner certified it corrected on ${s.certifiedBy}.` : "."}`;
     return s.description ? [head, s.description.length > 220 ? `${s.description.slice(0, 217).trimEnd()}…` : s.description] : [head];
   });
   if (n > shown.length) blocks.push([`…and ${n - shown.length} more on the building's page.`]);

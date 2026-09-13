@@ -349,7 +349,7 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
         headline: `Kept, dated: you said ${word} on ${today}.`,
         blocks: [
           [
-            `The city's file: #${open.violationId} at ${where}${open.hazardClass ? ` (class ${open.hazardClass})` : ""}${open.description ? ` — "${open.description}"` : ""}: ${open.askedStatus} as of ${open.askedStatusDate}${open.certifiedBy ? `; owner certified by ${open.certifiedBy}` : ""}.`,
+            `The city's file: #${open.violationId} at ${where}${open.hazardClass ? ` (class ${open.hazardClass})` : ""}${open.description ? ` — "${open.description}"` : ""}: ${open.askedStatus} as of ${open.askedStatusDate}${open.certifiedBy ? `; the owner certified it on ${open.certifiedBy}` : ""}.`,
             `Your word: ${word}, ${today}${intent.note ? ` — "${intent.note}"` : ""}${imageAtt && imageId ? ", with your photo" : ""}.`,
           ],
           next,

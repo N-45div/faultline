@@ -60,7 +60,7 @@ export function askLine(a: Ask, where: string): string {
   const who = fixedClaim(a.status) === "owner" ? "The owner certified this corrected" : "The city closed this";
   const cls = a.hazardClass ? ` (class ${a.hazardClass})` : "";
   const what = a.description ? ` — "${shorten(a.description, 120)}"` : "";
-  const by = a.certifiedBy && fixedClaim(a.status) === "city" ? `; the owner had certified it corrected by ${a.certifiedBy}` : "";
+  const by = a.certifiedBy && fixedClaim(a.status) === "city" ? `; the owner had certified it corrected on ${a.certifiedBy}` : "";
   const clock = challengeDeadline(a);
   const until = clock ? ` HPD's 70 days run to ${clock}.` : "";
   return `#${a.violationId} at ${where}${cls}${what}. ${who}: ${a.status} as of ${a.statusDate}${by}.${until}`;
