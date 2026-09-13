@@ -11,7 +11,7 @@ import { adapters } from "../engine/adapters/index";
 import { hashFields } from "../engine/canon";
 import { diffRows } from "../engine/diff";
 import { warnNoticeGap } from "../engine/rules";
-import { askFrom, challengeDeadline, fixedClaim, parseAnswer } from "../engine/hpd";
+import { askFrom, challengeDeadline, fixedClaim, nextStepFor, parseAnswer, pickAsks, secondWordLine } from "../engine/hpd";
 import { classifyInbound } from "../engine/intent";
 import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../engine/types";
 
@@ -150,6 +150,25 @@ console.log("\n== tenant loop");
   check(ctl?.description === "AT THE BUILDING'S ENTRANCE", "a control byte in the city's text reads as the apostrophe it was");
   check(classifyInbound("Re: Is it fixed?", quoted).kind === "answer", "classifyInbound routes the reply before the letter test");
   check(classifyInbound("Re: Is it fixed?", quoted, { answers: false }).kind !== "answer", "…and not when nobody asked");
+
+  // ASK: on request, only the owner's certifications still inside HPD's 70 days.
+  const rowsHeld = [
+    { violationid: "1", currentstatus: "NOV CERTIFIED ON TIME", currentstatusdate: "2026-09-10", certifiedbydate: "2026-09-10", class: "C", novdescription: "leak" },
+    { violationid: "2", currentstatus: "NOV CERTIFIED LATE", currentstatusdate: "2026-05-01", certifiedbydate: "2026-05-01", class: "B", novdescription: "old" },
+    { violationid: "3", currentstatus: "VIOLATION CLOSED", currentstatusdate: "2026-09-12", certifiedbydate: null, class: "A", novdescription: "closed" },
+    { violationid: "4", currentstatus: "NOV SENT OUT", currentstatusdate: "2026-09-12", certifiedbydate: null, class: "A", novdescription: "open" },
+  ];
+  const picked = pickAsks(rowsHeld, "2026-09-14");
+  check(picked.length === 1 && picked[0].violationId === "1", `ASK picks only open owner certifications (got ${picked.map((p) => p.violationId).join(",")})`);
+  check(classifyInbound("ASK 155 Linden Boulevard, Brooklyn", "").kind === "ask", "ASK <address> in the subject is an ask");
+  const bare = classifyInbound("Re: 155 LINDEN BOULEVARD", "ask\n\nOn Mon, Sep 14, 2026 Faultline wrote:\n> …");
+  check(bare.kind === "ask" && bare.query === "", "a bare ASK in a thread asks about that thread's building");
+  check(classifyInbound("Re: ASK 155 Linden", "#17321000 still broken").kind === "answer", "our ASK subject coming back on a reply does not ask again");
+  check(
+    secondWordLine({ answer: "still_broken", saidOn: "2026-09-13", violationId: "1", where: "155 LINDEN BOULEVARD, Brooklyn", status: "FALSE CERTIFICATION", on: "2026-09-20" }).startsWith("The city agrees with you: HPD stamped #1 at"),
+    "the city's second word leads with agreement when the person said still broken",
+  );
+  check(nextStepFor("VIOLATION CLOSED") !== nextStepFor("NOV CERTIFIED ON TIME"), "a closed violation gets a different next step from a certification");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

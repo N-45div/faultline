@@ -13,6 +13,7 @@ export type Intent =
   | { kind: "monitor" }
   | { kind: "letter"; text: string }
   | { kind: "answer"; answer: Answer; violationId: string | null; note: string }
+  | { kind: "ask"; query: string }
   | { kind: "empty" };
 
 const LETTER_WORDS = /\b(position|eliminat|terminat|severance|layoff|laid off|release|separation|last day|WARN|notice period|landlord|repair|violation|inspection)\b/i;
@@ -27,6 +28,15 @@ export function classifyInbound(subjectRaw: string, bodyRaw: string, opts: { ans
   const commands = [firstLine, subject].map((s) => s.toLowerCase().replace(/[^a-z]+$/, ""));
   if (commands.some((c) => /^(follow|watch|subscribe|yes)$/.test(c))) return { kind: "follow" };
   if (commands.some((c) => /^(stop|unsubscribe|unfollow)$/.test(c))) return { kind: "stop" };
+
+  // "ASK <address>", or a bare ASK in a building's thread: the repairs an
+  // owner has certified there, asked about now rather than when the next one
+  // is certified. Before the answer test, because "ask … is it fixed" holds an
+  // answer word. Our own subject comes back on replies, so inside a reply only
+  // the body may ask.
+  const replying = /^\s*(re|fwd|fw)\s*:/i.test(subjectRaw ?? "");
+  const askMatch = (replying ? null : /^ask\b[:\s-]*(.*)$/i.exec(subject)) ?? /^ask\b[:\s-]*(.*)$/i.exec(firstLine);
+  if (askMatch) return { kind: "ask", query: askMatch[1].trim().slice(0, 120) };
 
   // "Is it fixed?" answered: FIXED, STILL BROKEN or NOT SURE in the person's
   // own lines. Read before the letter test, because the quoted question below

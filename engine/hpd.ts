@@ -83,6 +83,14 @@ export const HPD_PAGES = {
   penalties: "https://www.nyc.gov/site/hpd/services-and-information/penalties-and-fees.page",
 };
 
+/**
+ * A closed violation is the city's word, not the owner's: there is no
+ * certification to challenge. HPD says complaints are made through 311, so a
+ * condition that is still there after a closure goes back that way.
+ */
+export const HOW_TO_REPORT_AGAIN =
+  "The city closed this violation, so there is no certification to challenge. If the condition is still there, report it again the way HPD takes complaints: call 311 or use nyc.gov/311, and describe it.";
+
 /** HPD's 70 days from the certification, after which an unreinspected violation is deemed complied. */
 export function challengeDeadline(a: Ask): string | null {
   if (fixedClaim(a.status) !== "owner") return null;
@@ -161,4 +169,35 @@ function cleanAnswerSubject(s: string): string {
 
 function shorten(s: string, n: number) {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+}
+
+/** The next step for a person who says a fixed claim is not true, by whose claim it was. */
+export function nextStepFor(status: string): string {
+  return fixedClaim(status) === "city" ? HOW_TO_REPORT_AGAIN : HOW_TO_TELL_HPD;
+}
+
+/**
+ * What to ask about on request: the owner's certifications whose 70 days have
+ * not run out, newest first — the ones HPD has not yet closed. A violation the
+ * city already closed is not asked about on request.
+ */
+export function pickAsks(rows: Fields[], today: string, max = 3): Ask[] {
+  const asks: Ask[] = [];
+  for (const f of rows) {
+    const a = askFrom(f);
+    if (!a || fixedClaim(a.status) !== "owner") continue;
+    const until = challengeDeadline(a);
+    if (!until || until < today) continue;
+    asks.push(a);
+  }
+  return asks
+    .sort((x, y) => (x.statusDate < y.statusDate ? 1 : x.statusDate > y.statusDate ? -1 : x.violationId.localeCompare(y.violationId)))
+    .slice(0, max);
+}
+
+/** The city's second word, told to the person who answered first. */
+export function secondWordLine(p: { answer: Answer; saidOn: string; violationId: string; where: string; status: string; on: string }): string {
+  const said = p.answer === "still_broken" ? "still broken" : p.answer === "fixed" ? "fixed" : "not sure";
+  const lead = p.answer === "still_broken" ? "The city agrees with you: " : "";
+  return `${lead}HPD stamped #${p.violationId} at ${p.where} ${p.status} on ${p.on}. You said ${said} on ${p.saidOn}; both dates are on your record.`;
 }
