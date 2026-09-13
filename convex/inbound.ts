@@ -110,18 +110,23 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
     return { intent: intent.kind, query, kind: "none", text: "", sent: false };
   }
 
-  // A PDF attachment is a letter, whatever the body says — "see attached" is
-  // how real people send these. The model reads the file directly.
+  // A PDF or a photograph is a document, whatever the body says — "see
+  // attached" is how real people send these, and a phone camera is how a
+  // paper notice on a door becomes an email. The model reads the file itself.
   const attachments: any[] = Array.isArray(m.attachments) ? m.attachments : [];
-  const pdfAtt = attachments.find(
-    (a) => /pdf/i.test(String(a?.content_type ?? "")) || /\.pdf$/i.test(String(a?.filename ?? "")),
+  const ctOf = (a: any) => String(a?.content_type ?? "").toLowerCase();
+  const fnOf = (a: any) => String(a?.filename ?? "").toLowerCase();
+  const docAtt = attachments.find(
+    (a) => /pdf/.test(ctOf(a)) || /\.pdf$/.test(fnOf(a)) || /^image\/(jpeg|png|webp|gif)/.test(ctOf(a)) || /\.(jpe?g|png|webp|gif)$/.test(fnOf(a)),
   );
-  const pdfAttachmentId = String(pdfAtt?.attachment_id ?? pdfAtt?.id ?? "");
-  if (pdfAtt && pdfAttachmentId && process.env.OPENAI_API_KEY && ["lookup", "letter", "empty"].includes(intent.kind)) {
+  const docAttachmentId = String(docAtt?.attachment_id ?? docAtt?.id ?? "");
+  if (docAtt && docAttachmentId && process.env.OPENAI_API_KEY && ["lookup", "letter", "empty"].includes(intent.kind)) {
+    const isImage = /^image\//.test(ctOf(docAtt)) || /\.(jpe?g|png|webp|gif)$/.test(fnOf(docAtt));
+    const mime = isImage ? (ctOf(docAtt).startsWith("image/") ? ctOf(docAtt) : `image/${/\.png$/.test(fnOf(docAtt)) ? "png" : /\.webp$/.test(fnOf(docAtt)) ? "webp" : /\.gif$/.test(fnOf(docAtt)) ? "gif" : "jpeg"}`) : "application/pdf";
     // "see attached" bodies say nothing; the subject is often the only place
-    // the employer is named, so it travels with the letter.
+    // the employer or the address is named, so it travels with the document.
     const withSubject = [subject, body].filter(Boolean).join(String.fromCharCode(10));
-    const h = fnv1a64(`${withSubject}|${pdfAttachmentId}`);
+    const h = fnv1a64(`${withSubject}|${docAttachmentId}`);
     await ctx.db.patch(inboxId, { intent: "letter", bodyHash: h });
     await ctx.scheduler.runAfter(0, internal.llmActions.extractLetter, {
       inboxId,
@@ -130,8 +135,9 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       attachment: {
         agentInboxId: target.agentInboxId,
         messageId,
-        attachmentId: pdfAttachmentId,
-        filename: String(pdfAtt.filename ?? "letter.pdf"),
+        attachmentId: docAttachmentId,
+        filename: String(docAtt.filename ?? (isImage ? "notice.jpg" : "letter.pdf")),
+        mime,
       },
     });
     return { intent: "letter", query: "letter", kind: "none", text: "", sent: false, pending: true };
@@ -403,6 +409,12 @@ export const finishLetter = internalMutation({
     if (!row || row.replied) return null;
     const x = extraction && typeof extraction === "object" ? (extraction as Record<string, any>) : null;
 
+    // A housing notice is not a letter about a company; it is about a building.
+    if (x?.documentKind === "hpd_notice") {
+      await finishNotice(ctx, { inboxId, messageId: row.messageId, agentInboxId: row.inboxId, threadId: row.threadId }, x);
+      return null;
+    }
+
     const company: string | null = (x?.employer && String(x.employer)) || (await guessCompanyFromText(ctx.db, text));
     const receipt = company ? (await buildReceipt(ctx.db, company)).receipt : couldNotTell();
 
@@ -569,4 +581,66 @@ async function openAsk(ctx: MutationCtx, email: string, violationId: string | nu
   }
   const recent = await ctx.db.query("attestations").withIndex("by_email_asked", (q) => q.eq("email", email)).order("desc").take(20);
   return recent.find((r) => r.answer === undefined) ?? recent[0] ?? null;
+}
+
+/**
+ * An HPD notice, read by the model: the violation numbers and the address
+ * printed on it. The reply is the building's own record, with the numbers
+ * named, and the offer that matters — FOLLOW, and be asked when the owner
+ * certifies a repair whether it is fixed.
+ */
+async function finishNotice(ctx: MutationCtx, t: Target, x: Record<string, any>) {
+  const ids: string[] = (Array.isArray(x.hpdViolationIds) ? x.hpdViolationIds : [])
+    .map((v: unknown) => String(v).replace(/\D/g, ""))
+    .filter((v: string) => v.length >= 5 && v.length <= 10);
+  const address = x.hpdAddress ? String(x.hpdAddress).replace(/\s+/g, " ").trim() : "";
+  const named = ids.length ? `${ids.length === 1 ? "violation" : "violations"} ${ids.map((i) => `#${i}`).join(", ")}` : "";
+  const read =
+    named && address
+      ? `We read your notice: ${named} at ${address}.`
+      : named
+        ? `We read your notice: ${named}, but no address we could match.`
+        : address
+          ? `We read your notice as being about ${address}.`
+          : "We read your notice, but could not find a violation number or an address on it.";
+  const offer = "Reply FOLLOW and we'll ask you, when the owner certifies a repair on this building, whether it is fixed — and keep your answer beside the city's record, dated.";
+
+  if (address) {
+    const built = await buildReceipt(ctx.db, address);
+    if (built.receipt.kind === "building" && built.receipt.subjectKey) {
+      await ctx.db.patch(t.inboxId, { matchedSubjectKey: built.receipt.subjectKey });
+      await deliver(ctx, t, built.receipt, [read, offer]);
+      return;
+    }
+    if (looksLikeAddress(address)) {
+      await ctx.scheduler.runAfter(0, internal.ingest.seed.resolveAddress, { q: address, inboxId: t.inboxId });
+      await deliver(
+        ctx,
+        t,
+        {
+          kind: "none",
+          query: address,
+          headline: `${read} We don't hold that building yet — we're pulling its records from the city now.`,
+          blocks: [["We'll send the receipt to this thread as soon as the city answers, usually within a few minutes.", offer]],
+          links: [],
+          footer: [],
+        },
+        [],
+      );
+      return;
+    }
+  }
+  await deliver(
+    ctx,
+    t,
+    {
+      kind: "none",
+      query: "notice",
+      headline: read,
+      blocks: [["Send the building's address — house number, street, borough — and we'll send back its record.", offer]],
+      links: [],
+      footer: [],
+    },
+    [],
+  );
 }

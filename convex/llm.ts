@@ -7,7 +7,7 @@ import { internalMutation, internalQuery } from "./_generated/server";
 // nothing, and every call priced in cents at the moment it was made.
 
 export const MODEL = process.env.OPENAI_MODEL ?? "gpt-5.6-luna";
-export const PROMPT_VERSION = "letter-v2";
+export const PROMPT_VERSION = "letter-v3";
 export const DAILY_CALL_CAP = 60;
 
 /** USD per 1M tokens. Configured, not fetched — correct here if the dashboard disagrees. */

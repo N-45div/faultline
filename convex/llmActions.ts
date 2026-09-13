@@ -9,9 +9,10 @@ import { z } from "zod";
 import { MODEL, PROMPT_VERSION, DAILY_CALL_CAP, costCents, type Usage } from "./llm";
 import { paused, providerFault } from "./guard";
 
-// The only file that talks to OpenAI. One job: read a termination letter —
-// pasted text or an attached PDF — and pull out what it states, so it can sit
-// beside the filing. The instructions below are deliberately long and byte-
+// The only file that talks to OpenAI. One job: read a document a person sent
+// — a termination letter or a New York City housing notice, as pasted text,
+// an attached PDF, or a photograph — and pull out what it states, so it can
+// sit beside the filing. The instructions below are deliberately long and byte-
 // stable: past 1,024 tokens the API caches the prefix, so every letter after
 // the first pays the cached input rate. Change them only with PROMPT_VERSION.
 
@@ -34,6 +35,11 @@ const Letter = z.object({
   owbpaDisclosureAttached: z.enum(["yes", "no", "unclear"]).describe("Whether the OWBPA list of job titles and ages is said to be attached"),
   mentionsAgeOver40: z.boolean().describe("True if the letter mentions age 40, ADEA, or OWBPA anywhere"),
   confidence: z.number().describe("0 to 1: how sure you are the extraction is faithful"),
+  documentKind: z
+    .enum(["termination_letter", "hpd_notice", "other"])
+    .describe("What the document is: a termination/layoff/separation letter; a New York City HPD housing notice (Notice of Violation, notice of certification, reinspection notice, or similar); or something else"),
+  hpdViolationIds: z.array(z.string()).describe("For an HPD notice: every violation ID or violation number printed on it, digits only; empty otherwise"),
+  hpdAddress: z.string().nullable().describe("For an HPD notice: the building's street address as printed — house number, street, borough; null otherwise"),
 });
 export type LetterExtraction = z.infer<typeof Letter>;
 
@@ -74,10 +80,15 @@ const INSTRUCTIONS = [
   "- mentionsAgeOver40 is true if the letter anywhere mentions age 40, the ADEA, the Age Discrimination in Employment Act, or the OWBPA, whether or not a disclosure is attached.",
   "- '45 days to consider' in a letter is a strong sign of a group termination; '21 days' of an individual one. Record the number in signDeadlineDays either way.",
   "",
+  "HPD notices (New York City Department of Housing Preservation and Development), for documentKind, hpdViolationIds and hpdAddress:",
+  "- A Notice of Violation, a notice of certification of correction, a reinspection notice, or any HPD letter about a housing maintenance code violation is documentKind 'hpd_notice'. Its violation IDs are printed as 'Violation ID', 'Viol ID', 'VIOLATION #', 'NOV ID' or in a table column; copy every one as digits only. Its address is the building the notice is about, exactly as printed, with the borough if printed.",
+  "- For an hpd_notice, every letter field (employer, dates, severance, OWBPA) is null or false; never force a housing notice into the letter fields. confidence still applies: a clear scan with legible numbers is high, a blurred photograph is low.",
+  "- A document that is neither a termination letter nor an HPD notice is documentKind 'other', with every nullable field null, booleans false, owbpaDisclosureAttached 'unclear', hpdViolationIds empty, and confidence 0.",
+  "",
   "Input handling:",
-  "- The letter may arrive as pasted plain text, as forwarded email including headers and reply chains, or as an attached PDF. Ignore email boilerplate, signatures, confidentiality footers, and everything that is not the letter itself.",
+  "- The document may arrive as pasted plain text, as forwarded email including headers and reply chains, as an attached PDF, or as a photograph or scan. Ignore email boilerplate, signatures, confidentiality footers, and everything that is not the document itself. Read a photograph as carefully as a PDF; if a number is not legible, leave it out rather than guess.",
   "- If the input contains more than one letter, extract the most recent termination letter and ignore the rest.",
-  "- If the input is not a termination, layoff, furlough, or separation letter at all, return null for every nullable field, false for booleans, 'unclear' for owbpaDisclosureAttached, and confidence 0.",
+  "- If the input is not a termination, layoff, furlough, or separation letter and not an HPD notice, return null for every nullable field, false for booleans, 'unclear' for owbpaDisclosureAttached, documentKind 'other', and confidence 0.",
 ].join("\n");
 
 /** Moderation stops only what should never enter the pipeline. It is free. */
@@ -131,6 +142,8 @@ export const extractLetter = internalAction({
         messageId: v.string(),
         attachmentId: v.string(),
         filename: v.string(),
+        /** application/pdf, or an image type the model can look at. */
+        mime: v.optional(v.string()),
       }),
     ),
   },
@@ -170,13 +183,17 @@ export const extractLetter = internalAction({
       }
 
       const content: Array<
-        { type: "input_text"; text: string } | { type: "input_file"; filename: string; file_data: string }
+        | { type: "input_text"; text: string }
+        | { type: "input_file"; filename: string; file_data: string }
+        | { type: "input_image"; image_url: string; detail: "auto" }
       > = [];
       if (text.trim()) content.push({ type: "input_text", text: text.slice(0, 12_000) });
       if (attachment) {
         const file = await downloadAttachment(attachment);
         if (file) {
-          content.push({ type: "input_file", filename: attachment.filename || "letter.pdf", file_data: `data:application/pdf;base64,${file.base64}` });
+          const mime = attachment.mime ?? "application/pdf";
+          if (/^image\//i.test(mime)) content.push({ type: "input_image", image_url: `data:${mime};base64,${file.base64}`, detail: "auto" });
+          else content.push({ type: "input_file", filename: attachment.filename || "letter.pdf", file_data: `data:application/pdf;base64,${file.base64}` });
         }
       }
       if (content.length === 0) throw new Error("nothing to read: empty body and no readable attachment");
