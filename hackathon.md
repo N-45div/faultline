@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-13T05:13:00Z
+- **Last updated:** 2026-09-13T10:08:00Z
 
 ## Log
 
@@ -755,6 +755,59 @@ can show is that a row was in the file served on one date and not in the
 file served on the next; why is the state's to say. And the scorecard's
 median, computed from the notice date to the day the state posted, is now
 labelled notice-to-posting rather than "days late".
+
+### 2026-09-13 - d5809b4
+The words for the tenant loop, before the loop. HPD's file has a status
+vocabulary of twenty-three stamps; three of them make a claim that a repair
+was done — NOV CERTIFIED ON TIME and NOV CERTIFIED LATE are the owner's
+word, VIOLATION CLOSED is the city's — and two say the owner's word was
+false: FALSE CERTIFICATION and INVALID CERTIFICATION. Since 29 August the
+city has stamped 513 certifications false or invalid; 14,218 in the last
+year. HPD's own pages say a tenant "may challenge the certification,
+triggering an audit inspection", and that a certified violation it does not
+reinspect "will be closed after 70 days". That clock is now a function.
+
+A reply to "Is it fixed?" is read from the lines the person typed, never
+from the quoted question below them, except for the violation number, which
+usually lives only in the quote. FIXED, STILL BROKEN, NOT SURE; "yes" on
+its own stays a FOLLOW; "fixed-term" is not an answer; a letter is not an
+answer however often it says fixed; a mail signature is not part of the
+note. Twelve checks in the engine test say so.
+
+### 2026-09-13 - b0ff91b
+They marked it fixed. Is it? When a building somebody follows has a
+violation certified corrected or closed, the digest asks them, in the
+city's words, with the number and the 70-day date: "The owner certified
+this corrected: NOV CERTIFIED ON TIME as of 2026-09-10. HPD's 70 days run to
+2026-11-19." Their answer is kept in its own table, dated from the moment
+they said it, beside the city's row and never merged into it. Silence is not
+an answer. STILL BROKEN gets HPD's own next step back — challenge it, 311,
+the violation number — and a promise: when the city later stamps that
+certification FALSE or INVALID, the person who said so first hears it, with
+both dates. A photo attached to the answer is kept with it.
+
+Verified live on production today, from the operator's own test inbox, on
+155 Linden Boulevard in Brooklyn, where the owner certified two repairs on
+10 September: the ask went out through the digest, "#19114271 STILL BROKEN"
+came back through the AgentMail webhook, was matched to the violation, kept,
+and answered in eleven seconds. The test's follow and its answer were then
+removed, because nobody lives at that address on our account.
+
+### 2026-09-13 - c74ae47
+The city's column is `certifieddate`. The adapter had read `certifiedbydate`
+for two weeks and found nothing, so no receipt ever said when the owner
+certified. Fixed — and taken out of the row signature, so the correction
+re-stores rows silently rather than announcing nine thousand edits the city
+never made. The status moving to NOV CERTIFIED is the signal; the date rides
+with it.
+
+### 2026-09-13 - 11ae5d8
+Two operator tools. A deeper read of a sliced source limited to named
+buildings — twenty days of forty-three buildings at once ran past the
+ten-minute action limit and died clean, committing nothing; one building for
+twenty days is a small read. And a scoped cleanup for the address a live
+test was run from. Five buildings whose owners certify repairs weekly were
+added to the watch, so the question gets asked of real followers this week.
 
 ## About
 
