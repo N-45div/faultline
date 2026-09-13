@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-13T20:21:00Z
+- **Last updated:** 2026-09-13T20:42:00Z
 
 ## Log
 
@@ -890,6 +890,36 @@ with its note. The test's answers, follow and link were then removed.
 Now that the adapter reads the owner's real certification date, "certified
 by" read like HPD's certify-by deadline, which is a different column. Every
 sentence now says certified on.
+
+### 2026-09-14 - 2a97497
+Wisconsin changed its page on 13 September: the notice tables are now built by
+the page's own script after it loads. Captured at once, the page was a
+heading, a legend and a list of years, and the parser found zero rows. The
+ingest loop treats an HTTP 200 that parses to nothing as a failure rather than
+as fifty notices withdrawn, so Wisconsin's counters still read 0 deleted and
+nothing false reached the changelog or anyone's inbox. Firecrawl now waits
+eight seconds before capturing; the page then holds fourteen tables, and the
+unchanged parser reads all fifty notices from it. The next read, at 20:31 UTC,
+came back with all fifty.
+
+### 2026-09-14 - e506b66
+A correction to the entry of 12 September. We read the `?version=` on
+Wisconsin's PDF links as the state's own revision count, and the receipt
+quoted it: "version 8 — revised 7 times by the state's own count". On 13
+September Wisconsin republished the page, and the two captures we hold are
+identical except for those numbers: 42 of the fifty changed, 26 of them
+downward — eight to one, seven to one — and not a worker count, a date or an
+update code moved with them. A revision count does not go down. It is a
+parameter on a link, not a record of anything, and we should not have called
+it one.
+
+What changed: the number is kept as served but dropped from every hash, so it
+can never again register as an edit. The receipt quotes Wisconsin's notice
+number and its update table, which is the state's actual record of revisions,
+in its own codes. The 42 "Wisconsin revised this notice" edits the number
+produced, and their 42 lines on the public wall, are withdrawn; the captures
+stay, because they are what the state served. The README and the tour said
+Wisconsin "numbers its own revisions"; they now say what the page does.
 
 ## About
 
