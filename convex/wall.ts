@@ -1,5 +1,7 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, query, internalAction } from "./_generated/server";
+import { paused } from "./guard";
+import { internal } from "./_generated/api";
 import { noticeSentence, statuteName, warnNoticeGap } from "../engine/rules";
 import { startDateIsCertain } from "../engine/receipt";
 import { LAYOFF_STATES } from "./lookup";
@@ -318,3 +320,71 @@ async function countBuildings(ctx: { db: any }): Promise<{ buildings: number; re
     since: first ? new Date(first.capturedAt).toISOString().slice(0, 10) : "",
   };
 }
+
+const housingPulseShape = v.union(
+  v.null(),
+  v.object({
+    asOf: v.number(),
+    since: v.string(),
+    onTime: v.number(),
+    late: v.number(),
+    falseCert: v.number(),
+    invalidCert: v.number(),
+    url: v.string(),
+  }),
+);
+
+/**
+ * The city's own count of fixed claims and false ones, citywide, over the
+ * last thirty days: one grouped query to its file once a day, stored with the
+ * link to that exact query, so anyone can check the number against the city.
+ */
+export const housingPulse = query({
+  args: {},
+  returns: housingPulseShape,
+  handler: async (ctx) => {
+    const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "housingPulse")).unique();
+    return row ? (row.value as typeof housingPulseShape.type) : null;
+  },
+});
+
+export const refreshHousingPulse = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    if (paused("ingest")) return null;
+    const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    const where = `currentstatusdate>='${since}' AND currentstatus in('NOV CERTIFIED ON TIME','NOV CERTIFIED LATE','FALSE CERTIFICATION','INVALID CERTIFICATION')`;
+    const url =
+      "https://data.cityofnewyork.us/resource/wvxf-dwi5.json" +
+      `?$select=${encodeURIComponent("currentstatus,count(1)")}&$where=${encodeURIComponent(where)}&$group=currentstatus`;
+    const res = await fetch(url, { headers: { "User-Agent": "Faultline/0.1", Accept: "application/json" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status} from the city's file`);
+    const rows = (await res.json()) as { currentstatus?: string; count_1?: string }[];
+    const n = (s: string) => Number(rows.find((r) => r.currentstatus === s)?.count_1 ?? 0);
+    await ctx.runMutation(internal.wall.saveStat, {
+      key: "housingPulse",
+      value: {
+        asOf: Date.now(),
+        since,
+        onTime: n("NOV CERTIFIED ON TIME"),
+        late: n("NOV CERTIFIED LATE"),
+        falseCert: n("FALSE CERTIFICATION"),
+        invalidCert: n("INVALID CERTIFICATION"),
+        url,
+      },
+    });
+    return null;
+  },
+});
+
+export const saveStat = internalMutation({
+  args: { key: v.string(), value: v.any() },
+  returns: v.null(),
+  handler: async (ctx, { key, value }) => {
+    const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", key)).unique();
+    if (row) await ctx.db.patch(row._id, { value, updatedAt: Date.now() });
+    else await ctx.db.insert("stats", { key, value, updatedAt: Date.now() });
+    return null;
+  },
+});

@@ -23,6 +23,9 @@ crons.daily("refresh scorecard", { hourUTC: 5, minuteUTC: 10 }, internal.wall.re
 // The landing page's numbers, counted once an hour rather than once a view.
 crons.hourly("refresh stats", { minuteUTC: 7 }, internal.wall.refreshStats, {});
 
+// The city's own thirty-day count of certifications and false ones, once a day.
+crons.daily("refresh housing pulse", { hourUTC: 6, minuteUTC: 15 }, internal.wall.refreshHousingPulse, {});
+
 // Sent alerts older than a week.
 crons.daily("gc sent alerts", { hourUTC: 4, minuteUTC: 40 }, internal.digest.gc, {});
 
