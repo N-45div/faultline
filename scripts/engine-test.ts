@@ -11,6 +11,8 @@ import { adapters } from "../engine/adapters/index";
 import { hashFields } from "../engine/canon";
 import { diffRows } from "../engine/diff";
 import { warnNoticeGap } from "../engine/rules";
+import { askFrom, challengeDeadline, fixedClaim, parseAnswer } from "../engine/hpd";
+import { classifyInbound } from "../engine/intent";
 import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../engine/types";
 
 const snapDir = join("data", "snapshots");
@@ -123,6 +125,31 @@ for (const [id, jur, state] of [["ny-warn", "US-NY", "NY"], ["ca-warn", "US-CA",
   const late = results.filter((r) => r.postedAfterEffective).length;
   const zero = results.filter((r) => r.actualDays <= 0).length;
   console.log(`  ${state}: ${gaps}/${results.length} under the ${results[0].statutoryDays}-day statute · ${zero} with zero or negative days · ${late} posted after the layoff started`);
+}
+
+// 6. The tenant loop: the city's fixed claims, and a person's answer to "Is it fixed?".
+console.log("\n== tenant loop");
+{
+  check(fixedClaim("NOV CERTIFIED ON TIME") === "owner" && fixedClaim("VIOLATION CLOSED") === "city" && fixedClaim("VIOLATION DISMISSED") === null, "fixed claims: owner, city, none");
+  const ask = askFrom({ violationid: "17321000", currentstatus: "NOV CERTIFIED LATE", currentstatusdate: "2026-09-10", certifiedbydate: "2026-09-08", class: "C", novdescription: "repair the broken or defective plastered surfaces" });
+  check(!!ask && ask.violationId === "17321000" && ask.certifiedBy === "2026-09-08", "askFrom reads the row");
+  check(!!ask && challengeDeadline(ask) === "2026-11-17", `HPD's 70 days from 2026-09-08 run to 2026-11-17 (got ${ask && challengeDeadline(ask)})`);
+  const quoted = "STILL BROKEN\n\nOn Mon, Sep 14, 2026 at 9:02 AM Faultline <getnotice@agentmail.to> wrote:\n> They say it's fixed. Is it?\n> - #17321000 at 249 East 37 Street, Brooklyn (class C)";
+  const a1 = parseAnswer("Re: Is it fixed?", quoted);
+  check(a1?.answer === "still_broken" && a1.violationId === "17321000", "STILL BROKEN over a quoted number → still_broken #17321000");
+  const a2 = parseAnswer("Re: Is it fixed?", "#17321000 fixed, thanks\n> …");
+  check(a2?.answer === "fixed" && a2.violationId === "17321000" && a2.note === "thanks", `'#… fixed, thanks' → fixed, note "thanks" (got ${JSON.stringify(a2)})`);
+  const a3 = parseAnswer("Re: Is it fixed?", "not sure, the super came but I haven't checked the ceiling");
+  check(a3?.answer === "not_sure" && a3.note.length > 0, "not sure, with a note");
+  check(parseAnswer("Re: Is it fixed?", "yes") === null, "'yes' alone is a FOLLOW, not an answer");
+  check(parseAnswer("about my job", "my fixed-term contract ended on Friday") === null, "'fixed-term' is not an answer");
+  check(parseAnswer("my layoff letter", "I got a letter saying my position is being eliminated and the leak was fixed ".repeat(8)) === null, "a long letter with 'fixed' in it is not an answer");
+  const signed = parseAnswer("Re: Is it fixed?", "#17321000 STILL BROKEN - the leak is still there\n\n--\nSent via AgentMail\n\nOn Mon, Sep 14, 2026 Faultline wrote:\n> …");
+  check(signed?.answer === "still_broken" && signed.note === "the leak is still there", `a mail signature is not part of the note (got ${JSON.stringify(signed?.note)})`);
+  const ctl = askFrom({ violationid: "1", currentstatus: "VIOLATION CLOSED", currentstatusdate: "2026-09-10", novdescription: "AT THE BUILDING\u001aS ENTRANCE" });
+  check(ctl?.description === "AT THE BUILDING'S ENTRANCE", "a control byte in the city's text reads as the apostrophe it was");
+  check(classifyInbound("Re: Is it fixed?", quoted).kind === "answer", "classifyInbound routes the reply before the letter test");
+  check(classifyInbound("Re: Is it fixed?", quoted, { answers: false }).kind !== "answer", "…and not when nobody asked");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

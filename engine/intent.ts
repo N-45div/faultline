@@ -1,3 +1,4 @@
+import { parseAnswer, type Answer } from "./hpd";
 import { looksLikeAddress } from "./match";
 
 // What did the person mean by this email? Deterministic; the model comes in
@@ -11,11 +12,12 @@ export type Intent =
   | { kind: "csv"; query: string }
   | { kind: "monitor" }
   | { kind: "letter"; text: string }
+  | { kind: "answer"; answer: Answer; violationId: string | null; note: string }
   | { kind: "empty" };
 
 const LETTER_WORDS = /\b(position|eliminat|terminat|severance|layoff|laid off|release|separation|last day|WARN|notice period|landlord|repair|violation|inspection)\b/i;
 
-export function classifyInbound(subjectRaw: string, bodyRaw: string): Intent {
+export function classifyInbound(subjectRaw: string, bodyRaw: string, opts: { answers?: boolean } = {}): Intent {
   const subject = cleanSubject(subjectRaw);
   const body = bodyRaw.replace(/\r/g, "").trim();
   const firstLine = (body.split("\n").map((l) => l.trim()).find((l) => l.length > 0) ?? "").slice(0, 200);
@@ -25,6 +27,15 @@ export function classifyInbound(subjectRaw: string, bodyRaw: string): Intent {
   const commands = [firstLine, subject].map((s) => s.toLowerCase().replace(/[^a-z]+$/, ""));
   if (commands.some((c) => /^(follow|watch|subscribe|yes)$/.test(c))) return { kind: "follow" };
   if (commands.some((c) => /^(stop|unsubscribe|unfollow)$/.test(c))) return { kind: "stop" };
+
+  // "Is it fixed?" answered: FIXED, STILL BROKEN or NOT SURE in the person's
+  // own lines. Read before the letter test, because the quoted question below
+  // those lines is long and talks about violations and repairs. The caller
+  // turns this off when nobody asked this address anything.
+  if (opts.answers !== false) {
+    const answer = parseAnswer(subjectRaw, body);
+    if (answer) return { kind: "answer", ...answer };
+  }
 
   // Paid requests arrive as "PACK <company or address>" and "MONITOR". Our own
   // subject comes back on every message in the thread once we have replied, so
