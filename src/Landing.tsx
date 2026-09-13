@@ -20,7 +20,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
       <section className="band hero-band">
         <div className="container hero-grid">
           <div>
-            <h1 className="lede-title">The government overwrites its files. We keep every version.</h1>
+            <h1 className="lede-title">The government overwrites its files. We keep every version we read.</h1>
             <p className="lede-sub">
               Email us a company name or a New York City address and get back what they filed — the dates, the gap
               against the law, the government's own page — including the versions the agency has since deleted.
@@ -37,7 +37,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
             </div>
             <p className="fine">
               Free. Nothing to install, nothing to sign up for. Reply FOLLOW to hear when a filing changes;{" "}
-              <a href="/deleted" onClick={(e) => { e.preventDefault(); go("/deleted"); }}>see what the government deleted</a>.
+              <a href="/deleted" onClick={(e) => { e.preventDefault(); go("/deleted"); }}>see what is gone from its files</a>.
             </p>
           </div>
 
@@ -87,7 +87,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
               <div>
                 <p className="big">{log.deleted.toLocaleString()}</p>
                 <p className="muted">
-                  rows the agencies deleted from a file we hold whole.{" "}
+                  rows gone from a file we hold whole.{" "}
                   <a href="/deleted" onClick={(e) => { e.preventDefault(); go("/deleted"); }}>Still here →</a>
                 </p>
               </div>
@@ -166,7 +166,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
             <div>
               <span className="num">3</span>
               <strong>Keep it</strong>
-              <p>Reply FOLLOW and we email you when the filing changes. We keep every version — the state overwrites its own.</p>
+              <p>Reply FOLLOW and we email you when the filing changes. We keep every version we read — the state overwrites its own.</p>
             </div>
           </div>
         </div>

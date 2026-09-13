@@ -74,7 +74,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         <p className="kicker">For judges · five minutes · sign-in only for step 6</p>
         <h1 className="lede-title">A versioned ledger of government files, with an email address on the front.</h1>
         <p className="lede-sub">
-          Nine public files, read on Convex crons, diffed row by row, every version kept — because the agencies
+          Ten public files, read on Convex crons, diffed row by row, every version we read kept — because the agencies
           overwrite theirs. AgentMail is the front door, OpenAI reads the letters people forward. Everything below is
           live: the numbers are Convex queries rendered as you look, and every button sends a real email.
         </p>

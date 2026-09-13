@@ -34,7 +34,7 @@ export default function Scorecard({ go }: { go: (p: string) => void }) {
           <div className="stats">
             <div>
               <p className="big">{log.deleted.toLocaleString()}</p>
-              <p className="muted">rows deleted from a file we hold whole</p>
+              <p className="muted">rows gone from a file we hold whole</p>
             </div>
             <div>
               <p className="big">{log.edited.toLocaleString()}</p>
@@ -95,7 +95,7 @@ export default function Scorecard({ go }: { go: (p: string) => void }) {
                       ) : (
                         <>
                           {pct(s.postedAfterStart, s.countable)}
-                          {s.medianPostingLag !== null && <span className="muted"> · median {s.medianPostingLag} days late</span>}
+                          {s.medianPostingLag !== null && <span className="muted"> · notice to posting: median {s.medianPostingLag} days</span>}
                         </>
                       )}
                     </td>
