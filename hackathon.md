@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-13T10:08:00Z
+- **Last updated:** 2026-09-13T10:13:00Z
 
 ## Log
 
@@ -808,6 +808,22 @@ ten-minute action limit and died clean, committing nothing; one building for
 twenty days is a small read. And a scoped cleanup for the address a live
 test was run from. Five buildings whose owners certify repairs weekly were
 added to the watch, so the question gets asked of real followers this week.
+
+### 2026-09-13 - 91e0c1e
+The notice on the door, photographed. The model that reads termination
+letters now reads one more kind of document: an HPD notice, from pasted
+text, a PDF, or a phone photograph, into its violation numbers and the
+address printed on it. The reply is not a summary of the photo; it is the
+building's own record from the city's file — every stamp we hold, the false
+certifications counted — with the numbers named and one offer: reply
+FOLLOW, and be asked, when the owner certifies a repair, whether it is
+fixed.
+
+Verified live today from the test inbox with a rendered notice for a real,
+publicly listed violation: read as an HPD notice at 0.99 confidence, 3,408
+input tokens, a tenth of a cent, and the building's record back in the
+thread fifteen seconds later. HEIC is not read yet — an iPhone's default —
+so the ask will be for a JPEG or a PDF until it is.
 
 ## About
 
