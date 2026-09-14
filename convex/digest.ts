@@ -154,6 +154,24 @@ export const flush = internalMutation({
       // "Is it fixed?" about a building never lands under an employer's
       // subject line. Failing that, any thread — except a question, which
       // starts its own with its own subject.
+      // Someone who follows by text hears it by text: the same lines, without
+      // the email boilerplate. A failed text is logged, not requeued.
+      if (email.startsWith("photon:")) {
+        const sms = [
+          headline,
+          "",
+          ...lines,
+          ...askLines,
+          ...(askLines.length > 0 ? ["", "Reply with the number and FIXED, STILL BROKEN or NOT SURE, or say it in your own words."] : []),
+          ...(record ? ["", `Your answers: ${record}`] : []),
+          "",
+          "Reply STOP to stop.",
+        ].join(NL);
+        await ctx.scheduler.runAfter(0, internal.photon.sendText, { handle: email.slice("photon:".length), text: sms });
+        sent++;
+        continue;
+      }
+
       const subjects = new Set(rows.map((r) => r.subjectKey));
       const withThread = active.find((s) => s.messageId && subjects.has(s.subjectKey)) ?? (onlyAsks ? undefined : active.find((s) => s.messageId));
       if (withThread?.messageId) {

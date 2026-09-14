@@ -6,7 +6,8 @@ import { daysBetween, fnv1a64 } from "../engine/canon";
 import { skipReason } from "../engine/hygiene";
 import { looksLikeAddress } from "../engine/match";
 import { classifyInbound, emailAddressOf, stripHtml } from "../engine/intent";
-import { complianceLines, noMatchReceipt, receiptHtml, receiptText, type Receipt } from "../engine/receipt";
+import { complianceLines, noMatchReceipt, receiptHtml, receiptSms, receiptText, type Receipt } from "../engine/receipt";
+import { handleOf, photonIdentity } from "../engine/photon";
 import { buildReceipt, findBuildings, guessCompanyFromText, noticesFor, siteUrl, STATE_FILE } from "./lookup";
 import { askLine, fixedClaim, HPD_PAGES, nextStepFor, pickAsks, type Answer } from "../engine/hpd";
 import { heldForBuilding, recordAsks, recordToken, recordUrl } from "./attest";
@@ -92,7 +93,9 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
 
   // Never answer a robot: bounces, lists, auto-responders, our own address.
   // The message is stored above either way; we just don't send.
-  const skip = skipReason(from, String(process.env.AGENTMAIL_INBOX_ID ?? ""), m.headers);
+  // A text through Photon comes from a phone number, not an address; the
+  // checks for mail robots do not apply to it.
+  const skip = String(m.inbox_id ?? "") === "photon" ? null : skipReason(from, String(process.env.AGENTMAIL_INBOX_ID ?? ""), m.headers);
   if (skip) {
     console.log(`[inbound] stored, not answered: ${skip}`);
     return { intent: intent.kind, query, kind: "none", text: "", sent: false };
@@ -155,7 +158,8 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   // one of our questions that the keyword reader could not place. GPT-6 Astra
   // chooses a tool; the tool replies with words this file already writes.
   if (process.env.OPENAI_API_KEY && !paused("llm")) {
-    const replying = /^\s*(re|fwd|fw)\s*:/i.test(subject);
+    // A text is always a turn in a conversation, so it counts as a reply.
+    const replying = /^\s*(re|fwd|fw)\s*:/i.test(subject) || String(m.inbox_id ?? "") === "photon";
     const freeReply = replying && (intent.kind === "lookup" || intent.kind === "empty") && (await hasAsked(ctx, from));
     if (intent.kind === "letter" || freeReply) {
       await ctx.db.patch(inboxId, { intent: "agent" });
@@ -503,7 +507,8 @@ async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: s
     blocks: preface.length ? [preface, ...receipt.blocks] : receipt.blocks,
     footer: [...receipt.footer, ...compliance],
   };
-  const text = receiptText(withPreface);
+  const byText = t.agentInboxId === "photon";
+  const text = byText ? receiptSms({ ...withPreface, footer: [] }) : receiptText(withPreface);
   const html = receiptHtml(withPreface);
 
   const receiptId = await ctx.db.insert("receipts", {
@@ -517,6 +522,13 @@ async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: s
     createdAt: Date.now(),
   });
   if (receipt.subjectKey) await ctx.db.patch(t.inboxId, { matchedSubjectKey: receipt.subjectKey });
+
+  if (byText) {
+    // Photon: the same receipt, as a text, into the same conversation.
+    await ctx.scheduler.runAfter(0, internal.photon.sendText, { handle: handleOf(t.threadId), text });
+    await ctx.db.patch(t.inboxId, { replied: true });
+    return { text, sent: true };
+  }
 
   if (process.env.AGENTMAIL_API_KEY && t.agentInboxId) {
     // Sent from an action with the deployment's key; the component only
@@ -1049,6 +1061,53 @@ export const agentFallback = internalMutation({
       return null;
     }
     await deliver(ctx, target.t, await whichViolation(ctx, target.row.fromAddress), []);
+    return null;
+  },
+});
+
+/**
+ * A text through Photon, read by the same hands as an email: the same
+ * commands, the same answers, the same agent, replied to by text.
+ */
+export const onPhotonText = internalMutation({
+  args: { messageId: v.string(), spaceId: v.string(), sender: v.string(), text: v.string(), attachment: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, a) => {
+    if (!a.messageId || !a.sender || !a.spaceId) return null;
+    const messageId = `photon:${a.messageId}`;
+    const from = photonIdentity(a.sender);
+    if (a.attachment && !a.text) {
+      const existing = await ctx.db.query("inbox").withIndex("by_message_id", (q) => q.eq("messageId", messageId)).unique();
+      if (existing) return null;
+      const inboxId = await ctx.db.insert("inbox", {
+        messageId,
+        threadId: a.spaceId,
+        inboxId: "photon",
+        fromAddress: from,
+        subject: "",
+        receivedAt: Date.now(),
+        authenticated: true,
+        intent: "photo",
+        query: "photo",
+        bodyHash: "",
+        replied: false,
+      });
+      await deliver(
+        ctx,
+        { inboxId, messageId, agentInboxId: "photon", threadId: a.spaceId },
+        {
+          kind: "none",
+          query: "photo",
+          headline: "We can't read photos sent by text yet.",
+          blocks: [["Text the violation number or the building's address, or email the photo to getnotice@agentmail.to."]],
+          links: [],
+          footer: [],
+        },
+        [],
+      );
+      return null;
+    }
+    await handleInbound(ctx, { message_id: messageId, thread_id: a.spaceId, inbox_id: "photon", from, subject: "", text: a.text }, true);
     return null;
   },
 });

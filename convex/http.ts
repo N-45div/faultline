@@ -4,6 +4,7 @@ import { api, components, internal } from "./_generated/api";
 import { registerStaticRoutes } from "@convex-dev/static-hosting";
 import { AgentMail } from "@agentmail/convex";
 import { auth } from "./auth";
+import { verifySpectrumSignature } from "../engine/photon";
 
 const agentmail = new AgentMail(components.agentmail, {
   onMessageReceived: internal.inbound.onMessageReceived,
@@ -24,6 +25,47 @@ http.route({
   // @agentmail/convex 0.1.0 types ctx against an older convex-helpers
   // RunMutationCtx; convex 1.45 added an options parameter. Runtime-identical.
   handler: httpAction(async (ctx, req) => agentmail.handleWebhook(ctx as any, req)),
+});
+
+// Photon: Faultline as a number you text. The signature is checked here,
+// before anything is stored, and the reply is scheduled, so Photon hears 200
+// well inside its thirty seconds. Delivery is at least once; the inbound
+// handler dedupes on Photon's message id.
+http.route({
+  path: "/hooks/photon",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const secret = process.env.SPECTRUM_WEBHOOK_SECRET;
+    if (!secret) return new Response("webhook secret not configured", { status: 500 });
+    const rawBody = await req.text();
+    const check = await verifySpectrumSignature({
+      secret,
+      timestamp: req.headers.get("x-spectrum-timestamp"),
+      signature: req.headers.get("x-spectrum-signature"),
+      rawBody,
+      nowSec: Math.floor(Date.now() / 1000),
+    });
+    if (check === "missing" || check === "stale") return new Response(check, { status: 400 });
+    if (check === "bad") return new Response("bad signature", { status: 401 });
+    let payload: any;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return new Response("bad json", { status: 400 });
+    }
+    const msg = payload?.message;
+    if (payload?.event !== "messages" || msg?.direction !== "inbound" || payload?.space?.type !== "dm") return new Response("ignored", { status: 200 });
+    const type = String(msg?.content?.type ?? "");
+    if (type !== "text" && type !== "attachment") return new Response("ignored", { status: 200 });
+    await ctx.runMutation(internal.inbound.onPhotonText, {
+      messageId: String(msg.id ?? ""),
+      spaceId: String(payload.space.id ?? ""),
+      sender: String(msg.sender?.id ?? ""),
+      text: type === "text" ? String(msg.content?.text ?? "").slice(0, 4_000) : "",
+      attachment: type === "attachment",
+    });
+    return new Response("ok", { status: 200 });
+  }),
 });
 
 http.route({

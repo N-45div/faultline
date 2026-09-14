@@ -32,6 +32,7 @@ import type * as lookup from "../lookup.js";
 import type * as mail from "../mail.js";
 import type * as packBuild from "../packBuild.js";
 import type * as packs from "../packs.js";
+import type * as photon from "../photon.js";
 import type * as sources from "../sources.js";
 import type * as wall from "../wall.js";
 
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   mail: typeof mail;
   packBuild: typeof packBuild;
   packs: typeof packs;
+  photon: typeof photon;
   sources: typeof sources;
   wall: typeof wall;
 }>;

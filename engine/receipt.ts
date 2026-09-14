@@ -598,3 +598,15 @@ export function receiptHtml(r: Receipt): string {
   const how = HOW_TO.map((h) => `<p style="color:#666;font-size:14px">${esc(h)}</p>`).join("");
   return `<div style="font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1b1b1b;max-width:640px"><p><strong>${esc(r.headline)}</strong></p>${blocks}${links}${footer}<hr style="border:0;border-top:1px solid #e4e0d8">${how}</div>`;
 }
+
+/**
+ * The same receipt as a text message: the headline, what it says, and where
+ * to check it. No email boilerplate; one line on how to stop.
+ */
+export function receiptSms(r: Receipt): string {
+  const parts = [r.headline, ""];
+  for (const b of r.blocks) parts.push(...b, "");
+  for (const l of r.links) parts.push(`${l.label}: ${l.url}`);
+  if (r.query !== "stop") parts.push("", "Reply STOP to stop.");
+  return parts.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
