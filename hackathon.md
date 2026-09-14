@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-14T17:39:00Z
+- **Last updated:** 2026-09-14T17:52:00Z
 
 ## Log
 
@@ -956,6 +956,44 @@ agent instead of the keyword reader, an answer recorded and read back with
 its note and the follow notice, a violation the person was never asked about
 refused and turned into a question, a building asked about, and the
 clarifying prompts. Nine tests across the two files, under two seconds. Verified live on production on 14 September from the test inbox: after ASK 155 Linden Boulevard, Brooklyn, the reply 'The broken tiles on the north wall by the compactor are still cracked' was read as still broken about #19105974, the tiles, out of three open questions, and answered in twenty seconds for 2.55 cents; 'nothing at the compactor closet has been touched', which fits two of the three, got 'Which repair do you mean?' with the numbers, for 2.34 cents. The test's answers, follow and link were then removed.
+
+### 2026-09-14 - d0726c4
+Photon, first as a question: can a Convex action send a text at all? The
+Spectrum SDK speaks gRPC, and the first attempt failed with the SDK's own
+message: its gRPC client needs three optional peer packages the install did
+not bring in. With nice-grpc, nice-grpc-common and @grpc/grpc-js installed
+at the versions that worked on the laptop, and the SDK left unbundled so its
+runtime imports resolve, a probe sent into an existing thread returned send
+error 0 in fourteen seconds, most of it opening the connection.
+
+### 2026-09-14 - 297413a
+The webhook's signature is checked the way Photon's docs describe it:
+HMAC-SHA256 over "v0:timestamp:body" with the webhook's signing secret, as
+"v0=" and lowercase hex, only within five minutes of the timestamp, compared
+in constant time. Web Crypto only, so it runs in Convex's default runtime and
+in the tests. The tests post a signed text and check it is kept once however
+many times it is delivered, since Photon delivers at least once; that forged
+and stale requests store nothing; and that outbound echoes and group chats
+are ignored.
+
+### 2026-09-14 - 37e9af5
+Faultline as a number you text. The Photon webhook hands each text to the same
+inbound handler email uses, so ASK, answers, the GPT-6 Astra agent and follows
+all work by text. Replies go back as a compact receipt: the headline, what it
+says, where to check it, and one line on how to stop, with no email
+boilerplate. Someone who follows by text hears the city's second word by text.
+A texter's identity is their number with a photon: prefix wherever an email
+address would go, so a phone number can never be mailed.
+
+Verified live on production on 14 September. The webhook was registered
+against the deployed route, its secret stored on the deployment without
+being printed, and a signed test text, ASK 155 Linden Boulevard, Brooklyn,
+from the project's registered number returned 200. A forged signature got
+401. The reply, the three certifications still inside their 70 days, went
+out through Photon nine seconds later and took 8.8 seconds to send. Photon's
+free tier only texts numbers registered to the project, so this is a door for
+the people we register, not yet for judges; email stays the way anyone can
+try it. The test's asks were then removed.
 
 ## About
 
