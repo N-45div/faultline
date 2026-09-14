@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-13T20:42:00Z
+- **Last updated:** 2026-09-14T17:39:00Z
 
 ## Log
 
@@ -920,6 +920,42 @@ in its own codes. The 42 "Wisconsin revised this notice" edits the number
 produced, and their 42 lines on the public wall, are withdrawn; the captures
 stay, because they are what the state served. The README and the tour said
 Wisconsin "numbers its own revisions"; they now say what the page does.
+
+### 2026-09-14 - 3d059ac
+The ledger first. GPT-6 Astra is priced from OpenAI's own model page:
+$10 per million input tokens, $1 cached, $50 output. Agent runs are counted
+apart from letter reads, forty a day, so a busy inbox cannot take letter
+reading offline and letters cannot starve the agent. A model with no
+configured price is now logged at zero, where before it would have been
+priced as a different model.
+
+### 2026-09-14 - bf88204
+An inbox agent. The keyword reader handles FIXED, STILL BROKEN and NOT SURE;
+people write "the tiles by the compactor are still cracked". Free text it
+cannot place — a reply to one of our questions, or a letter pasted into the
+body — now goes to GPT-6 Astra through the OpenAI Agents SDK, which reads it
+and calls one of seven tools: list the person's open questions, find a
+building, record an answer, ask about a building, look up a record, hand the
+letter to the letter reader, or ask which one they meant.
+
+The tools are the service's own hands, and they write every word the person
+reads; the model writes none, and never states a fact about a record. Five
+of the tools end the run when called, so one message gets one reply. An
+answer can only be recorded for a violation the person was actually asked
+about; anything else gets asked which. The reply says how the message was
+read — "We read your reply as still broken, about #19105974" — so a wrong
+reading is visible and one line fixes it. Moderation screens the text first,
+reasoning effort is low, tracing is off so tenants' mail is not sent to a
+trace store, and if the model is paused, over budget or down, the service
+answers the way it did before it had one. Node actions now run on Node 22,
+which the SDK requires.
+
+### 2026-09-14 - 1c0515d
+The agent's tools are tested without the model: free text reaching the
+agent instead of the keyword reader, an answer recorded and read back with
+its note and the follow notice, a violation the person was never asked about
+refused and turned into a question, a building asked about, and the
+clarifying prompts. Nine tests across the two files, under two seconds. Verified live on production on 14 September from the test inbox: after ASK 155 Linden Boulevard, Brooklyn, the reply 'The broken tiles on the north wall by the compactor are still cracked' was read as still broken about #19105974, the tiles, out of three open questions, and answered in twenty seconds for 2.55 cents; 'nothing at the compactor closet has been touched', which fits two of the three, got 'Which repair do you mean?' with the numbers, for 2.34 cents. The test's answers, follow and link were then removed.
 
 ## About
 
