@@ -1,5 +1,11 @@
 {
   "node": {
-    "nodeVersion": "22"
+    "nodeVersion": "22",
+    "externalPackages": [
+      "spectrum-ts",
+      "nice-grpc",
+      "nice-grpc-common",
+      "@grpc/grpc-js"
+    ]
   }
 }
