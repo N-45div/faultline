@@ -42,6 +42,8 @@ beforeEach(() => {
   vi.stubEnv("AGENTMAIL_API_KEY", "test-key");
   vi.stubEnv("CONVEX_SITE_URL", "https://faultline.test");
   vi.stubEnv("NOTICE_POSTAL", "1 Test Street, New York, NY 10001");
+  // The keyword path. The agent path has its own tests.
+  vi.stubEnv("OPENAI_API_KEY", "");
   sent = [];
   vi.stubGlobal("fetch", async (url: string | URL, init?: RequestInit) => {
     sent.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : {} });
