@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-14T17:52:00Z
+- **Last updated:** 2026-09-15T11:59:00Z
 
 ## Log
 
@@ -994,6 +994,45 @@ out through Photon nine seconds later and took 8.8 seconds to send. Photon's
 free tier only texts numbers registered to the project, so this is a door for
 the people we register, not yet for judges; email stays the way anyone can
 try it. The test's asks were then removed.
+
+### 2026-09-15 - 994fab7
+Tried to move every reply to a person onto the AgentMail component's own send
+queue: a table of outbound messages, a workpool with retries, and a status that
+moves from pending to sent to delivered. Its package source reads the API key
+from the environment, and the code comment that said a component cannot see the
+deployment's key looked stale. It was not. See 149b144.
+
+### 2026-09-15 - fd43943
+A second witness from Firecrawl. Wisconsin's reads now ask Firecrawl for two
+more things beside the page: a screenshot of the page as it was served, and
+Firecrawl's own change tracking against its previous capture, tagged so that
+"changed" always means changed since our last read. The verdict is kept on
+every read; the screenshot is downloaded into Convex file storage with any read
+that changed something, because Firecrawl's link does not last. A commit page
+shows both beside our own diff, so a change in the state's file is attested by
+two independent readings of it.
+
+### 2026-09-15 - 95723b0
+The tests ran replies through the real AgentMail component and its two
+workpools in memory. That needed a workaround — the component's published test
+helper globs only .ts files, but the package ships its generated directory as
+.js — and a separate tsconfig for the tests, so vendor TypeScript source is not
+held to our strictness. The workaround went away with 149b144; the separate tsconfig
+stayed.
+
+### 2026-09-15 - 149b144
+A correction, made within minutes. Deployed, the component's send queue failed
+every reply with "AGENTMAIL_API_KEY is not set": a Convex component runs with
+its own environment and cannot read the deployment's key, whatever reading its
+source suggests. The same failure was already sitting in the component's table
+from 30 August, which is why the comment said so. The only reply lost was to
+our own test inbox; no one else had written in. Replies are back on the direct
+send, the comment is restored with the date it was proven again, and the
+component keeps the part that works: it verifies AgentMail's webhook, stores
+each event once, and now passes on the delivery events for mail we sent. The
+webhook subscribes to sent, delivered, bounced, complained and rejected as well
+as received, and each reply's receipt records the latest, which a person's
+private page shows as "Delivered to your inbox" or "Bounced". Proven the same hour: a reply to an ASK from our test inbox, written at 11:51:12 UTC, was marked delivered 2.4 seconds later. AgentMail's "sent" event for it arrived a quarter of a second after "delivered", and the receipt kept "delivered", as the rule says it should. The test's asks were then removed.
 
 ## About
 
