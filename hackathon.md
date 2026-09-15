@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-15T12:23:00Z
+- **Last updated:** 2026-09-15T12:37:00Z
 
 ## Log
 
@@ -1095,6 +1095,18 @@ agent's seven tools; Firecrawl's git-diff and what it showed; Photon's signed
 webhook and its free-tier limit. Running it gains the tests, the Photon
 variables and the agent's model variable, and the honesty notes gain the
 Wisconsin version number and the component send path.
+
+### 2026-09-15 - 5f17ddd
+A person's own record page lists every reply we have sent them and what
+became of it, and two of those labels were wrong. Replies AgentMail accepted
+before its delivery events reached us, on 15 September, said "Sent, waiting
+for the delivery report", a report that will never come; they now say Sent.
+The one reply lost while replies went through the component's send queue said
+"Queued to send", though it was never going to be sent; a reply AgentMail has
+not accepted within a quarter of an hour now says Not sent. Found while
+filming the record page against production, and checked there after the
+deploy: our test inbox's list reads delivered three times, Not sent once, and
+Sent for the replies from before tracking.
 
 ## About
 
