@@ -66,6 +66,19 @@ export function askLine(a: Ask, where: string): string {
   return `#${a.violationId} at ${where}${cls}${what}. ${who}: ${a.status} as of ${a.statusDate}${by}.${until}`;
 }
 
+/** The headline of an ASK reply. */
+export function askHeadline(n: number): string {
+  return n === 1 ? "They say it's fixed. Is it?" : `They say ${n} things are fixed. Are they?`;
+}
+
+/** The two lines under the asks in every ASK reply: how to answer, and where the answer goes. */
+export function howToAnswer(firstViolationId: string): string[] {
+  return [
+    `Reply with the number and one of FIXED, STILL BROKEN or NOT SURE — for example: #${firstViolationId} STILL BROKEN. Add a photo if you have one. Or just tell us in your own words.`,
+    "Your answer stays private to you, dated, beside the city's record. It shows on the building's page only if the city's own record later agrees.",
+  ];
+}
+
 /**
  * What to do when the owner's word and the tenant's don't agree — HPD's own
  * process, in its own words (nyc.gov/hpd, "Clear Violations" and "Report a

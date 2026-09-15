@@ -9,7 +9,7 @@ import { classifyInbound, emailAddressOf, stripHtml } from "../engine/intent";
 import { complianceLines, noMatchReceipt, receiptHtml, receiptSms, receiptText, type Receipt } from "../engine/receipt";
 import { handleOf, photonIdentity } from "../engine/photon";
 import { buildReceipt, findBuildings, guessCompanyFromText, noticesFor, siteUrl, STATE_FILE } from "./lookup";
-import { askLine, fixedClaim, HPD_PAGES, nextStepFor, pickAsks, type Answer } from "../engine/hpd";
+import { askHeadline, askLine, fixedClaim, howToAnswer, HPD_PAGES, nextStepFor, pickAsks, type Answer } from "../engine/hpd";
 import { heldForBuilding, recordAsks, recordToken, recordUrl } from "./attest";
 import { paused } from "./guard";
 import { base64Utf8, layoffCsv } from "../engine/export";
@@ -733,14 +733,8 @@ async function askReceiptFor(ctx: MutationCtx, from: string, bbl: string, label:
     kind: "none",
     query: `ask:${bbl}`,
     subjectKey: bbl,
-    headline: asks.length === 1 ? "They say it's fixed. Is it?" : `They say ${asks.length} things are fixed. Are they?`,
-    blocks: [
-      asks.map((a) => `- ${askLine(a, label)}`),
-      [
-        `Reply with the number and one of FIXED, STILL BROKEN or NOT SURE — for example: #${asks[0].violationId} STILL BROKEN. Add a photo if you have one. Or just tell us in your own words.`,
-        "Your answer stays private to you, dated, beside the city's record. It shows on the building's page only if the city's own record later agrees.",
-      ],
-    ],
+    headline: askHeadline(asks.length),
+    blocks: [asks.map((a) => `- ${askLine(a, label)}`), howToAnswer(asks[0].violationId)],
     links: [
       { label: "Your answers, beside the city's record", url: record },
       { label: "This building's record", url: page },
