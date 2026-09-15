@@ -16,12 +16,14 @@ const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 /** What became of a reply, from AgentMail's events, in words. */
 const ARRIVED: Record<string, string> = {
   sent: "Sent, waiting for the delivery report",
+  accepted: "Sent",
   delivered: "Delivered to your inbox",
   bounced: "Bounced",
   complained: "Marked as spam",
   rejected: "Refused by the mail service",
   texted: "Sent by text",
   queued: "Queued to send",
+  unsent: "Not sent",
 };
 
 export default function YourRecord({ token, go }: { token: string; go: (p: string) => void }) {

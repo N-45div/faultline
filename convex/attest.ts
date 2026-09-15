@@ -314,10 +314,15 @@ export const askNow = internalMutation({
   },
 });
 
+/** A reply AgentMail has not accepted after this long was not sent: the send failed, or mail was paused. */
+const UNSENT_AFTER_MS = 15 * 60_000;
+
 /**
  * Our replies to this person, newest first, with what became of each: the
  * latest AgentMail event for the message, or "texted" for a reply sent by
- * Photon. Opened by the same private link as the record.
+ * Photon. A reply AgentMail accepted before its delivery events reached us
+ * (15 September) has no event and never will, so it is "accepted", not left
+ * waiting for a report. Opened by the same private link as the record.
  */
 export const deliveries = query({
   args: { token: v.string() },
@@ -340,7 +345,9 @@ export const deliveries = query({
       out.push({
         at: r.createdAt,
         headline: r.text.split("\n")[0].slice(0, 160),
-        status: r.deliveryStatus ?? (m.inboxId === "photon" ? "texted" : r.outboundId ? "sent" : "queued"),
+        status:
+          r.deliveryStatus ??
+          (m.inboxId === "photon" ? "texted" : r.outboundId ? "accepted" : Date.now() - r.createdAt > UNSENT_AFTER_MS ? "unsent" : "queued"),
         error: null,
       });
     }
