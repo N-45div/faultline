@@ -13,8 +13,22 @@ const WORD: Record<"fixed" | "still_broken" | "not_sure", string> = {
 
 const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
+/** The AgentMail component's status for a reply, in words. */
+const ARRIVED: Record<string, string> = {
+  pending: "Queued to send",
+  sent: "Sent, waiting for the delivery report",
+  delivered: "Delivered to your inbox",
+  bounced: "Bounced",
+  complained: "Marked as spam",
+  rejected: "Refused by the mail service",
+  failed: "Could not be sent",
+  texted: "Sent by text",
+  queued: "Sent",
+};
+
 export default function YourRecord({ token, go }: { token: string; go: (p: string) => void }) {
   const rec = useQuery(api.attest.record, { token });
+  const replies = useQuery(api.attest.deliveries, { token });
 
   if (rec === undefined) {
     return (
@@ -119,6 +133,27 @@ export default function YourRecord({ token, go }: { token: string; go: (p: strin
           })}
         </ul>
       </section>
+
+      {replies && replies.length > 0 && (
+        <section className="wall record" aria-label="Our replies to you">
+          <h3>Our replies to you</h3>
+          <ul>
+            {replies.map((r) => (
+              <li key={`${r.at}-${r.headline}`}>
+                <time>{day(r.at)}</time>
+                <div>
+                  {r.headline}
+                  <br />
+                  <span className="muted">
+                    {ARRIVED[r.status] ?? r.status}
+                    {r.error ? `: ${r.error}` : ""}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <p className="fine">To stop email from us, reply STOP to any message we sent.</p>
     </>

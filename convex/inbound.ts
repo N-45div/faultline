@@ -11,6 +11,7 @@ import { handleOf, photonIdentity } from "../engine/photon";
 import { buildReceipt, findBuildings, guessCompanyFromText, noticesFor, siteUrl, STATE_FILE } from "./lookup";
 import { askLine, fixedClaim, HPD_PAGES, nextStepFor, pickAsks, type Answer } from "../engine/hpd";
 import { heldForBuilding, recordAsks, recordToken, recordUrl } from "./attest";
+import { agentmail } from "./agentmailClient";
 import { paused } from "./guard";
 import { base64Utf8, layoffCsv } from "../engine/export";
 import { urlSlug } from "../engine/canon";
@@ -531,8 +532,23 @@ async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: s
   }
 
   if (process.env.AGENTMAIL_API_KEY && t.agentInboxId) {
-    // Sent from an action with the deployment's key; the component only
-    // handles inbound. markSent flips `replied` when AgentMail accepts it.
+    // Durable by default: the AgentMail component queues the reply in its own
+    // table, sends it through a workpool with retries, and moves it from
+    // pending to sent to delivered as AgentMail's events arrive. The receipt
+    // keeps the component's id, so the person's own page can say which.
+    if (!paused("mail") && !(await ctx.runQuery(internal.breaker.open, { provider: "agentmail" }))) {
+      const deliveryId = await agentmail.replyToMessage(ctx, t.agentInboxId, t.messageId, {
+        text,
+        html,
+        ...(attachments && attachments.length > 0 ? { attachments } : {}),
+        headers: { "Auto-Submitted": "auto-replied" },
+      });
+      await ctx.db.patch(receiptId, { deliveryId: String(deliveryId) });
+      await ctx.db.patch(t.inboxId, { replied: true });
+      return { text, sent: true };
+    }
+    // Mail paused by hand, or AgentMail's breaker open: the older path waits
+    // and tries again. markSent flips `replied` when AgentMail accepts it.
     await ctx.scheduler.runAfter(0, internal.mail.reply, {
       agentInboxId: t.agentInboxId,
       parentMessageId: t.messageId,

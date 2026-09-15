@@ -82,6 +82,11 @@ export default defineSchema({
     rowCount: v.number(),
     degraded: v.boolean(),
     pinnedUntil: v.optional(v.number()),
+    /** The page as Firecrawl captured it, kept with a read that changed something. */
+    screenshotStorageId: v.optional(v.id("_storage")),
+    /** Firecrawl's own change tracking for this read: new, same, changed or removed. */
+    firecrawlChangeStatus: v.optional(v.string()),
+    firecrawlPreviousScrapeAt: v.optional(v.string()),
   })
     .index("by_source_captured", ["sourceId", "capturedAt"])
     .index("by_bodyhash", ["bodySha256"])
@@ -194,6 +199,8 @@ export default defineSchema({
     html: v.string(),
     createdAt: v.number(),
     outboundId: v.optional(v.string()),
+    /** The AgentMail component's id for this reply; its status moves from pending to delivered. */
+    deliveryId: v.optional(v.string()),
   })
     .index("by_subject", ["subjectKey", "createdAt"])
     .index("by_thread", ["threadId"])

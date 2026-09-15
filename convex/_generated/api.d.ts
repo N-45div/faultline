@@ -9,6 +9,7 @@
  */
 
 import type * as agent from "../agent.js";
+import type * as agentmailClient from "../agentmailClient.js";
 import type * as attest from "../attest.js";
 import type * as auth from "../auth.js";
 import type * as breaker from "../breaker.js";
@@ -44,6 +45,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
+  agentmailClient: typeof agentmailClient;
   attest: typeof attest;
   auth: typeof auth;
   breaker: typeof breaker;

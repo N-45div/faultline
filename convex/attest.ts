@@ -3,6 +3,8 @@ import { internalAction, internalMutation, query, type MutationCtx } from "./_ge
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { askFrom, askLine, challengeDeadline, CITY_SAYS_FALSE, type Ask } from "../engine/hpd";
+import type { OutboundId } from "@agentmail/convex";
+import { agentmail } from "./agentmailClient";
 
 // The tenant's word beside the city's. The city's row says the owner
 // certified a repair; the person who lives with it says whether it happened.
@@ -311,5 +313,40 @@ export const askNow = internalMutation({
       });
     }
     return asks.map((a) => `#${a.ask.violationId} ${a.ask.status} ${a.ask.statusDate}`);
+  },
+});
+
+/**
+ * Our replies to this person, newest first, with what became of each: the
+ * AgentMail component's own status for a reply it carried, or "texted" for a
+ * reply sent by Photon. Opened by the same private link as the record.
+ */
+export const deliveries = query({
+  args: { token: v.string() },
+  returns: v.array(v.object({ at: v.number(), headline: v.string(), status: v.string(), error: v.union(v.string(), v.null()) })),
+  handler: async (ctx, { token }) => {
+    if (token.length < 20) return [];
+    const rec = await ctx.db.query("records").withIndex("by_token", (q) => q.eq("token", token)).unique();
+    if (!rec) return [];
+    const inbound = await ctx.db
+      .query("inbox")
+      .withIndex("by_from", (q) => q.eq("fromAddress", rec.email))
+      .order("desc")
+      .take(15);
+    const out: { at: number; headline: string; status: string; error: string | null }[] = [];
+    for (const m of inbound) {
+      if (!m.threadId) continue;
+      const inThread = await ctx.db.query("receipts").withIndex("by_thread", (q) => q.eq("threadId", m.threadId)).take(50);
+      const r = inThread.find((x) => x.inboxId === m._id);
+      if (!r) continue;
+      const tracked = r.deliveryId ? await agentmail.status(ctx, r.deliveryId as OutboundId) : null;
+      out.push({
+        at: r.createdAt,
+        headline: r.text.split("\n")[0].slice(0, 160),
+        status: tracked?.status ?? (m.inboxId === "photon" ? "texted" : r.outboundId ? "sent" : "queued"),
+        error: tracked?.errorMessage ?? null,
+      });
+    }
+    return out.slice(0, 10);
   },
 });
