@@ -2,6 +2,8 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import schema from "../convex/schema";
+import agentmailTest from "@agentmail/convex/test";
+import workpoolTest from "@convex-dev/workpool/test";
 import { internal } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 
@@ -11,7 +13,18 @@ import type { Id } from "../convex/_generated/dataModel";
 // model itself is verified live, against the real inbox.
 
 const modules = import.meta.glob("../convex/**/*.*s");
-const make = () => convexTest(schema, modules);
+// Replies go through the AgentMail component, which runs on two workpools.
+// Its published test helper globs only .ts files, but the package ships its
+// _generated directory as .js, so convex-test cannot find the component's
+// root; the glob here includes both.
+const agentmailModules = import.meta.glob("../node_modules/@agentmail/convex/src/component/**/*.*s");
+const make = () => {
+  const t = convexTest(schema, modules);
+  t.registerComponent("agentmail", agentmailTest.schema as any, agentmailModules);
+  workpoolTest.register(t as any, "agentmail/sendPool");
+  workpoolTest.register(t as any, "agentmail/callbackPool");
+  return t;
+};
 type T = ReturnType<typeof make>;
 
 const BBL = "3050840061";
