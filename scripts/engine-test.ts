@@ -13,6 +13,7 @@ import { diffRows } from "../engine/diff";
 import { warnNoticeGap } from "../engine/rules";
 import { askFrom, challengeDeadline, fixedClaim, nextStepFor, parseAnswer, pickAsks, secondWordLine } from "../engine/hpd";
 import { classifyInbound } from "../engine/intent";
+import { changedLines } from "../engine/evidence";
 import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../engine/types";
 
 const snapDir = join("data", "snapshots");
@@ -169,6 +170,17 @@ console.log("\n== tenant loop");
     "the city's second word leads with agreement when the person said still broken",
   );
   check(nextStepFor("VIOLATION CLOSED") !== nextStepFor("NOV CERTIFIED ON TIME"), "a closed violation gets a different next step from a certification");
+}
+
+// Firecrawl's git-diff, cut to what moved.
+{
+  const fc = "diff --git a/previous b/current\n--- a/previous\n+++ b/current\n@@ -3,2 +3,2 @@\n context line\n-| 2026-09-01 | Acme | 40 |\n+| 2026-09-01 | Acme | 45 |\n unchanged";
+  check(
+    changedLines(fc) === "@@ -3,2 +3,2 @@\n-| 2026-09-01 | Acme | 40 |\n+| 2026-09-01 | Acme | 45 |",
+    "Firecrawl's diff keeps the hunk and the lines that moved, not its header or the context",
+  );
+  const long = changedLines("@@ -1 +1 @@\n" + Array.from({ length: 100 }, (_, i) => `+line ${i}`).join("\n"), 10);
+  check(long.split("\n").length === 11 && long.endsWith("… 91 more lines"), `a diff past the cap says how much it left out (got "${long.split("\n").at(-1)}")`);
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

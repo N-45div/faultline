@@ -197,8 +197,24 @@ export function Commit({ id, go }: { id: string; go: (p: string) => void }) {
           <p className="fine">
             Firecrawl fetched this page for us, and its own change tracking called it <strong>{c.firecrawl.changeStatus}</strong>
             {c.firecrawl.previousScrapeAt ? ` against its capture of ${c.firecrawl.previousScrapeAt.replace("T", " ").slice(0, 16)} UTC` : ""}. That is
-            a second reading, independent of our own diff.
+            a second reading, independent of our own diff
+            {c.firecrawl.changeStatus === "changed" && c.changes.length === 0
+              ? ", and here the two disagree: Firecrawl saw the page move, and our row-by-row reading found that no notice changed."
+              : "."}
           </p>
+        )}
+        {c.firecrawl?.diff && (
+          <>
+            <p className="fine">What Firecrawl saw move, in its own diff of the page's text:</p>
+            <pre className="diff">
+              {c.firecrawl.diff.split("\n").map((line, i) => (
+                <span key={i} className={line.startsWith("+") ? "add" : line.startsWith("-") ? "del" : "ctx"}>
+                  {line}
+                  {"\n"}
+                </span>
+              ))}
+            </pre>
+          </>
         )}
         {c.firecrawl?.shotUrl && (
           <figure className="shot">

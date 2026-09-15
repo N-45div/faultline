@@ -3,13 +3,14 @@ import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { components } from "../_generated/api";
 import { FirecrawlClient, type Format } from "@firecrawl/firecrawl-convex";
+import { changedLines } from "../../engine/evidence";
 
 // Firecrawl fetches on our behalf from its own infrastructure: the state pages
 // this deployment cannot reach, or that only fill in once their own scripts
 // run. For those it can also return two pieces of evidence — a screenshot of
 // the page as it was served, and Firecrawl's own change tracking against its
-// previous capture — so a read that changed something carries a second
-// witness beside our diff.
+// previous capture, with the lines it saw move — so every read carries a
+// second reading of the page beside our diff, whether or not the two agree.
 
 const firecrawl = new FirecrawlClient(components.firecrawl);
 
@@ -22,13 +23,18 @@ export type Scraped = {
   screenshotUrl?: string;
   changeStatus?: string;
   previousScrapeAt?: string;
+  /** The lines Firecrawl saw move since its previous capture, cut from its git-diff. */
+  changeDiff?: string;
 };
 
 /** One page, as HTML and markdown, and when asked, a screenshot and Firecrawl's own change tracking. Throws on a non-2xx from the target. */
 export async function scrapePage(ctx: { runAction: any }, url: string, opts: { waitForMs?: number; evidence?: boolean } = {}): Promise<Scraped> {
   const formats: Format[] = ["html", "markdown"];
-  // One tag for every capture, so "changed" always means changed since our last read.
-  if (opts.evidence) formats.push({ type: "changeTracking", tag: "faultline" }, { type: "screenshot", fullPage: true });
+  // One tag for all our captures, so Firecrawl compares each read with its
+  // previous capture for us. That is usually our last commit but not always: a
+  // read that fails after Firecrawl captured the page still counts, so the
+  // commit page prints the time Firecrawl compared against.
+  if (opts.evidence) formats.push({ type: "changeTracking", tag: "faultline", modes: ["git-diff"] }, { type: "screenshot", fullPage: true });
   // The client only needs runAction; the ingest loop passes a narrower ctx.
   const doc = await firecrawl.scrape(ctx as Parameters<FirecrawlClient["scrape"]>[0], url, {
     formats,
@@ -38,7 +44,8 @@ export async function scrapePage(ctx: { runAction: any }, url: string, opts: { w
   });
   const status = Number(doc.metadata?.statusCode ?? 200);
   if (doc.metadata?.error || status >= 400) throw new Error(`Firecrawl: ${doc.metadata?.error ?? `HTTP ${status}`} from ${url}`);
-  const tracked = (doc.changeTracking ?? {}) as { changeStatus?: unknown; previousScrapeAt?: unknown };
+  const tracked = (doc.changeTracking ?? {}) as { changeStatus?: unknown; previousScrapeAt?: unknown; diff?: { text?: unknown } };
+  const moved = typeof tracked.diff?.text === "string" ? changedLines(tracked.diff.text) : "";
   return {
     status,
     url: String(doc.metadata?.sourceURL ?? url),
@@ -48,6 +55,7 @@ export async function scrapePage(ctx: { runAction: any }, url: string, opts: { w
     ...(typeof doc.screenshot === "string" ? { screenshotUrl: doc.screenshot } : {}),
     ...(typeof tracked.changeStatus === "string" ? { changeStatus: tracked.changeStatus } : {}),
     ...(typeof tracked.previousScrapeAt === "string" ? { previousScrapeAt: tracked.previousScrapeAt } : {}),
+    ...(moved ? { changeDiff: moved } : {}),
   };
 }
 

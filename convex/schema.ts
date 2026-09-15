@@ -87,6 +87,8 @@ export default defineSchema({
     /** Firecrawl's own change tracking for this read: new, same, changed or removed. */
     firecrawlChangeStatus: v.optional(v.string()),
     firecrawlPreviousScrapeAt: v.optional(v.string()),
+    /** The lines Firecrawl saw move since that capture, cut from its git-diff. */
+    firecrawlDiff: v.optional(v.string()),
   })
     .index("by_source_captured", ["sourceId", "capturedAt"])
     .index("by_bodyhash", ["bodySha256"])

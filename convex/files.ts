@@ -180,7 +180,12 @@ export const commit = query({
       /** Firecrawl's own reading of the page on this read, where Firecrawl fetched it. */
       firecrawl: v.union(
         v.null(),
-        v.object({ changeStatus: v.string(), previousScrapeAt: v.union(v.string(), v.null()), shotUrl: v.union(v.string(), v.null()) }),
+        v.object({
+          changeStatus: v.string(),
+          previousScrapeAt: v.union(v.string(), v.null()),
+          shotUrl: v.union(v.string(), v.null()),
+          diff: v.union(v.string(), v.null()),
+        }),
       ),
       changes: v.array(changeShape),
       more: v.boolean(),
@@ -209,6 +214,7 @@ export const commit = query({
             changeStatus: snap.firecrawlChangeStatus,
             previousScrapeAt: snap.firecrawlPreviousScrapeAt ?? null,
             shotUrl: snap.screenshotStorageId ? await ctx.storage.getUrl(snap.screenshotStorageId) : null,
+            diff: snap.firecrawlDiff ?? null,
           }
         : null,
       changes: ch

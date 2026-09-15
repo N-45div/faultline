@@ -166,6 +166,7 @@ export const runSource = internalAction({
           ...(screenshotStorageId ? { screenshotStorageId: screenshotStorageId as any } : {}),
           ...(fetched.evidence?.changeStatus ? { firecrawlChangeStatus: fetched.evidence.changeStatus } : {}),
           ...(fetched.evidence?.previousScrapeAt ? { firecrawlPreviousScrapeAt: fetched.evidence.previousScrapeAt } : {}),
+          ...(fetched.evidence?.changeDiff ? { firecrawlDiff: fetched.evidence.changeDiff } : {}),
         },
       });
 
@@ -274,8 +275,8 @@ type Fetched =
       cursor?: string;
       /** A page came back at its own limit: the slice is not the whole slice. */
       truncated?: boolean;
-      /** Firecrawl's evidence for a page it fetched: a screenshot link and its own change verdict. */
-      evidence?: { screenshotUrl?: string; changeStatus?: string; previousScrapeAt?: string };
+      /** Firecrawl's evidence for a page it fetched: a screenshot link, its own change verdict, and the lines it saw move. */
+      evidence?: { screenshotUrl?: string; changeStatus?: string; previousScrapeAt?: string; changeDiff?: string };
     };
 
 async function fetchSource(
@@ -373,7 +374,7 @@ async function fetchSource(
       bodySha256: await sha256Hex(bytes),
       body: { kind: "text", text: page.html, status: page.status, url: page.url, fetchedAt },
       rowCount: -1,
-      ...(t.evidence ? { evidence: { screenshotUrl: page.screenshotUrl, changeStatus: page.changeStatus, previousScrapeAt: page.previousScrapeAt } } : {}),
+      ...(t.evidence ? { evidence: { screenshotUrl: page.screenshotUrl, changeStatus: page.changeStatus, previousScrapeAt: page.previousScrapeAt, changeDiff: page.changeDiff } } : {}),
     };
   }
 
