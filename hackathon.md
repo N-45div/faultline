@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-15T11:59:00Z
+- **Last updated:** 2026-09-15T12:23:00Z
 
 ## Log
 
@@ -1033,6 +1033,68 @@ each event once, and now passes on the delivery events for mail we sent. The
 webhook subscribes to sent, delivered, bounced, complained and rejected as well
 as received, and each reply's receipt records the latest, which a person's
 private page shows as "Delivered to your inbox" or "Bounced". Proven the same hour: a reply to an ASK from our test inbox, written at 11:51:12 UTC, was marked delivered 2.4 seconds later. AgentMail's "sent" event for it arrived a quarter of a second after "delivered", and the receipt kept "delivered", as the rule says it should. The test's asks were then removed.
+
+### 2026-09-15 - 47fd27f
+The landing page leads with the question the tenant loop answers, "Your
+landlord told the city it's fixed. Is it?", and beside it the reply to ASK 155
+Linden Boulevard, Brooklyn as it reads right now. The card is not a
+screenshot: it runs the city's rows we hold for that building through pickAsks
+and askLine in the browser. The reply's headline and its two how-to-answer
+lines moved into engine/hpd.ts, so the email and the card share one copy of
+every sentence. If no certification at the building is inside its 70 days,
+the card gives way to the Spirit Airlines receipt. The steps below it are the
+loop now: ask, answer in your own words, keep it.
+
+### 2026-09-15 - 1ea5f01
+Firecrawl's reading now comes with its own diff. Wisconsin's reads ask for
+change tracking in git-diff mode; the hunk headers and the lines that moved
+are cut from it, 60 lines at most, and kept with the read, and the commit page
+shows them, saying so when Firecrawl saw the page move and our row-by-row
+reading found no notice changed.
+
+Verified on production the same hour, and it answered a question the bare
+verdict could not. Our first read with Firecrawl's evidence, at 11:45 UTC, was
+"changed" to Firecrawl against a capture of its own nine minutes earlier that
+left no commit of ours, while our diff found no change. The next read, at
+12:16 UTC, was "changed" again, this time against our 11:45 commit, and again
+our diff found nothing. Firecrawl's lines showed why: every line that moved
+was a notice row whose only difference was the `?version=N` number on its PDF
+link (Foremost Farms USA 8 to 4, Durr CTS 6 to 1, Samuel Pressure Vessel Group
+8 to 3, UnityPoint Health 5 to 3 and 9 to 3). Those numbers changed between two
+reads half an hour apart with nothing else on the page changing, which confirms
+from outside the correction of 13 September: the number is not the state's
+revision count, and our diff is right to drop it. The code comment that said
+"changed" always means changed since our last read was too strong; it now says
+what the tag guarantees, and the commit page prints the capture Firecrawl
+compared against.
+
+### 2026-09-15 - 781cde7
+The tour for judges starts where a tenant would. Step 1 is ASK, with the live
+reply card. Step 2 is answering in your own words, and how GPT-6 Astra is held
+to the service's tools: tool choice required, one call at a time, and a
+refusal for any violation the person was not asked about. Step 3 is the
+private record and what became of each reply, from AgentMail's delivery
+events. Step 4 is the city's second word, and the convex-test run that proves
+it without waiting 70 days. The layoff files, the letter reader, FOLLOW, the
+pack and the paragraph on the stack follow, in twelve steps.
+
+One claim was cut on the way. The tour, the README and the pitch draft said
+nothing tells a tenant that the 70 days have started, but HPD's own page,
+quoted in engine/hpd.ts, says tenants are notified of a certification. What
+is true, and now said instead, is that the city's file holds the owner's word
+and has no place for the tenant's.
+
+### 2026-09-15 - d47c3ab
+The README opens with the tenant loop: the owner's certification, HPD's 70
+days, the city's counts for the 30 days from 16 August (7,313 violations whose
+latest status is an owner's certification, 1,527 stamped FALSE or INVALID,
+with the query that counts them), and the four steps. Each sponsor's paragraph
+says what runs today: the AgentMail component receives and verifies, its
+delivery events mark receipts, and its send queue is not used, with why; the
+agent's seven tools; Firecrawl's git-diff and what it showed; Photon's signed
+webhook and its free-tier limit. Running it gains the tests, the Photon
+variables and the agent's model variable, and the honesty notes gain the
+Wisconsin version number and the component send path.
 
 ## About
 
