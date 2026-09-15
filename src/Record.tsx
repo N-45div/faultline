@@ -13,17 +13,15 @@ const WORD: Record<"fixed" | "still_broken" | "not_sure", string> = {
 
 const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
-/** The AgentMail component's status for a reply, in words. */
+/** What became of a reply, from AgentMail's events, in words. */
 const ARRIVED: Record<string, string> = {
-  pending: "Queued to send",
   sent: "Sent, waiting for the delivery report",
   delivered: "Delivered to your inbox",
   bounced: "Bounced",
   complained: "Marked as spam",
   rejected: "Refused by the mail service",
-  failed: "Could not be sent",
   texted: "Sent by text",
-  queued: "Sent",
+  queued: "Queued to send",
 };
 
 export default function YourRecord({ token, go }: { token: string; go: (p: string) => void }) {

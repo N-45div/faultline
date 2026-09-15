@@ -3,11 +3,11 @@ import { internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { paused, providerFault } from "./guard";
 
-// Outbound mail the AgentMail component does not carry. A reply to a person
-// goes through the component's durable queue (see deliver in inbound.ts);
-// this file sends the daily digest, which must put its news back in the queue
-// and forget a stale thread when a send fails, and the replies held while mail
-// is paused or AgentMail's breaker is open. Every message we send is
+// Outbound mail. The AgentMail component handles inbound (webhook, events,
+// storage); sending goes straight to AgentMail's API from the app, because a
+// component runs with its own environment and cannot see the deployment's API
+// key. Tried again on 15 September with the component's send queue: every
+// send failed with "AGENTMAIL_API_KEY is not set". Every message we send is
 // machine-generated and says so: RFC 3834's Auto-Submitted header is how we
 // tell other robots not to answer us back.
 

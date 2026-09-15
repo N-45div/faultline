@@ -199,9 +199,13 @@ export default defineSchema({
     html: v.string(),
     createdAt: v.number(),
     outboundId: v.optional(v.string()),
-    /** The AgentMail component's id for this reply; its status moves from pending to delivered. */
+    /** Unused since 15 September: the component could not send. Kept so old rows stay valid. */
     deliveryId: v.optional(v.string()),
+    /** The latest AgentMail event for this reply: sent, delivered, bounced, complained or rejected. */
+    deliveryStatus: v.optional(v.string()),
+    deliveryAt: v.optional(v.number()),
   })
+    .index("by_outbound", ["outboundId"])
     .index("by_subject", ["subjectKey", "createdAt"])
     .index("by_thread", ["threadId"])
     .index("by_created", ["createdAt"]),

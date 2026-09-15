@@ -11,7 +11,6 @@ import { handleOf, photonIdentity } from "../engine/photon";
 import { buildReceipt, findBuildings, guessCompanyFromText, noticesFor, siteUrl, STATE_FILE } from "./lookup";
 import { askLine, fixedClaim, HPD_PAGES, nextStepFor, pickAsks, type Answer } from "../engine/hpd";
 import { heldForBuilding, recordAsks, recordToken, recordUrl } from "./attest";
-import { agentmail } from "./agentmailClient";
 import { paused } from "./guard";
 import { base64Utf8, layoffCsv } from "../engine/export";
 import { urlSlug } from "../engine/canon";
@@ -532,23 +531,11 @@ async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: s
   }
 
   if (process.env.AGENTMAIL_API_KEY && t.agentInboxId) {
-    // Durable by default: the AgentMail component queues the reply in its own
-    // table, sends it through a workpool with retries, and moves it from
-    // pending to sent to delivered as AgentMail's events arrive. The receipt
-    // keeps the component's id, so the person's own page can say which.
-    if (!paused("mail") && !(await ctx.runQuery(internal.breaker.open, { provider: "agentmail" }))) {
-      const deliveryId = await agentmail.replyToMessage(ctx, t.agentInboxId, t.messageId, {
-        text,
-        html,
-        ...(attachments && attachments.length > 0 ? { attachments } : {}),
-        headers: { "Auto-Submitted": "auto-replied" },
-      });
-      await ctx.db.patch(receiptId, { deliveryId: String(deliveryId) });
-      await ctx.db.patch(t.inboxId, { replied: true });
-      return { text, sent: true };
-    }
-    // Mail paused by hand, or AgentMail's breaker open: the older path waits
-    // and tries again. markSent flips `replied` when AgentMail accepts it.
+    // Sent from an action with the deployment's key. The AgentMail component's
+    // own send queue cannot be used: a component runs with its own environment
+    // and cannot read AGENTMAIL_API_KEY, so every send it attempted on 15
+    // September failed. markSent flips `replied` when AgentMail accepts it, and
+    // the delivery events the component receives mark the receipt later.
     await ctx.scheduler.runAfter(0, internal.mail.reply, {
       agentInboxId: t.agentInboxId,
       parentMessageId: t.messageId,
@@ -1124,6 +1111,32 @@ export const onPhotonText = internalMutation({
       return null;
     }
     await handleInbound(ctx, { message_id: messageId, thread_id: a.spaceId, inbox_id: "photon", from, subject: "", text: a.text }, true);
+    return null;
+  },
+});
+
+/**
+ * AgentMail's events after a send, passed on by the component that receives
+ * them: sent, delivered, bounced, complained, rejected. The receipt for that
+ * message records the latest, so a person's own page can say what became of
+ * our reply.
+ */
+export const onMailEvent = internalMutation({
+  args: { event: v.any() },
+  returns: v.null(),
+  handler: async (ctx, { event }) => {
+    const type = String(event?.event_type ?? "");
+    const status = { "message.sent": "sent", "message.delivered": "delivered", "message.bounced": "bounced", "message.complained": "complained", "message.rejected": "rejected" }[type];
+    if (!status) return null;
+    const messageId = [event?.message, event?.send, event?.delivery, event?.bounce, event?.complaint, event?.reject]
+      .map((x: any) => x?.message_id)
+      .find((x: unknown) => typeof x === "string" && x.length > 0);
+    if (!messageId) return null;
+    const receipt = await ctx.db.query("receipts").withIndex("by_outbound", (q) => q.eq("outboundId", messageId)).first();
+    if (!receipt) return null;
+    // Delivered is not undone by a late "sent".
+    if (receipt.deliveryStatus === "delivered" && status === "sent") return null;
+    await ctx.db.patch(receipt._id, { deliveryStatus: status, deliveryAt: Date.now() });
     return null;
   },
 });
