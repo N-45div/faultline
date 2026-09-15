@@ -235,6 +235,9 @@ const snapshotArg = v.object({
   bodyStorageId: v.optional(v.id("_storage")),
   rowCount: v.number(),
   degraded: v.boolean(),
+  screenshotStorageId: v.optional(v.id("_storage")),
+  firecrawlChangeStatus: v.optional(v.string()),
+  firecrawlPreviousScrapeAt: v.optional(v.string()),
 });
 
 const observationArg = v.object({

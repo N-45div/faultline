@@ -193,6 +193,19 @@ export function Commit({ id, go }: { id: string; go: (p: string) => void }) {
             14 days after a read that changed something.
           </p>
         )}
+        {c.firecrawl && (
+          <p className="fine">
+            Firecrawl fetched this page for us, and its own change tracking called it <strong>{c.firecrawl.changeStatus}</strong>
+            {c.firecrawl.previousScrapeAt ? ` against its capture of ${c.firecrawl.previousScrapeAt.replace("T", " ").slice(0, 16)} UTC` : ""}. That is
+            a second reading, independent of our own diff.
+          </p>
+        )}
+        {c.firecrawl?.shotUrl && (
+          <figure className="shot">
+            <img src={c.firecrawl.shotUrl} alt={`${c.publisher}'s page as Firecrawl captured it`} loading="lazy" />
+            <figcaption className="fine">The page as it was served at this read, captured by Firecrawl.</figcaption>
+          </figure>
+        )}
       </section>
       <section className="wall" aria-label="Changes">
         <ul className="changes">

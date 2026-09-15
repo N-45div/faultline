@@ -139,6 +139,17 @@ export const runSource = internalAction({
       if (diff.changes.length > 0 && adapter.targeting === "whole_file") {
         bodyStorageId = await ctx.storage.store(new Blob([fetched.bytes as BlobPart], { type: "application/octet-stream" }));
       }
+      // The page as Firecrawl saw it, kept only with a read that changed
+      // something: Firecrawl's screenshot link does not last; the stored image does.
+      let screenshotStorageId: string | undefined;
+      if (diff.changes.length > 0 && fetched.evidence?.screenshotUrl) {
+        try {
+          const shot = await fetch(fetched.evidence.screenshotUrl);
+          if (shot.ok) screenshotStorageId = await ctx.storage.store(await shot.blob());
+        } catch (e) {
+          console.warn(`[${slug}] screenshot not kept: ${String(e)}`);
+        }
+      }
 
       const snapshotId = await ctx.runMutation(internal.ingest.write.beginCommit, {
         sourceId: source._id,
@@ -152,6 +163,9 @@ export const runSource = internalAction({
           bodyStorageId: bodyStorageId as any,
           rowCount: observations.length,
           degraded: diff.degraded,
+          ...(screenshotStorageId ? { screenshotStorageId: screenshotStorageId as any } : {}),
+          ...(fetched.evidence?.changeStatus ? { firecrawlChangeStatus: fetched.evidence.changeStatus } : {}),
+          ...(fetched.evidence?.previousScrapeAt ? { firecrawlPreviousScrapeAt: fetched.evidence.previousScrapeAt } : {}),
         },
       });
 
@@ -260,6 +274,8 @@ type Fetched =
       cursor?: string;
       /** A page came back at its own limit: the slice is not the whole slice. */
       truncated?: boolean;
+      /** Firecrawl's evidence for a page it fetched: a screenshot link and its own change verdict. */
+      evidence?: { screenshotUrl?: string; changeStatus?: string; previousScrapeAt?: string };
     };
 
 async function fetchSource(
@@ -347,7 +363,7 @@ async function fetchSource(
     // Fetched by Firecrawl from their side, not ours. The adapter parses the
     // page's HTML exactly as it would a file we fetched directly; the only
     // difference is who did the fetching, and that is recorded in the URL.
-    const page = await scrapePage(ctx, t.url, { waitForMs: t.waitForMs });
+    const page = await scrapePage(ctx, t.url, { waitForMs: t.waitForMs, evidence: t.evidence });
     const bytes = new TextEncoder().encode(page.html);
     return {
       kind: "body",
@@ -357,6 +373,7 @@ async function fetchSource(
       bodySha256: await sha256Hex(bytes),
       body: { kind: "text", text: page.html, status: page.status, url: page.url, fetchedAt },
       rowCount: -1,
+      ...(t.evidence ? { evidence: { screenshotUrl: page.screenshotUrl, changeStatus: page.changeStatus, previousScrapeAt: page.previousScrapeAt } } : {}),
     };
   }
 

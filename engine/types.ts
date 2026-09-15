@@ -65,6 +65,8 @@ export type Transport =
       creditsPerFetch: number;
       /** Milliseconds for the page's own scripts to run before it is captured. */
       waitForMs?: number;
+      /** Also ask Firecrawl for a screenshot and its own change tracking, kept with any read that changed something. */
+      evidence?: boolean;
     };
 
 export interface SourceAdapter<Raw = Fields> {

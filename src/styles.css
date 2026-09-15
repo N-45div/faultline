@@ -982,3 +982,14 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* The page as Firecrawl captured it, on a commit. */
+.shot {
+  margin: 12px 0 0;
+}
+.shot img {
+  display: block;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}

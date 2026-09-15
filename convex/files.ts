@@ -177,6 +177,11 @@ export const commit = query({
       url: v.string(),
       /** The bytes as served are held for 14 days after a read that changed something. */
       bytesHeld: v.boolean(),
+      /** Firecrawl's own reading of the page on this read, where Firecrawl fetched it. */
+      firecrawl: v.union(
+        v.null(),
+        v.object({ changeStatus: v.string(), previousScrapeAt: v.union(v.string(), v.null()), shotUrl: v.union(v.string(), v.null()) }),
+      ),
       changes: v.array(changeShape),
       more: v.boolean(),
     }),
@@ -199,6 +204,13 @@ export const commit = query({
       rows: snap.rowCount,
       url: snap.requestUrl,
       bytesHeld: snap.bodyStorageId !== undefined,
+      firecrawl: snap.firecrawlChangeStatus
+        ? {
+            changeStatus: snap.firecrawlChangeStatus,
+            previousScrapeAt: snap.firecrawlPreviousScrapeAt ?? null,
+            shotUrl: snap.screenshotStorageId ? await ctx.storage.getUrl(snap.screenshotStorageId) : null,
+          }
+        : null,
       changes: ch
         .slice(0, 300)
         .sort((a, b) => order[a.kind] - order[b.kind] || a.identityKey.localeCompare(b.identityKey))

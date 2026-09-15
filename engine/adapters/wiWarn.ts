@@ -61,7 +61,7 @@ export const wiWarn: SourceAdapter<Raw> = {
   // Since 13 September the page builds its notice tables with its own script
   // after it loads: captured at once it is a heading, a legend and a list of
   // years, and zero rows. Eight seconds is enough for all fifty to be there.
-  transport: { kind: "firecrawl_scrape", url: PAGE, formats: ["markdown"], creditsPerFetch: 1, waitForMs: 8_000 },
+  transport: { kind: "firecrawl_scrape", url: PAGE, formats: ["markdown"], creditsPerFetch: 1, waitForMs: 8_000, evidence: true },
   // Four reads a day: the page changes when the state posts, which is a few
   // times a month, and each read is a paid credit.
   cadence: { baseMs: 6 * 60 * 60_000, hotMs: 3 * 60 * 60_000, jitterPct: 20, gate: "always" },
