@@ -134,7 +134,8 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           Ten tools with strict schemas, tool choice required, one call at a time, low reasoning effort, at most six
           turns, and free moderation first. Three of them are the components: send a link and Firecrawl reads the page,
           which is kept as it was served with a picture of it and a checksum; ask for proof and the evidence pack or the
-          filings spreadsheet arrives attached to the thread. Each run's tokens are priced into a ledger — about two and a half cents a
+          filings spreadsheet arrives attached to the thread. You can have the first of those three without writing to
+          the agent at all: email KEEP and a link, and the receipt comes back with the checksum of the copy we hold. Each run's tokens are priced into a ledger — about two and a half cents a
           message on the live inbox — under a daily cap; past the cap, or with the model unavailable, the keyword
           reader answers instead. The same inbox takes a reply by text through Photon.
         </p>
