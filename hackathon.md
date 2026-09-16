@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-15T12:37:00Z
+- **Last updated:** 2026-09-16T06:33:00Z
 
 ## Log
 
@@ -1107,6 +1107,41 @@ not accepted within a quarter of an hour now says Not sent. Found while
 filming the record page against production, and checked there after the
 deploy: our test inbox's list reads delivered three times, Not sent once, and
 Sent for the replies from before tracking.
+
+### 2026-09-16 - 81bcf20
+Three more tools for the inbox agent, and all three are components.
+keep_a_page hands a link someone sent to Firecrawl, which reads the page after
+its own scripts have run and returns it with a full-page picture; both go into
+Convex file storage with a SHA-256, and the reply says what is held: the
+address, the time, the size as served, the checksum, and whether Firecrawl had
+seen the page before. Five pages a person a day, twenty-five in all, so one
+thread cannot spend the budget. send_evidence_pack and send_spreadsheet put the
+PDF and the CSV in the thread as attachments, so "something I can give a
+lawyer" no longer has to be spelled PACK. Both of those replies moved into one
+function each, shared with the keyword path, so there is a single copy of every
+sentence.
+
+Verified on production the same hour, in one thread from the test inbox. "Can
+you keep this page for me? nyc.gov/site/hpd/...clear-violations.page" came back
+twenty-five seconds later as "Kept: Clear Violations - 37 KB as served -
+SHA-256 e676be3c42f9d46b... - This is the first time we have read it", with the
+page and its picture in storage. "I want something to give a lawyer" produced
+the 22-page pack as an attachment nine seconds later. "Every Spirit Airlines
+filing you hold as a spreadsheet" produced six filings as a CSV, and the run's
+own line reads: gpt-6-astra acted=send_spreadsheet requests=1 in=1216
+cached=1055 out=21 cost=0.3715c. A third of a cent, because the cached prefix
+carried most of the input.
+
+A type cycle appeared on the way. The inbound handler schedules the agent, the
+agent calls the page action, and the action calls the inbound handler back, so
+Convex's generated types collapsed to any across the whole site; fifty-eight
+errors, none of them in the code that changed. Annotating the action's handler
+and the query's result broke the cycle.
+
+### 2026-09-16 - 72e4115
+The tour and the README say ten tools, name the three new ones, and say what
+they are for: a link read and kept as it was served, the evidence pack, the
+filings spreadsheet.
 
 ## About
 
