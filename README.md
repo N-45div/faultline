@@ -41,7 +41,7 @@ Send **"Spirit Airlines"** to the inbox and the reply, in the same thread, reads
 - for a building: the city's own FALSE CERTIFICATION stamp on a landlord's "it's fixed", kept after the city overwrote it, and the restaurants the Health Department closed at that address;
 - what is held: rows, versions, how many times the file has been read, and the exact URL and time of the last read.
 
-"Nothing filed" is an answer too, dated to the minute with each file's last read — and followable. Reply **FOLLOW** to hear when anything changes, at most once a day; **STOP** ends it and is honoured before every other rule. **PACK** returns a PDF evidence pack with every version and its hash. **CSV** returns every filing as a spreadsheet for a lawyer, with no limitations column on purpose.
+"Nothing filed" is an answer too, dated to the minute with each file's last read — and followable. Reply **FOLLOW** to hear when anything changes, at most once a day; **STOP** ends it and is honoured before every other rule. **PACK** returns a PDF evidence pack with every version and its hash. **CSV** returns every filing as a spreadsheet for a lawyer, with no limitations column on purpose. **KEEP** and a link reads that page through Firecrawl and holds it as it was served, with a picture of it and a checksum, so what it said today can be checked tomorrow.
 
 Things it deliberately does not do: say "violation" about a layoff (the word is *gap*; exceptions are a lawyer's question); print a notice period where the state's file cannot support one; count a 13-worker filing against a statute that doesn't reach it; email an address that has never written to it; show a tenant's words on a public page.
 

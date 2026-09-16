@@ -289,6 +289,25 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       receipt = await packReceiptFor(ctx, target, from, intent.query);
       break;
     }
+    case "keep": {
+      // Firecrawl reads it from its side; the receipt for what we kept lands
+      // in this thread a few seconds behind this one.
+      await ctx.scheduler.runAfter(0, internal.pages.keep, { inboxId, url: intent.url });
+      receipt = {
+        kind: "none",
+        query: `keep:${intent.url}`,
+        subjectKey: undefined,
+        headline: `Reading ${hostOf(intent.url)} now.`,
+        blocks: [
+          [
+            "The receipt lands in this thread in a few seconds: the address, the time, the size as it was served, and the checksum of the copy we keep.",
+          ],
+        ],
+        links: [],
+        footer: [],
+      };
+      break;
+    }
     case "monitor": {
       receipt = {
         kind: "none",

@@ -170,6 +170,13 @@ console.log("\n== tenant loop");
     "the city's second word leads with agreement when the person said still broken",
   );
   check(nextStepFor("VIOLATION CLOSED") !== nextStepFor("NOV CERTIFIED ON TIME"), "a closed violation gets a different next step from a certification");
+
+  // KEEP: a page to hold, but only when there is a link to hold.
+  const keep = classifyInbound("KEEP https://example.gov/notice", "");
+  check(keep.kind === "keep" && keep.url === "https://example.gov/notice", "KEEP with a link asks for that page");
+  check(classifyInbound("keep me posted", "keep me posted please").kind !== "keep", "keep me posted is not a page to hold");
+  const bareLink = classifyInbound("", "https://example.gov/notice");
+  check(bareLink.kind === "keep" && bareLink.url === "https://example.gov/notice", "a line that is nothing but a link is a page to hold");
 }
 
 // Firecrawl's git-diff, cut to what moved.

@@ -10,6 +10,7 @@ export type Intent =
   | { kind: "stop" }
   | { kind: "pack"; query: string }
   | { kind: "csv"; query: string }
+  | { kind: "keep"; url: string }
   | { kind: "monitor" }
   | { kind: "letter"; text: string }
   | { kind: "answer"; answer: Answer; violationId: string | null; note: string }
@@ -57,6 +58,14 @@ export function classifyInbound(subjectRaw: string, bodyRaw: string, opts: { ans
   // "CSV <employer>": every filing we hold for them, one row each, as a file.
   const csvMatch = (isReply ? null : /^(?:csv|export)\b[:\s-]*(.*)$/i.exec(subject)) ?? /^(?:csv|export)\b[:\s-]*(.*)$/i.exec(firstLine);
   if (csvMatch) return { kind: "csv", query: csvMatch[1].trim().slice(0, 120) };
+
+  // "KEEP <link>", or a line that is nothing but a link: read that page now and
+  // hold it as it was served. Only with a link in it, because "keep me posted"
+  // is not a request to keep anything.
+  const URL_IN = /https?:\/\/[^\s<>"]+/i;
+  const keepMatch = (isReply ? null : /^keep\b[:\s-]*(.*)$/i.exec(subject)) ?? /^keep\b[:\s-]*(.*)$/i.exec(firstLine);
+  const keepUrl = keepMatch ? URL_IN.exec(keepMatch[1]) : URL_IN.exec(firstLine) && /^https?:\/\/[^\s<>"]+$/i.test(firstLine) ? URL_IN.exec(firstLine) : null;
+  if (keepUrl) return { kind: "keep", url: keepUrl[0].slice(0, 500) };
   if (commands.some((c) => /^monitor$/.test(c))) return { kind: "monitor" };
 
   // A letter: it talks like one. "I got a letter saying my position is being

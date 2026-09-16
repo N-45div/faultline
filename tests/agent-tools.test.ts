@@ -285,3 +285,19 @@ test("the spreadsheet tool says so when there is no filing to export", async () 
   const reply = await lastReply(t);
   expect(reply).toContain("couldn't find a layoff filing");
 });
+
+test("KEEP with a link says it is reading that page", async () => {
+  const t = make();
+  await seed(t);
+  const message = {
+    message_id: "<m-keep@test>",
+    thread_id: "thread-2",
+    inbox_id: "getnotice@agentmail.to",
+    from: `A Tenant <${TENANT}>`,
+    subject: "KEEP https://landlord.test/repairs",
+    text: "KEEP https://landlord.test/repairs",
+  };
+  await t.mutation(internal.inbound.onMessageReceived, { message, thread: {}, eventId: "<m-keep@test>" });
+  const receipt = await t.run((ctx) => ctx.db.query("receipts").order("desc").first());
+  expect(receipt?.text ?? "").toContain("Reading landlord.test now");
+});
