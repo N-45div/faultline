@@ -22,6 +22,9 @@ import { urlSlug } from "../engine/canon";
 const MAX_REPLIES_PER_SENDER_PER_DAY = 20;
 /** Reputation guard: past this, mail is stored and answered by a person later. */
 const MAX_REPLIES_PER_DAY = 150;
+/** Pages we keep for someone on request. One person cannot spend the day's budget. */
+const PAGES_PER_PERSON_PER_DAY = 5;
+const PAGES_PER_DAY = 25;
 
 export const onMessageReceived = internalMutation({
   args: { message: v.any(), thread: v.any(), eventId: v.string() },
@@ -277,85 +280,13 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       break;
     }
     case "csv": {
-      // Every filing we hold for this employer, one row each, as a file in
-      // this thread. Built here, from the same rows the receipt is built from.
-      const built = intent.query ? await buildReceipt(ctx.db, intent.query) : null;
-      if (built && built.receipt.kind === "layoff" && built.keys?.length) {
-        const rows = await noticesFor(ctx.db, built.keys);
-        const csv = layoffCsv(rows, { fileFor: (r) => STATE_FILE[r.jurisdiction] ?? "" });
-        const name = `notice-${urlSlug(built.matches[0]?.company ?? intent.query).slice(0, 40)}.csv`;
-        csvAttachment = [{ filename: name, content: base64Utf8(csv), contentType: "text/csv" }];
-        receipt = {
-          kind: "layoff",
-          query: `csv:${intent.query}`,
-          subjectKey: built.receipt.subjectKey,
-          headline: `${rows.length} ${rows.length === 1 ? "filing" : "filings"} for ${built.matches[0]?.company ?? intent.query}, attached as ${name}.`,
-          blocks: [
-            [
-              "One row per filing: employer, state, site, workers, the notice date, the layoff start as we parsed it and as the state wrote it, the type and reason the state recorded, the days of notice against the statute it falls under, the state's posting date, and every in-place amendment we caught with the day we caught it.",
-              "There is no limitations column on purpose. Federal WARN sets no limitations period; courts borrow the most analogous state statute, which differs by state and circuit. That is a determination, not a fact in the file.",
-            ],
-          ],
-          links: built.receipt.links,
-          footer: [],
-        };
-      } else {
-        receipt = {
-          kind: "none",
-          query: `csv:${intent.query}`,
-          headline: intent.query ? `We couldn't find a layoff filing for "${intent.query}" to export.` : "CSV needs a company name after it.",
-          blocks: [["Send CSV followed by the employer's name as it appears on your paperwork — for example, CSV Spirit Airlines."]],
-          links: [],
-          footer: [],
-        };
-      }
+      const made = await csvFor(ctx, intent.query);
+      receipt = made.receipt;
+      csvAttachment = made.attachment;
       break;
     }
     case "pack": {
-      // A real pack, built now, delivered to this thread as a PDF.
-      const base = intent.query ? (await buildReceipt(ctx.db, intent.query)).receipt : null;
-      if (base && base.kind !== "none" && base.subjectKey) {
-        await ctx.scheduler.runAfter(0, internal.packs.request, {
-          subjectKey: base.subjectKey,
-          query: intent.query,
-          kind: base.kind,
-          requestedBy: from,
-          agentInboxId: target.agentInboxId,
-          messageId,
-          threadId,
-        });
-        receipt = {
-          kind: base.kind,
-          query: `pack:${intent.query}`,
-          subjectKey: base.subjectKey,
-          headline: `Building your evidence pack for ${intent.query} now.`,
-          blocks: [
-            [
-              "It's a PDF: the record as it stands, every dated version we hold with its capture time and hash, the changes we recorded, and the statute — the thing you hand a lawyer.",
-              "It will arrive in this thread within a couple of minutes.",
-            ],
-            ["The pack is free."],
-          ],
-          links: base.links,
-          footer: [],
-        };
-      } else {
-        receipt = {
-          kind: "none",
-          query: `pack:${intent.query}`,
-          headline: intent.query
-            ? `We couldn't find "${intent.query}" in the files we hold, so there's nothing to pack yet.`
-            : "Evidence pack requested — reply with the company name or building address it's for.",
-          blocks: [
-            [
-              "An evidence pack is a PDF: every dated version of the filing we hold, capture times and hashes, the statute text, and the intervals — the thing you hand a lawyer.",
-              intent.query ? "Try the company's legal name as it appears on your paperwork, with PACK in front of it." : "For example: PACK Spirit Airlines.",
-            ],
-          ],
-          links: [],
-          footer: ["No card needed to ask."],
-        };
-      }
+      receipt = await packReceiptFor(ctx, target, from, intent.query);
       break;
     }
     case "monitor": {
@@ -707,6 +638,97 @@ async function hasAsked(ctx: MutationCtx, email: string): Promise<boolean> {
   return !!last && last.askedAt > Date.now() - 90 * 86_400_000;
 }
 
+/** The evidence pack for a name or an address: ask for the build, and say what is coming. */
+async function packReceiptFor(ctx: MutationCtx, t: Target, from: string, query: string): Promise<Receipt> {
+  const base = query ? (await buildReceipt(ctx.db, query)).receipt : null;
+  if (base && base.kind !== "none" && base.subjectKey) {
+    await ctx.scheduler.runAfter(0, internal.packs.request, {
+      subjectKey: base.subjectKey,
+      query,
+      kind: base.kind,
+      requestedBy: from,
+      agentInboxId: t.agentInboxId,
+      messageId: t.messageId,
+      threadId: t.threadId,
+    });
+    return {
+      kind: base.kind,
+      query: `pack:${query}`,
+      subjectKey: base.subjectKey,
+      headline: `Building your evidence pack for ${query} now.`,
+      blocks: [
+        [
+          "It's a PDF: the record as it stands, every dated version we hold with its capture time and hash, the changes we recorded, and the statute — the thing you hand a lawyer.",
+          "It will arrive in this thread within a couple of minutes.",
+        ],
+        ["The pack is free."],
+      ],
+      links: base.links,
+      footer: [],
+    };
+  }
+  return {
+    kind: "none",
+    query: `pack:${query}`,
+    headline: query
+      ? `We couldn't find "${query}" in the files we hold, so there's nothing to pack yet.`
+      : "Evidence pack requested — reply with the company name or building address it's for.",
+    blocks: [
+      [
+        "An evidence pack is a PDF: every dated version of the filing we hold, capture times and hashes, the statute text, and the intervals — the thing you hand a lawyer.",
+        query ? "Try the company's legal name as it appears on your paperwork, with PACK in front of it." : "For example: PACK Spirit Airlines.",
+      ],
+    ],
+    links: [],
+    footer: ["No card needed to ask."],
+  };
+}
+
+/** Every filing we hold for an employer, one row each, as a file in the thread. */
+async function csvFor(ctx: MutationCtx, query: string): Promise<{ receipt: Receipt; attachment?: Attachment[] }> {
+  const built = query ? await buildReceipt(ctx.db, query) : null;
+  if (built && built.receipt.kind === "layoff" && built.keys?.length) {
+    const rows = await noticesFor(ctx.db, built.keys);
+    const csv = layoffCsv(rows, { fileFor: (r) => STATE_FILE[r.jurisdiction] ?? "" });
+    const name = `notice-${urlSlug(built.matches[0]?.company ?? query).slice(0, 40)}.csv`;
+    return {
+      attachment: [{ filename: name, content: base64Utf8(csv), contentType: "text/csv" }],
+      receipt: {
+        kind: "layoff",
+        query: `csv:${query}`,
+        subjectKey: built.receipt.subjectKey,
+        headline: `${rows.length} ${rows.length === 1 ? "filing" : "filings"} for ${built.matches[0]?.company ?? query}, attached as ${name}.`,
+        blocks: [
+          [
+            "One row per filing: employer, state, site, workers, the notice date, the layoff start as we parsed it and as the state wrote it, the type and reason the state recorded, the days of notice against the statute it falls under, the state's posting date, and every in-place amendment we caught with the day we caught it.",
+            "There is no limitations column on purpose. Federal WARN sets no limitations period; courts borrow the most analogous state statute, which differs by state and circuit. That is a determination, not a fact in the file.",
+          ],
+        ],
+        links: built.receipt.links,
+        footer: [],
+      },
+    };
+  }
+  return {
+    receipt: {
+      kind: "none",
+      query: `csv:${query}`,
+      headline: query ? `We couldn't find a layoff filing for "${query}" to export.` : "CSV needs a company name after it.",
+      blocks: [["Send CSV followed by the employer's name as it appears on your paperwork — for example, CSV Spirit Airlines."]],
+      links: [],
+      footer: [],
+    },
+  };
+}
+
+function hostOf(u: string): string {
+  try {
+    return new URL(u).host;
+  } catch {
+    return u;
+  }
+}
+
 /** The ASK reply for one building: each certification still inside its 70 days, asked. */
 async function askReceiptFor(ctx: MutationCtx, from: string, bbl: string, label: string, now: number): Promise<Receipt> {
   const asks = pickAsks(await heldForBuilding(ctx, bbl), new Date(now).toISOString().slice(0, 10), 3);
@@ -989,6 +1011,143 @@ export const agentAsk = internalMutation({
     const receipt = await askReceiptFor(ctx, target.row.fromAddress, key, subject.label, Date.now());
     await deliver(ctx, target.t, receipt, []);
     return "asked and replied";
+  },
+});
+
+/** Is there room to keep another page today, for this person and for us? */
+export const agentPageRoom = internalQuery({
+  args: { inboxId: v.id("inbox") },
+  returns: v.union(v.null(), v.object({ ok: v.boolean(), why: v.string() })),
+  handler: async (ctx, { inboxId }) => {
+    const row = await ctx.db.get(inboxId);
+    if (!row) return null;
+    const since = Date.now() - 86_400_000;
+    const mine = await ctx.db
+      .query("pages")
+      .withIndex("by_email_captured", (q) => q.eq("requestedBy", row.fromAddress).gte("capturedAt", since))
+      .take(PAGES_PER_PERSON_PER_DAY + 1);
+    if (mine.length >= PAGES_PER_PERSON_PER_DAY) return { ok: false, why: "that is as many pages as we keep for one person in a day" };
+    const all = await ctx.db
+      .query("pages")
+      .withIndex("by_captured", (q) => q.gte("capturedAt", since))
+      .take(PAGES_PER_DAY + 1);
+    if (all.length >= PAGES_PER_DAY) return { ok: false, why: "we have kept as many pages today as we keep in a day" };
+    return { ok: true, why: "" };
+  },
+});
+
+/** A page read and kept: the row, and the receipt that says what is held. */
+export const agentPageKept = internalMutation({
+  args: {
+    inboxId: v.id("inbox"),
+    url: v.string(),
+    finalUrl: v.string(),
+    sha256: v.string(),
+    bytes: v.number(),
+    title: v.string(),
+    bodyStorageId: v.id("_storage"),
+    screenshotStorageId: v.optional(v.id("_storage")),
+    changeStatus: v.optional(v.string()),
+  },
+  returns: v.string(),
+  handler: async (ctx, a) => {
+    const target = await agentTarget(ctx, a.inboxId);
+    if (!target) return "no such message";
+    const now = Date.now();
+    await ctx.db.insert("pages", {
+      url: a.url,
+      finalUrl: a.finalUrl,
+      requestedBy: target.row.fromAddress,
+      capturedAt: now,
+      sha256: a.sha256,
+      bytes: a.bytes,
+      title: a.title,
+      bodyStorageId: a.bodyStorageId,
+      ...(a.screenshotStorageId ? { screenshotStorageId: a.screenshotStorageId } : {}),
+      ...(a.changeStatus ? { changeStatus: a.changeStatus } : {}),
+    });
+    const served = await ctx.storage.getUrl(a.bodyStorageId);
+    const shot = a.screenshotStorageId ? await ctx.storage.getUrl(a.screenshotStorageId) : null;
+    const when = new Date(now).toISOString().replace("T", " ").slice(0, 16);
+    const size = a.bytes >= 1024 ? `${Math.round(a.bytes / 1024)} KB` : `${a.bytes} bytes`;
+    const again =
+      a.changeStatus === "same"
+        ? "It has not changed since the last time we read it."
+        : a.changeStatus === "changed"
+          ? "It has changed since the last time we read it."
+          : a.changeStatus === "new"
+            ? "This is the first time we have read it."
+            : "";
+    const links = [{ label: "The page as it was served", url: served ?? a.finalUrl }];
+    if (shot) links.push({ label: "The page as it looked", url: shot });
+    links.push({ label: "The page today", url: a.finalUrl });
+    await deliver(
+      ctx,
+      target.t,
+      {
+        kind: "none",
+        query: `page:${a.url}`,
+        headline: a.title ? `Kept: ${a.title}` : `Kept the page at ${hostOf(a.finalUrl)}.`,
+        blocks: [
+          [a.finalUrl, `Read ${when} UTC · ${size} as served · SHA-256 ${a.sha256.slice(0, 16)}…`, again].filter((l) => l.length > 0),
+          [
+            "We keep the page as it was served and a picture of it. If whoever publishes it changes it later, this copy stays as it was, and the checksum shows it.",
+          ],
+        ],
+        links,
+        footer: [],
+      },
+      [],
+    );
+    return "kept and replied";
+  },
+});
+
+/** A page we could not keep, and why, in the same thread. */
+export const agentPageRefused = internalMutation({
+  args: { inboxId: v.id("inbox"), url: v.string(), why: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { inboxId, url, why }) => {
+    const target = await agentTarget(ctx, inboxId);
+    if (!target) return "no such message";
+    await deliver(
+      ctx,
+      target.t,
+      {
+        kind: "none",
+        query: `page:${url}`,
+        headline: `We couldn't keep that page: ${why}.`,
+        blocks: [["Send a link beginning with http, and we'll read it, keep what it said, and give you the time and the checksum."]],
+        links: [],
+        footer: [],
+      },
+      [],
+    );
+    return why;
+  },
+});
+
+export const agentPack = internalMutation({
+  args: { inboxId: v.id("inbox"), query: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { inboxId, query }) => {
+    const target = await agentTarget(ctx, inboxId);
+    if (!target) return "no such message";
+    const receipt = await packReceiptFor(ctx, target.t, target.row.fromAddress, query.trim().slice(0, 120));
+    await deliver(ctx, target.t, receipt, []);
+    return "pack requested and replied";
+  },
+});
+
+export const agentCsv = internalMutation({
+  args: { inboxId: v.id("inbox"), query: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { inboxId, query }) => {
+    const target = await agentTarget(ctx, inboxId);
+    if (!target) return "no such message";
+    const made = await csvFor(ctx, query.trim().slice(0, 120));
+    await deliver(ctx, target.t, made.receipt, [], made.attachment);
+    return "spreadsheet sent";
   },
 });
 

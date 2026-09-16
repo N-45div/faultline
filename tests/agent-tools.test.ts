@@ -218,3 +218,70 @@ test("asking which building gives the address prompt, and unsupported says what 
   await t.mutation(internal.inbound.agentClarify, { inboxId: b, what: "unsupported" });
   expect(await lastReply(t)).toContain("We answer about New York City housing repairs and US layoff filings.");
 });
+
+test("a page someone sent is kept as it was served, with its checksum", async () => {
+  const t = make();
+  await seed(t);
+  const inboxId = await incoming(t, "<m-page@test>");
+  const bodyStorageId = await t.run(async (ctx) => await ctx.storage.store(new Blob(["<html>the repairs policy</html>"], { type: "text/html" })));
+  await t.mutation(internal.inbound.agentPageKept, {
+    inboxId,
+    url: "https://landlord.test/repairs",
+    finalUrl: "https://landlord.test/repairs",
+    sha256: "a".repeat(64),
+    bytes: 2048,
+    title: "Repairs policy",
+    bodyStorageId,
+    changeStatus: "new",
+  });
+  const reply = await lastReply(t);
+  expect(reply).toContain("Kept: Repairs policy");
+  expect(reply).toContain("SHA-256 aaaaaaaaaaaaaaaa");
+  expect(reply).toContain("first time we have read it");
+  const kept = await t.run((ctx) => ctx.db.query("pages").collect());
+  expect(kept).toHaveLength(1);
+  expect(kept[0].requestedBy).toBe(TENANT);
+  expect(kept[0].bytes).toBe(2048);
+});
+
+test("the page tool keeps nobody past the day's budget", async () => {
+  const t = make();
+  await seed(t);
+  const inboxId = await incoming(t, "<m-room@test>");
+  await t.run(async (ctx) => {
+    const bodyStorageId = await ctx.storage.store(new Blob(["x"]));
+    for (let i = 0; i < 5; i++) {
+      await ctx.db.insert("pages", {
+        url: `https://landlord.test/${i}`,
+        finalUrl: `https://landlord.test/${i}`,
+        requestedBy: TENANT,
+        capturedAt: Date.now() - 1000,
+        sha256: "b".repeat(64),
+        bytes: 10,
+        title: "",
+        bodyStorageId,
+      });
+    }
+  });
+  const room = await t.query(internal.inbound.agentPageRoom, { inboxId });
+  expect(room?.ok).toBe(false);
+  expect(room?.why).toContain("one person in a day");
+});
+
+test("the pack tool asks for the building's pack and says what is coming", async () => {
+  const t = make();
+  await seed(t);
+  const inboxId = await incoming(t, "<m-pack@test>");
+  await t.mutation(internal.inbound.agentPack, { inboxId, query: LABEL });
+  const receipt = await t.run((ctx) => ctx.db.query("receipts").order("desc").first());
+  expect(receipt?.text ?? "").toContain("evidence pack");
+});
+
+test("the spreadsheet tool says so when there is no filing to export", async () => {
+  const t = make();
+  await seed(t);
+  const inboxId = await incoming(t, "<m-csv@test>");
+  await t.mutation(internal.inbound.agentCsv, { inboxId, query: "nobody incorporated" });
+  const reply = await lastReply(t);
+  expect(reply).toContain("couldn't find a layoff filing");
+});

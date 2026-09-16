@@ -455,6 +455,24 @@ export default defineSchema({
     .index("by_subject", ["subjectKey", "createdAt"]),
 
   /** Numbers the landing page shows, refreshed by a cron instead of scanned per view. */
+  /** A page someone sent us, read through Firecrawl and kept as it was served. */
+  pages: defineTable({
+    url: v.string(),
+    finalUrl: v.string(),
+    requestedBy: v.string(),
+    capturedAt: v.number(),
+    sha256: v.string(),
+    bytes: v.number(),
+    title: v.string(),
+    bodyStorageId: v.id("_storage"),
+    screenshotStorageId: v.optional(v.id("_storage")),
+    /** Firecrawl's own reading of it: new, same, changed or removed. */
+    changeStatus: v.optional(v.string()),
+  })
+    .index("by_email_captured", ["requestedBy", "capturedAt"])
+    .index("by_captured", ["capturedAt"])
+    .index("by_url", ["url"]),
+
   stats: defineTable({
     key: v.string(),
     value: v.any(),
