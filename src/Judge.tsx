@@ -123,15 +123,18 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           A reply with a number and FIXED, STILL BROKEN or NOT SURE is read with no model at all. Reply the way you'd
           tell a neighbour — "the tiles by the compactor are still cracked" — and GPT-6 Astra, on the OpenAI Agents SDK,
           reads it and must finish by calling one of the service's own tools: record an answer, ask about a building,
-          look up a record, hand a pasted letter to the letter reader, or ask which one you meant. It writes no sentence
+          look up a record, keep a page you send, put the evidence pack or the filings spreadsheet in the thread, hand a
+          pasted letter to the letter reader, or ask which one you meant. It writes no sentence
           you read. The tool that records an answer refuses any violation number this person was not asked about and
           asks them which repair they mean instead, so the model can pick the wrong tool but cannot put an answer on a
           repair nobody asked about.
         </p>
         <p>Try it: when step 1's reply arrives, answer it in a sentence.</p>
         <p className="fine">
-          Seven tools with strict schemas, tool choice required, one call at a time, low reasoning effort, at most six
-          turns, and free moderation first. Each run's tokens are priced into a ledger — about two and a half cents a
+          Ten tools with strict schemas, tool choice required, one call at a time, low reasoning effort, at most six
+          turns, and free moderation first. Three of them are the components: send a link and Firecrawl reads the page,
+          which is kept as it was served with a picture of it and a checksum; ask for proof and the evidence pack or the
+          filings spreadsheet arrives attached to the thread. Each run's tokens are priced into a ledger — about two and a half cents a
           message on the live inbox — under a daily cap; past the cap, or with the model unavailable, the keyword
           reader answers instead. The same inbox takes a reply by text through Photon.
         </p>
@@ -374,7 +377,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           AgentMail, which verifies the inbox's events, stores each once, and hands us inbound mail and delivery
           reports, and Firecrawl. A read is a start, then slices of 150 rows, then a finish, because a city file is
           bigger than one transaction. Two states rename their file on every publish, so the read takes today's link
-          from the state's own page. OpenAI: GPT-6 Astra on the Agents SDK with seven strict tools for the inbox;
+          from the state's own page. OpenAI: GPT-6 Astra on the Agents SDK with ten strict tools for the inbox;
           gpt-5.6-luna with one zod schema for both strict output and validation, a byte-stable cached prefix, and PDF
           and image input for letters and photographed notices; hosted web search; free moderation. Photon: a signed
           endpoint and the Spectrum SDK in a node action, so the same loop works by text — its free tier texts only
