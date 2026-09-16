@@ -12,7 +12,7 @@
 - **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
 - **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-16T06:33:00Z
+- **Last updated:** 2026-09-16T06:38:00Z
 
 ## Log
 
@@ -1142,6 +1142,21 @@ and the query's result broke the cycle.
 The tour and the README say ten tools, name the three new ones, and say what
 they are for: a link read and kept as it was served, the evidence pack, the
 filings spreadsheet.
+
+### 2026-09-16 - b3b0802
+KEEP and a link, for anyone. The page-keeping the agent reaches by tool is now
+also a keyword, because the agent only reads free text from someone we have
+already asked a question, so a first-time writer could not have used it. A
+first line that is nothing but a link counts as well. "keep me posted" does
+not: without a link in it, the word falls through to the ordinary reading.
+Two replies, as with the pack: "Reading www.nyc.gov now", then the receipt for
+what was kept.
+
+Live from the test inbox with no question open, at 06:37 UTC: the first reply
+in 8.5 seconds, and the second in 17.4 - "Kept: Report a Quality or Safety
+Issue - 28 KB as served - SHA-256 5d78dbebb90be4a9... - This is the first time
+we have read it", with links to the page as it was served and to the picture
+of it.
 
 ## About
 
