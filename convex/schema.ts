@@ -191,6 +191,22 @@ export default defineSchema({
     .index("by_from", ["fromAddress", "receivedAt"]),
 
   /** What we sent back. */
+  /**
+   * Addresses AgentMail told us not to write to again: a bounce, a rejection,
+   * or a spam complaint. A complaint is final - a person who reports us has
+   * said everything they need to. A bounce is about a mailbox, not a person,
+   * so it clears the moment that address writes to us, because mail arriving
+   * from it is proof it works.
+   */
+  suppressions: defineTable({
+    email: v.string(),
+    /** bounced, rejected, or complained - AgentMail's word for it. */
+    reason: v.string(),
+    at: v.number(),
+    /** The message whose failure taught us this. */
+    messageId: v.optional(v.string()),
+  }).index("by_email", ["email"]),
+
   receipts: defineTable({
     inboxId: v.optional(v.id("inbox")),
     threadId: v.optional(v.string()),

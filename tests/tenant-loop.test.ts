@@ -231,3 +231,50 @@ test("ASK where no certification is inside its 70 days says so, and asks nothing
   const rows = await t.run((ctx) => ctx.db.query("attestations").collect());
   expect(rows).toHaveLength(0);
 });
+
+/** AgentMail's own word about what happened to a message we sent. */
+async function mailEvent(t: T, event_type: string, outboundId: string) {
+  await t.mutation(internal.inbound.onMailEvent, {
+    event: { event_type, message: { message_id: outboundId, to: [TENANT] } },
+  });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+}
+
+async function lastOutboundId(t: T): Promise<string> {
+  const r = await t.run((ctx) => ctx.db.query("receipts").order("desc").first());
+  return r?.outboundId ?? "";
+}
+
+test("a spam complaint is final: the follows go off and nothing is sent again", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `#${VIOLATION} STILL BROKEN`);
+  expect((await t.run((ctx) => ctx.db.query("subscriptions").collect())).some((s) => s.active)).toBe(true);
+
+  await mailEvent(t, "message.complained", await lastOutboundId(t));
+  expect((await t.run((ctx) => ctx.db.query("subscriptions").collect())).every((s) => !s.active)).toBe(true);
+
+  // They write again; the message is kept, and still nothing goes back.
+  const before = sent.length;
+  expect(await receive(t, "<m3@test>", `Re: ${LABEL}`, "ASK")).toBe("");
+  expect(sent.length).toBe(before);
+  expect(await t.run((ctx) => ctx.db.query("inbox").order("desc").first())).toMatchObject({ replied: false });
+
+  // And the city's later word reaches nobody.
+  vi.setSystemTime(new Date("2026-09-21T12:00:00Z"));
+  await cityStamps(t, "FALSE CERTIFICATION", "2026-09-21");
+  expect(sent.length).toBe(before);
+});
+
+test("a bounce stops the mail, and clears when that address writes to us", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await mailEvent(t, "message.bounced", await lastOutboundId(t));
+  expect(await t.run((ctx) => ctx.db.query("suppressions").first())).toMatchObject({ reason: "bounced" });
+
+  // Mail arriving from that address is proof the mailbox works.
+  expect(await receive(t, "<m2@test>", `Re: ${LABEL}`, "ASK")).toContain(LABEL);
+  expect(await t.run((ctx) => ctx.db.query("suppressions").first())).toBe(null);
+});

@@ -110,6 +110,19 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   // a confirmation is a separate question, and the gates still decide that.
   if (intent.kind === "stop") await unsubscribe(ctx, from, now);
 
+  // An address the provider has ruled on. A complaint is final: the message is
+  // stored, and nothing goes back. A bounce is about a mailbox, and mail from
+  // that mailbox is proof it works again, so writing to us clears it.
+  const ruled = await ctx.db.query("suppressions").withIndex("by_email", (q) => q.eq("email", from)).first();
+  if (ruled) {
+    if (ruled.reason === "complained") {
+      console.log("[inbound] stored, not answered: this address reported us");
+      return { intent: intent.kind, query, kind: "none", text: "", sent: false };
+    }
+    await ctx.db.delete(ruled._id);
+    console.log(`[inbound] the ${ruled.reason} cleared: this address is writing to us`);
+  }
+
   // Never answer a robot: bounces, lists, auto-responders, our own address.
   // The message is stored above either way; we just don't send.
   // A text through Photon comes from a phone number, not an address; the
@@ -539,6 +552,34 @@ async function unsubscribe(ctx: MutationCtx, email: string, now: number) {
     .take(500);
   for (const a of queued) await ctx.db.patch(a._id, { status: "sent", sentAt: now });
   if (off > 0 || queued.length > 0) console.log(`[inbound] STOP honoured: ${off} follows off, ${queued.length} queued alerts dropped`);
+}
+
+/** The address a delivery event is about, wherever AgentMail put it. */
+function recipientOf(event: any): string | null {
+  const ours = String(process.env.AGENTMAIL_INBOX_ID ?? "").toLowerCase();
+  const seen = [event?.message, event?.send, event?.delivery, event?.bounce, event?.complaint, event?.reject]
+    .flatMap((x: any) => [x?.to, x?.recipient, x?.recipients, x?.email])
+    .flat()
+    .map((x: unknown) => (typeof x === "string" ? x : String((x as any)?.email ?? "")))
+    .map((x) => x.trim().toLowerCase())
+    .filter((x) => x.includes("@") && x !== ours);
+  return seen[0] ?? null;
+}
+
+/**
+ * Written down once, and acted on: every follow off, anything queued dropped.
+ * A later bounce does not overwrite a complaint - the stronger word stands.
+ */
+async function suppress(ctx: MutationCtx, email: string, reason: string, messageId: string) {
+  const now = Date.now();
+  const existing = await ctx.db.query("suppressions").withIndex("by_email", (q) => q.eq("email", email)).first();
+  if (existing) {
+    if (existing.reason !== "complained") await ctx.db.patch(existing._id, { reason, at: now, messageId });
+  } else {
+    await ctx.db.insert("suppressions", { email, reason, at: now, messageId });
+  }
+  await unsubscribe(ctx, email, now);
+  console.log(`[inbound] ${reason}: we stop writing to this address`);
 }
 
 async function latestMatchedInThread(ctx: MutationCtx, threadId: string) {
@@ -1310,6 +1351,17 @@ export const onMailEvent = internalMutation({
       .find((x: unknown) => typeof x === "string" && x.length > 0);
     if (!messageId) return null;
     const receipt = await ctx.db.query("receipts").withIndex("by_outbound", (q) => q.eq("outboundId", messageId)).first();
+
+    // The provider's verdict on an address is worth more than our intent to
+    // write to it. Stop, and take the follows off with it: a digest to a dead
+    // mailbox is a bounce a day, and a digest to someone who reported us is a
+    // second complaint.
+    if (status === "bounced" || status === "complained" || status === "rejected") {
+      const inboxRow = receipt?.inboxId ? await ctx.db.get(receipt.inboxId) : null;
+      const email = recipientOf(event) ?? inboxRow?.fromAddress ?? null;
+      if (email && email.includes("@")) await suppress(ctx, email, status, messageId);
+    }
+
     if (!receipt) return null;
     // Delivered is not undone by a late "sent".
     if (receipt.deliveryStatus === "delivered" && status === "sent") return null;
