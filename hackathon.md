@@ -1254,6 +1254,17 @@ ran GPT-6 Astra at 3,077 tokens in, 1,194 of them cached, 2.17 cents, and it
 chose ask_which - correctly, because nothing open for that address is about
 tiles.
 
+### 2026-09-18 - 919e117
+The README, rewritten so what is in here can be found in a minute. It had grown
+into eight paragraphs with the strongest things buried in the middle of them.
+Same substance, ordered for someone with twenty tabs open: the claim, a table of
+what to email and what comes back, why it exists with the city's two numbers,
+what a receipt says and what it will not do, then one row per sponsor saying
+where each does real work - and the two rules that decide correctness, with the
+live failure that found the second. Every count recounted rather than carried
+over: 31 tables, 57 indexes, 151 deployed functions, four components, ten files,
+eleven tools, 300 automated checks.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
