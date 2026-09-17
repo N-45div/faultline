@@ -1158,6 +1158,22 @@ Issue - 28 KB as served - SHA-256 5d78dbebb90be4a9... - This is the first time
 we have read it", with links to the page as it was served and to the picture
 of it.
 
+### 2026-09-17 - 54a86fa
+Every ceiling the inbox keeps now runs on the rate-limiter component. Five of
+them were counts over tables - replies to one sender, replies a day, pages for
+one person, pages a day, agent runs a day - so each message read a slice of a
+table that only grows, and two messages arriving in the same second could both
+pass a limit with one place left in it. @convex-dev/rate-limiter keeps one
+counter per limit in a fixed window a day wide: the cost does not follow the
+table, and the last place can only be taken once. The numbers live in
+convex/limits.ts and nowhere else; asking for room to keep a page is a mutation
+now (agentPageAllow), because asking takes the room.
+Fourth Convex component, after static hosting, AgentMail and Firecrawl.
+
+Live after the deploy at 08:12 UTC: ASK 155 Linden Boulevard, Brooklyn answered
+in 12.8 seconds, three certified repairs listed with the dates HPD's 70 days
+run to.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
