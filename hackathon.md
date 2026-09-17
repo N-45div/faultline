@@ -1240,11 +1240,19 @@ are near-identical latch violations at the same compactor closet - so asking is
 the only honest answer there, and no embedding would have been better.
 
 That run also found something for Divij, not for the code: the deployment's
-OpenAI key has no credits left (429, "You have no credits remaining"). Every
-model path is falling through to the keyword reader, which is why it answered
-at all. The last priced call was 16 September. Nothing is broken; the agent,
-the letter reader, the corroboration and now the embeddings are all off until
-credits are added.
+OpenAI key had no credits left (429, "You have no credits remaining"), so every
+model path was falling through to the keyword reader - which is why it answered
+at all, and why nothing was lost. Credits were added the same hour and all of it
+was re-run.
+
+With the key working, at 08:39 UTC, and four repairs open for the test address
+and no number in the message: "the fire retardant material at the ceiling is
+still broken" was recorded against #19114297, the ceiling one. Yesterday that
+sentence would have gone on #19178388, the newest. Each embedding is priced into
+the same ledger as the models, at 0.0001 cents; a free-text reply in the thread
+ran GPT-6 Astra at 3,077 tokens in, 1,194 of them cached, 2.17 cents, and it
+chose ask_which - correctly, because nothing open for that address is about
+tiles.
 
 ## About
 
