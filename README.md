@@ -1,93 +1,146 @@
 # Faultline
 
-**Your landlord told the city the repair is done. Is it? Faultline asks the person living with it, keeps their answer dated beside the city's own record, and tells them the day that record agrees.**
+### Your landlord told the city the repair is done. Is it?
 
-Email **ASK** and a New York City address to **getnotice@agentmail.to**, then answer in your own words. Layoff notices work from the same inbox: email a company name and get back what it filed with the state, including every version the state has since overwritten.
+Faultline asks the person living with it, keeps their answer dated beside the city's own record, and tells them the day that record agrees. It also keeps every government file the government overwrites — layoff notices, housing violations, restaurant inspections — so yesterday's version still exists when someone needs it.
 
-Live: **https://clear-dogfish-72.convex.site** · Inbox: **getnotice@agentmail.to** · Tour for judges: [/judge](https://clear-dogfish-72.convex.site/judge)
+It is an inbox. There is nothing to install and no account to make.
 
-Built for the Convex All Gas Hackathon (25 Aug – 22 Sep 2026). The build log judges read is [hackathon.md](hackathon.md), one entry per commit.
+**Live:** https://clear-dogfish-72.convex.site · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), one entry per commit
 
-## They marked it fixed. Is it?
+Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 
-When an owner certifies to New York City's housing agency, HPD, that a violation has been corrected, the violation closes after 70 days unless HPD reinspects. A tenant may challenge the certification, which triggers that inspection, but the city's file holds only the owner's word: it has no place for the tenant's. In the thirty days from 16 August 2026, the city's own file shows 7,313 violations whose latest status is an owner's certification, and 1,527 whose latest status is HPD's stamp that a certification was FALSE or INVALID. Those are different violations, not a rate; both counts are [one query on the city's file](https://data.cityofnewyork.us/resource/wvxf-dwi5.json?$select=currentstatus%2Ccount(1)&$where=currentstatusdate%3E%3D'2026-08-16'%20AND%20currentstatus%20in('NOV%20CERTIFIED%20ON%20TIME'%2C'NOV%20CERTIFIED%20LATE'%2C'FALSE%20CERTIFICATION'%2C'INVALID%20CERTIFICATION')&$group=currentstatus), refreshed daily on the landing page.
+---
 
-1. **ASK.** Email `ASK 155 Linden Boulevard, Brooklyn`. Within seconds the reply lists each repair the owner certified there that is still inside its 70 days, in the city's words, with the day the 70 days run out. The landing page shows that reply as it reads right now, built by the same functions.
-2. **Answer in your own words.** `#19105974 STILL BROKEN` is read with no model at all. "The tiles by the compactor are still cracked" goes to GPT-6 Astra on the OpenAI Agents SDK, which must finish by calling one of eleven tools. It records the answer against a violation this person was asked about, or asks which one they meant. The model writes no sentence anyone reads; the tools do, in the service's own words, and the tool that records an answer refuses a violation number the person was never asked about.
-3. **Kept, private, dated.** The answer lives on the person's own page, opened by a private link: what the city's file said when we asked, what it says now, HPD's 70 days, and what they said, each dated, with their photo if they sent one. The same page shows what became of every reply we sent them — delivered, bounced, or sent by text — from AgentMail's own delivery events.
+## Try it in sixty seconds
+
+Email **getnotice@agentmail.to**. Any of these, in the subject or the first line:
+
+| Write this | What comes back, in the same thread |
+|---|---|
+| `ASK 155 Linden Boulevard, Brooklyn` | Every repair the owner has certified to the city at that address that is still inside its 70 days, in the city's own words, with the day the clock runs out |
+| *(then answer it)* `#19114297 STILL BROKEN`, or just "the tiles by the compactor are still cracked" | Your answer, kept and dated beside the city's record, on a private page only you have the link to |
+| `Spirit Airlines` | Every layoff notice it filed, in every state we read, with the days between notice and layoff against the statute that actually applies |
+| `FOLLOW` | One email a day at most, when anything you follow changes. `STOP` ends it, and is honoured before every other rule |
+| `PACK` | A PDF evidence pack: every version we hold, each with its hash and capture time |
+| `CSV` | Every filing as a spreadsheet for a lawyer. No limitations column, on purpose |
+| `KEEP https://…` | That page read through Firecrawl and held as it was served, with a picture of it and a SHA-256 |
+| `FIND Linden Plaza Preservation LLC` | Every page on the open web that names them, and the first one held the same way |
+
+A reply that is not one of those words goes to the inbox agent, which must finish by calling one of eleven tools. It never writes a sentence you read.
+
+---
+
+## Why it exists
+
+When an owner certifies to New York City's housing agency, HPD, that a violation has been corrected, the violation closes after 70 days unless HPD reinspects. A tenant may challenge the certification, which triggers that inspection — but the city's file holds only the owner's word. **It has no column for the tenant's.**
+
+In the thirty days from 16 August 2026, the city's own file shows **7,313** violations whose latest status is an owner's certification, and **1,527** whose latest status is HPD's stamp that a certification was FALSE or INVALID. Those are different violations, not a rate; both counts come from [one query on the city's file](https://data.cityofnewyork.us/resource/wvxf-dwi5.json?$select=currentstatus%2Ccount(1)&$where=currentstatusdate%3E%3D'2026-08-16'%20AND%20currentstatus%20in('NOV%20CERTIFIED%20ON%20TIME'%2C'NOV%20CERTIFIED%20LATE'%2C'FALSE%20CERTIFICATION'%2C'INVALID%20CERTIFICATION')&$group=currentstatus), refreshed daily on the landing page.
+
+The loop, end to end:
+
+1. **Ask.** The reply lists each certified repair still inside its 70 days. The landing page shows that same reply as it reads right now, built by the same functions.
+2. **They answer in their own words.** `#19105974 STILL BROKEN` is read with no model at all. A sentence goes to GPT-6 Astra, which picks the tool — and which repair the words are about is settled by embeddings in a Convex vector index, not by the model's guess.
+3. **Kept, private, dated.** The answer lives on their own page behind a random token: what the city's file said when we asked, what it says now, HPD's 70 days, their words, their photo if they sent one — and whether our reply reached them, delivered, bounced, or sent by text.
 4. **The city's second word.** When HPD later stamps that certification FALSE or INVALID, the person who answered is told, with both dates. Only then does the public building page show that someone said so first, and never in their words.
 
-HPD can take the full 70 days to reinspect, so the whole loop (ask, answer, the city's second word, the email that follows) also runs end to end in convex-test.
+HPD can take the full 70 days to reinspect, so the whole loop also runs end to end in convex-test, in memory, in under a second.
 
-## The problem, in the government's own words
+## The same problem, in the government's own words
 
 States publish layoff notices (WARN) and cities publish housing and food-safety records, then overwrite the file in place. Yesterday's version is gone from the source. Some of them say so themselves:
 
-- New York City's restaurant inspection file holds "violation citation[s] … conducted up to three years prior to the most recent inspection for restaurants … in an active status on the RECORD DATE … only restaurants in an active status are included in the dataset." A restaurant closes; its history leaves the file.
-- California republishes one spreadsheet at one URL. When a notice is edited, the earlier version is gone.
-- New Jersey publishes the *month* it posted a layoff notice, never the date the employer gave — so the one number a worker needs cannot be computed from the state's file at all.
-- Wisconsin numbers every notice and lists each revision in an update table of its own, in four codes: AW, LS, OC, RN. It also puts `?version=N` on every PDF link, and on 13 September republished its page with 42 of those numbers changed, 26 of them downward, and nothing else on the page changed. We had read that number as the state's revision count. It is not, and we no longer quote it.
+- **New York City's restaurant file** holds citations "in an active status on the RECORD DATE … only restaurants in an active status are included in the dataset." A restaurant closes; its history leaves the file.
+- **California** republishes one spreadsheet at one URL. When a notice is edited, the earlier version is gone.
+- **New Jersey** publishes the *month* it posted a notice, never the date the employer gave — so the one number a worker needs cannot be computed from the state's file at all.
+- **Wisconsin** numbers every notice and lists each revision in an update table of its own. It also puts `?version=N` on every PDF link, and on 13 September republished its page with 42 of those numbers changed, 26 of them downward, and nothing else changed. We had read that number as the state's revision count. It is not, and we no longer quote it.
 
-Faultline reads ten of these files on a schedule, diffs every row against the last version it holds, and keeps all of them. Then it answers email.
+Faultline reads **ten** of these files on a schedule, diffs every row against the last version it holds in a pure TypeScript engine, and keeps all of them.
 
 ## What a receipt says
 
-Send **"Spirit Airlines"** to the inbox and the reply, in the same thread, reads the record and never a verdict:
+Send a company name and the reply reads the record, never a verdict:
 
-- every filing, in every state, with the notice date and the layoff date side by side and the days between them against the statute that actually applies — New York's WARN Act, Cal-WARN, or federal WARN where a state has none, never a law that doesn't exist;
+- every filing, in every state, with the notice date and the layoff date side by side, and the days between them against the statute that actually applies — New York's WARN Act, Cal-WARN, or federal WARN where a state has none, never a law that doesn't exist;
 - whether the state posted the notice after the layoff had already started (that lag is the state's, not the employer's);
 - the amendment chain: when a state edits a notice in place, which field moved, from what to what, and the day it was caught;
 - the reason the state recorded, and whether those words name an exception the rule allows;
+- the 30- and 90-day picture: "3rd notice from X at this address in 74 days, 61 workers cumulative", the batching pattern workers describe and no tracker computes;
 - for a building: the city's own FALSE CERTIFICATION stamp on a landlord's "it's fixed", kept after the city overwrote it, and the restaurants the Health Department closed at that address;
 - what is held: rows, versions, how many times the file has been read, and the exact URL and time of the last read.
 
-"Nothing filed" is an answer too, dated to the minute with each file's last read — and followable. Reply **FOLLOW** to hear when anything changes, at most once a day; **STOP** ends it and is honoured before every other rule. **PACK** returns a PDF evidence pack with every version and its hash. **CSV** returns every filing as a spreadsheet for a lawyer, with no limitations column on purpose. **KEEP** and a link reads that page through Firecrawl and holds it as it was served, with a picture of it and a checksum, so what it said today can be checked tomorrow. **FIND** and an owner, a management company or an employer searches the open web through Firecrawl, replies with every page that names them, and holds the first the same way — a link is worth nothing once the page behind it changes.
+## What a receipt will not do
 
-Things it deliberately does not do: say "violation" about a layoff (the word is *gap*; exceptions are a lawyer's question); print a notice period where the state's file cannot support one; count a 13-worker filing against a statute that doesn't reach it; email an address that has never written to it; show a tenant's words on a public page.
+Say "violation" about a layoff (the word is *gap*; exceptions are a lawyer's question). Print a notice period where the state's file cannot support one. Count a 13-worker filing against a statute that doesn't reach it. Email an address that has never written to it. Show a tenant's words on a public page.
 
-## How it is built
+"Nothing filed" is an answer too — dated to the minute, with each file's last read, and followable.
 
-**Convex is the whole backend.** A one-minute cron ticks the sources; each due one runs as a scheduled action that fetches the file, diffs it in a pure TypeScript engine, and commits in slices of 150 rows — a city file is bigger than one transaction — writing the observation, the current-row pointer and the change event together, so a half-finished cycle loses nothing. The tenant loop has tables of its own: every ask and every answer is a dated row, never merged into the city's, and each person's private page opens from a random token. Full-text search over subjects answers lookups; realtime queries drive every page; file storage holds the evidence packs, the bytes of each changed file as served, and Firecrawl's screenshots; HTTP actions serve the AgentMail and Photon endpoints, share pages with the receipt in the `<head>`, the CSV route and the downloads; Convex Auth (email and password only) lets a signed-in person follow from the web. Provider circuit breakers, a kill switch, and daily caps on reads and model runs keep it inside a free plan through judging.
+---
 
-**AgentMail** is the front door and the back door. The AgentMail component receives the inbox's webhook, verifies it, stores each event once, and hands inbound mail to the app; every receipt, alert, pack and CSV goes back in-thread through AgentMail's API from an action. The component also passes on AgentMail's delivery events for those sends (sent, delivered, bounced, complained, rejected), and each marks its reply's receipt, so a person's own page says whether our reply reached them. Those events are acted on, not only recorded: a bounce, a rejection or a spam complaint writes the address down and takes every follow off with it, and the two are not treated alike - a complaint is final, a bounce clears the moment mail arrives from that address, which is proof the mailbox works. Each inbound message is also labelled where it lives, in the inbox: how we read it, what it was about, and what came of it, with "unread" taken off when the reply goes, so what is still unread in getnotice@agentmail.to is exactly what nothing has handled. The component's own send queue is not used: a component runs with its own environment and cannot read the app's API key. A failed send from 30 August already showed it, and production showed it again on 15 September (hackathon.md).
+## Sponsor depth
 
-**OpenAI.** GPT-6 Astra on the OpenAI Agents SDK is the inbox agent. A reply that is not a keyword goes to it, and it must finish by calling one of eleven strict tools: open questions, find a building, record an answer, ask about a building, look up a record, keep a page someone sent, look over the open web for a name, send the evidence pack, send the filings spreadsheet, read a letter, ask which. The tools write every reply, and four of them are the components: Firecrawl reads a link someone sends and searches the open web for an owner or an employer, and the pack and the spreadsheet go back through AgentMail as attachments. gpt-5.6-luna reads letters people forward (PDF attachments included) and photographs of HPD notices into a strict zod schema behind a byte-stable cached prefix, and runs one capped hosted web search per filing to put the employer's own public words beside what they filed. text-embedding-3-small embeds the condition behind every question we ask and the sentence a person answers with; a Convex vector index, filtered to their own address, says which repair their words are nearest, so a model that picks the wrong open number is caught before anything is recorded and an answer with no number is placed by what they wrote rather than by which question is newest. Where the words do not single one out, nobody guesses: we ask. Free moderation comes first. Every call is priced into a ledger in cents, embeddings included.
+| | Where it does real work |
+|---|---|
+| **Convex** | The whole backend. 31 tables, 57 indexes, a full-text index and a vector index; 151 deployed functions (50 queries, 67 mutations, 23 actions, 11 HTTP); 7 crons; file storage for packs, held bytes and screenshots; realtime queries behind every page; Convex Auth; static hosting; convex-test. **Four components:** static hosting, AgentMail, Firecrawl, and `@convex-dev/rate-limiter`, which holds one counter for each ceiling the inbox keeps instead of counting a table that only grows. |
+| **AgentMail** | The front door and the back door. The component verifies the inbox's webhook, stores each event once, and hands us inbound mail and the delivery events for what we send. Those events are **acted on**: a bounce, rejection or complaint writes the address down and takes every follow off with it — a complaint is final, a bounce clears when mail arrives from that address, which is proof the mailbox works. Every inbound message is **labelled where it lives**: how it was read, what it was about, what came of it, with `unread` removed when the reply goes, so what is still unread in the inbox is exactly what nothing has handled. Attachments both ways: PDFs and photos in, packs and spreadsheets out. |
+| **OpenAI** | GPT-6 Astra on the Agents SDK is the inbox agent: **eleven strict tools**, tool choice required, one call at a time, at most six turns, a byte-stable cached prefix, a cost ledger in cents and a daily cap. gpt-5.6-luna reads forwarded letters and photographed notices into one zod schema that drives both strict output and validation, with PDF and image input and a capped hosted web search. **text-embedding-3-small** embeds the condition behind every question we ask and the sentence a person answers with. Free moderation runs first. |
+| **Firecrawl** | Fetches Wisconsin's page from its side, because the host does not resolve from the deployment, and waits for the page's own scripts. Every read asks for **change tracking in git-diff mode** and a **full-page screenshot**, so each capture carries a second reading beside ours — including when the two disagree. **KEEP** holds any page someone sends, as served, hashed. **FIND** uses Firecrawl **search** for the other half of the question: what does this owner say where we have not looked? |
+| **Photon** | The same inbox on a phone number: a signed webhook (HMAC-SHA256, five-minute window, constant-time compare) into the same inbound handler, replies out through the Spectrum SDK from a node action. Its free tier texts only numbers registered to the project, so email is how anyone else can try it. |
 
-**Firecrawl** fetches Wisconsin's WARN page from its side, because the host does not resolve from the deployment, and waits for the page's own scripts to build its tables. Each read also asks for Firecrawl's change tracking against its previous capture, in git-diff mode, and a full-page screenshot. The same component keeps a page anyone sends the inbox: the agent's keep_a_page tool has Firecrawl read it, the page as served and a picture of it go into file storage with a SHA-256, and the reply says what is held, under a cap of five pages a person a day. Its search endpoint answers the other half of that question - what does this owner say where we have not looked? FIND, or the agent's find_pages tool, searches the open web for a company, an owner or an address, replies with every page that names them, and holds the first as it was served. A search result is a link and a summary, and both go stale; what the reply is worth is the copy behind it, hashed and dated, which is why the words a person reads come from the page we hold and never from the result. Firecrawl's verdict and the lines it saw move are kept with every read, the screenshot is copied into Convex file storage with any read where our own diff found a change, and the commit page shows Firecrawl's reading beside ours, including when they disagree. On 15 September Firecrawl called the page changed on two reads while our diff found no notice had, and Firecrawl's own diff showed why: the only lines that moved were the `?version=N` numbers on the state's PDF links, which changed between two reads half an hour apart. That independently confirms the correction below, that the number is not a revision count.
+### The two rules that decide correctness
 
-**Photon** puts the same inbox on a phone number. A signed webhook (HMAC-SHA256 over the timestamp and body, a five-minute window, a constant-time compare) hands each text to the same inbound handler, and replies go back through the Spectrum SDK from a node action as a compact text. Photon's free tier texts only numbers registered to the project, so email is how anyone else can try it.
+**A model picks the tool. It does not decide what is true.** Every reply is written by the tool, in the service's own words. The tool that records an answer refuses a violation number the person was never asked about.
 
-The sources: WARN files for New York, California, New Jersey, Virginia, Maryland, Colorado, North Carolina and Wisconsin; NYC HPD housing-code violations; NYC DOHMH restaurant inspections. Each is one adapter in `engine/adapters/` that declares how to fetch, what a row's identity is, which fields are significant, and how to say a change in the record's own words.
+**Which repair a person means is decided by their own words.** The city's description is embedded when we ask; their sentence is embedded when they answer; a Convex vector index, filtered to their own address, says which question the words are nearest. If the model picked a different number and the gap is wide, nothing is recorded — we ask, with both conditions in the city's words. An answer with no number at all is placed the same way, instead of landing on whichever question is newest.
 
-## Layout
+That one was found by running it, not by reading it. On 17 September the live inbox was sent *"the latch on the compactor closet door is still broken"* and filed it against **#19178388, the plexiglass at the building entrance**. The same sentence now comes back "Which repair do you mean?", listing four — two of them near-identical latch violations at the same compactor closet, where asking is the only honest answer. ([hackathon.md](hackathon.md), commit 629c295.)
+
+---
+
+## How it holds together
+
+A one-minute cron ticks the sources; each due one runs as a scheduled action that fetches the file, diffs it, and commits in slices of 150 rows — a city file is bigger than one transaction — writing the observation, the current-row pointer and the change event together, so a half-finished cycle loses nothing. New sources start in shadow mode: observed and diffed, not emitted, until a quiet cycle promotes them.
+
+The tenant loop has tables of its own. Every ask and every answer is a dated row, never merged into the city's. Provider circuit breakers, a kill switch, and daily caps on reads and model runs keep the whole thing inside a free plan through judging.
 
 ```
-engine/      pure TypeScript, zero Convex imports: adapters, canonical hashing, the diff,
-             matching, rules (statutes), HPD's vocabulary and the tenant loop's words,
-             receipts, the CSV export
-convex/      schema, crons, ingest (tick -> fetch -> commit), lookup, inbound mail and texts,
-             the inbox agent, attestations, digest, packs, breakers, HTTP routes
-src/         the site: landing, receipts wall, employer and building pages, the private
-             record page, tour, sign-in
-tests/       convex-test: the tenant loop, the inbox agent's tools, the Photon endpoint
+engine/      pure TypeScript, zero Convex imports: ten adapters, canonical hashing, the
+             diff, matching, statutes, HPD's vocabulary, receipts, the CSV export
+convex/      schema, crons, ingest (tick -> fetch -> commit), lookup, inbound mail and
+             texts, the inbox agent, embeddings, attestations, digest, packs, breakers,
+             HTTP routes, limits
+src/         landing, receipts wall, employer and building pages, the private record
+             page, the judge's tour, sign-in
+tests/       convex-test: the tenant loop, the agent's tools, suppressions, Photon
 scripts/     fixture tests on real government bytes, plus a copy lint over every
              user-facing string
 data/        the fixtures those tests run on
 ```
 
+**300 automated checks:** 105 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 27 convex-test tests covering the tenant loop, the agent's eleven tools, the delivery-event suppressions and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
+
 ## Running it
 
-```
+```bash
 npm install
 cp .env.example .env         # keys go on the deployment, not in the file
 npx convex dev               # backend
 npm run dev                  # site
-npm run typecheck && npx tsx scripts/engine-test.ts && npx tsx scripts/receipt-test.ts && npx tsx scripts/copy-lint.ts
-npx vitest run               # the Convex functions, in memory
+
+npm run typecheck && npm run lint:copy && npm run test:engine && npx vitest run
 ```
 
-Deployment env: `OPENAI_API_KEY`, `AGENTMAIL_API_KEY`, `AGENTMAIL_WEBHOOK_SECRET`, `AGENTMAIL_INBOX_ID`, `FIRECRAWL_API_KEY`, `SITE_URL`, `JWT_PRIVATE_KEY`, `JWKS`. Optional: `SPECTRUM_PROJECT_ID`, `SPECTRUM_PROJECT_SECRET` and `SPECTRUM_WEBHOOK_SECRET` for Photon; `OPENAI_AGENT_MODEL` to run the inbox agent on something other than `gpt-6-astra`. New sources start in shadow mode — observed and diffed, not emitted — and are promoted after a quiet cycle with `sources:setEmit`.
+Deployment env: `OPENAI_API_KEY`, `AGENTMAIL_API_KEY`, `AGENTMAIL_WEBHOOK_SECRET`, `AGENTMAIL_INBOX_ID`, `FIRECRAWL_API_KEY`, `SITE_URL`, `JWT_PRIVATE_KEY`, `JWKS`. Optional: `SPECTRUM_PROJECT_ID`, `SPECTRUM_PROJECT_SECRET`, `SPECTRUM_WEBHOOK_SECRET` for Photon; `OPENAI_AGENT_MODEL` to run the agent on something other than `gpt-6-astra`.
 
 ## Honesty notes
 
-Every claim a receipt makes is checkable against the government URL it names, and the log records the times it was wrong: the day the receipt invented "Virginia's WARN Act", the day "closed 13 restaurants" was thirteen citations of one closure, the day a backwards date range in Maryland's file read as compliance, the day Wisconsin's `?version=N` link parameter was read as a revision count, and the day replies moved onto the AgentMail component's send queue failed in production and were moved back within minutes. Those entries are in [hackathon.md](hackathon.md) with the commits that fixed them.
+Every claim a receipt makes is checkable against the government URL it names, and the build log records the times we were wrong:
+
+- the day a receipt invented "Virginia's WARN Act";
+- the day "closed 13 restaurants" was thirteen citations of one closure;
+- the day a backwards date range in Maryland's file read as compliance;
+- the day Wisconsin's `?version=N` link parameter was read as a revision count — later confirmed wrong by Firecrawl's own git-diff, which showed those numbers moving while nothing else on the page did;
+- the day replies moved onto the AgentMail component's send queue and failed in production, and were moved back within minutes;
+- the day a tenant's words were filed against the wrong repair.
+
+Each is in [hackathon.md](hackathon.md), with the commit that fixed it.
