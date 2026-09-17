@@ -2,6 +2,7 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import schema from "../convex/schema";
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { internal } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 
@@ -11,7 +12,11 @@ import type { Id } from "../convex/_generated/dataModel";
 // model itself is verified live, against the real inbox.
 
 const modules = import.meta.glob("../convex/**/*.*s");
-const make = () => convexTest(schema, modules);
+const make = () => {
+  const t = convexTest(schema, modules);
+  rateLimiterTest.register(t);
+  return t;
+};
 type T = ReturnType<typeof make>;
 
 const BBL = "3050840061";
@@ -248,22 +253,11 @@ test("the page tool keeps nobody past the day's budget", async () => {
   const t = make();
   await seed(t);
   const inboxId = await incoming(t, "<m-room@test>");
-  await t.run(async (ctx) => {
-    const bodyStorageId = await ctx.storage.store(new Blob(["x"]));
-    for (let i = 0; i < 5; i++) {
-      await ctx.db.insert("pages", {
-        url: `https://landlord.test/${i}`,
-        finalUrl: `https://landlord.test/${i}`,
-        requestedBy: TENANT,
-        capturedAt: Date.now() - 1000,
-        sha256: "b".repeat(64),
-        bytes: 10,
-        title: "",
-        bodyStorageId,
-      });
-    }
-  });
-  const room = await t.query(internal.inbound.agentPageRoom, { inboxId });
+  for (let i = 0; i < 5; i++) {
+    const taken = await t.mutation(internal.inbound.agentPageAllow, { inboxId });
+    expect(taken?.ok).toBe(true);
+  }
+  const room = await t.mutation(internal.inbound.agentPageAllow, { inboxId });
   expect(room?.ok).toBe(false);
   expect(room?.why).toContain("one person in a day");
 });

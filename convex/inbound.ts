@@ -12,6 +12,7 @@ import { buildReceipt, findBuildings, guessCompanyFromText, noticesFor, siteUrl,
 import { askHeadline, askLine, fixedClaim, howToAnswer, HPD_PAGES, nextStepFor, pickAsks, type Answer } from "../engine/hpd";
 import { heldForBuilding, recordAsks, recordToken, recordUrl } from "./attest";
 import { paused } from "./guard";
+import { limits } from "./limits";
 import { base64Utf8, layoffCsv } from "../engine/export";
 import { urlSlug } from "../engine/canon";
 
@@ -19,12 +20,8 @@ import { urlSlug } from "../engine/canon";
 // email lands here, is classified without a model, and is answered in-thread.
 // A pasted letter is the one path that goes through the model, asynchronously.
 
-const MAX_REPLIES_PER_SENDER_PER_DAY = 20;
-/** Reputation guard: past this, mail is stored and answered by a person later. */
-const MAX_REPLIES_PER_DAY = 150;
-/** Pages we keep for someone on request. One person cannot spend the day's budget. */
-const PAGES_PER_PERSON_PER_DAY = 5;
-const PAGES_PER_DAY = 25;
+// Every ceiling lives in convex/limits.ts now, counted by the rate-limiter
+// component rather than by scanning the tables on each message.
 
 export const onMessageReceived = internalMutation({
   args: { message: v.any(), thread: v.any(), eventId: v.string() },
@@ -106,15 +103,11 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
 
   // Politeness ceilings: per sender, and a global one for the inbox's
   // reputation. Unauthenticated mail is stored, never answered.
-  const recent = await ctx.db
-    .query("inbox")
-    .withIndex("by_from", (q) => q.eq("fromAddress", from).gte("receivedAt", now - 86_400_000))
-    .collect();
-  const sentToday = await ctx.db
-    .query("receipts")
-    .withIndex("by_created", (q) => q.gte("createdAt", now - 86_400_000))
-    .take(MAX_REPLIES_PER_DAY + 1);
-  if (!authenticated || recent.length > MAX_REPLIES_PER_SENDER_PER_DAY || sentToday.length > MAX_REPLIES_PER_DAY) {
+  if (!authenticated) return { intent: intent.kind, query, kind: "none", text: "", sent: false };
+  const mine = await limits.limit(ctx, "replyToSender", { key: from });
+  const ours = mine.ok ? await limits.limit(ctx, "replyAll") : mine;
+  if (!mine.ok || !ours.ok) {
+    console.log(`[inbound] ceiling reached (${mine.ok ? "the inbox's day" : "this address's day"}), stored and not answered`);
     return { intent: intent.kind, query, kind: "none", text: "", sent: false };
   }
 
@@ -1033,24 +1026,17 @@ export const agentAsk = internalMutation({
   },
 });
 
-/** Is there room to keep another page today, for this person and for us? */
-export const agentPageRoom = internalQuery({
+/** Room to keep another page today, for this person and for us, taken if there is. */
+export const agentPageAllow = internalMutation({
   args: { inboxId: v.id("inbox") },
   returns: v.union(v.null(), v.object({ ok: v.boolean(), why: v.string() })),
   handler: async (ctx, { inboxId }) => {
     const row = await ctx.db.get(inboxId);
     if (!row) return null;
-    const since = Date.now() - 86_400_000;
-    const mine = await ctx.db
-      .query("pages")
-      .withIndex("by_email_captured", (q) => q.eq("requestedBy", row.fromAddress).gte("capturedAt", since))
-      .take(PAGES_PER_PERSON_PER_DAY + 1);
-    if (mine.length >= PAGES_PER_PERSON_PER_DAY) return { ok: false, why: "that is as many pages as we keep for one person in a day" };
-    const all = await ctx.db
-      .query("pages")
-      .withIndex("by_captured", (q) => q.gte("capturedAt", since))
-      .take(PAGES_PER_DAY + 1);
-    if (all.length >= PAGES_PER_DAY) return { ok: false, why: "we have kept as many pages today as we keep in a day" };
+    const mine = await limits.limit(ctx, "pageForSender", { key: row.fromAddress });
+    if (!mine.ok) return { ok: false, why: "that is as many pages as we keep for one person in a day" };
+    const all = await limits.limit(ctx, "pageAll");
+    if (!all.ok) return { ok: false, why: "we have kept as many pages today as we keep in a day" };
     return { ok: true, why: "" };
   },
 });

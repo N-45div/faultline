@@ -23,7 +23,7 @@ export const keep = internalAction({
       await ctx.runMutation(internal.inbound.agentPageRefused, { inboxId, url: clean, why: "that is not a web address" });
       return "not a web address";
     }
-    const room: { ok: boolean; why: string } | null = await ctx.runQuery(internal.inbound.agentPageRoom, { inboxId });
+    const room: { ok: boolean; why: string } | null = await ctx.runMutation(internal.inbound.agentPageAllow, { inboxId });
     if (!room) return "no such message";
     if (!room.ok) {
       await ctx.runMutation(internal.inbound.agentPageRefused, { inboxId, url: clean, why: room.why });

@@ -2,6 +2,7 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import schema from "../convex/schema";
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { handleOf, spectrumSignature, verifySpectrumSignature } from "../engine/photon";
 
 // The text door. Photon's webhook signature is checked the way its docs say,
@@ -9,7 +10,11 @@ import { handleOf, spectrumSignature, verifySpectrumSignature } from "../engine/
 // however many times it is delivered, and replied to by text.
 
 const modules = import.meta.glob("../convex/**/*.*s");
-const make = () => convexTest(schema, modules);
+const make = () => {
+  const t = convexTest(schema, modules);
+  rateLimiterTest.register(t);
+  return t;
+};
 type T = ReturnType<typeof make>;
 
 const SECRET = "5".repeat(64);

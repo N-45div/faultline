@@ -1,5 +1,8 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import { AGENT_DAILY_CAP, limits } from "./limits";
+
+export { AGENT_DAILY_CAP };
 
 // The model's ledger and cache. The calls themselves live in llmActions.ts
 // (node runtime, official SDK); this file is the part the database owns: every
@@ -11,8 +14,6 @@ export const PROMPT_VERSION = "letter-v3";
 export const DAILY_CALL_CAP = 60;
 /** The inbox agent: GPT-6 Astra through the OpenAI Agents SDK, with tools. */
 export const AGENT_MODEL = process.env.OPENAI_AGENT_MODEL ?? "gpt-6-astra";
-/** Agent runs a day, counted apart from letters so neither can starve the other. */
-export const AGENT_DAILY_CAP = 40;
 
 /** USD per 1M tokens. Configured, not fetched — correct here if the dashboard disagrees. */
 const PRICES: Record<string, { input: number; cached: number; output: number }> = {
@@ -94,6 +95,13 @@ export const usage = internalQuery({
 });
 
 /** One model call that is not a letter extraction: the agent's runs. */
+/** One run of the inbox agent, if the day has room for it. */
+export const allowAgentRun = internalMutation({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => (await limits.limit(ctx, "agentRun")).ok,
+});
+
 export const recordUsage = internalMutation({
   args: {
     model: v.string(),

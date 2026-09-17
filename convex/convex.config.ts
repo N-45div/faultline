@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import staticHosting from "@convex-dev/static-hosting/convex.config";
 import agentmail from "@agentmail/convex/convex.config";
 import firecrawl from "@firecrawl/firecrawl-convex/convex.config";
+import rateLimiter from "@convex-dev/rate-limiter/convex.config";
 
 const app = defineApp({
   env: {
@@ -17,6 +18,10 @@ app.use(staticHosting);
 
 // Reads AGENTMAIL_API_KEY / AGENTMAIL_WEBHOOK_SECRET from deployment env.
 app.use(agentmail);
+
+// Every ceiling the inbox keeps. Counting rows to enforce them read more of
+// the table on each message as the table grew; this keeps one counter each.
+app.use(rateLimiter);
 
 // One-shot scrape/parse only. No httpPrefix means no component-mounted webhook,
 // so the static catch-all stays the only wildcard route in the deployment.

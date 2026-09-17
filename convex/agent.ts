@@ -219,8 +219,8 @@ export const handleMessage = internalAction({
     if (!key) return void (await fallback("no key"));
     if (paused("llm")) return void (await fallback("NOTICE_PAUSE"));
     if (await ctx.runQuery(internal.breaker.open, { provider: "openai" })) return void (await fallback("openai breaker open"));
-    const runsToday = await ctx.runQuery(internal.llm.callsToday, { purpose: "agent" });
-    if (runsToday >= AGENT_DAILY_CAP) return void (await fallback(`daily cap ${AGENT_DAILY_CAP} reached`));
+    const room: boolean = await ctx.runMutation(internal.llm.allowAgentRun, {});
+    if (!room) return void (await fallback(`daily cap ${AGENT_DAILY_CAP} reached`));
 
     const who = await ctx.runQuery(internal.inbound.agentWho, { inboxId: a.inboxId });
     if (!who || who.replied) return null;

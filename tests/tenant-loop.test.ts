@@ -2,6 +2,7 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import schema from "../convex/schema";
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { api, internal } from "../convex/_generated/api";
 import { citySecondWord } from "../convex/ingest/write";
 
@@ -12,7 +13,11 @@ import { citySecondWord } from "../convex/ingest/write";
 // through the real send path; only the network is replaced.
 
 const modules = import.meta.glob("../convex/**/*.*s");
-const make = () => convexTest(schema, modules);
+const make = () => {
+  const t = convexTest(schema, modules);
+  rateLimiterTest.register(t);
+  return t;
+};
 type T = ReturnType<typeof make>;
 
 const BBL = "3050840061";
