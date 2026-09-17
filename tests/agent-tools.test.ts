@@ -38,6 +38,7 @@ const FIELDS = {
 
 type Sent = { url: string; body: { text?: string } };
 let sent: Sent[] = [];
+let labelled: { url: string; add: string[]; remove: string[] }[] = [];
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -48,8 +49,13 @@ beforeEach(() => {
   vi.stubEnv("NOTICE_POSTAL", "1 Test Street, New York, NY 10001");
   vi.stubEnv("OPENAI_API_KEY", "");
   sent = [];
+  labelled = [];
   vi.stubGlobal("fetch", async (url: string | URL, init?: RequestInit) => {
-    sent.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : {} });
+    const body = init?.body ? JSON.parse(String(init.body)) : {};
+    // Labelling a message is a PATCH to the same inbox; it is not a send, and
+    // must not be mistaken for the reply a test is reading.
+    if (Array.isArray(body.add_labels)) labelled.push({ url: String(url), add: body.add_labels, remove: body.remove_labels ?? [] });
+    else sent.push({ url: String(url), body });
     return new Response(JSON.stringify({ message_id: `<out-${sent.length}@test>`, thread_id: "thread-1" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -294,4 +300,16 @@ test("KEEP with a link says it is reading that page", async () => {
   await t.mutation(internal.inbound.onMessageReceived, { message, thread: {}, eventId: "<m-keep@test>" });
   const receipt = await t.run((ctx) => ctx.db.query("receipts").order("desc").first());
   expect(receipt?.text ?? "").toContain("Reading landlord.test now");
+});
+
+test("the inbox says what it made of a message, in its own labels", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m-label@test>", "ASK 155 Linden Boulevard", "ASK 155 Linden Boulevard");
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const tags = labelled.flatMap((l) => l.add);
+  expect(tags).toContain("ask");
+  expect(tags).toContain("answered");
+  // The reply took "unread" off, so what is still unread is what nothing did.
+  expect(labelled.flatMap((l) => l.remove)).toContain("unread");
 });

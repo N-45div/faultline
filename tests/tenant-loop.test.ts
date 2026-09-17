@@ -39,6 +39,7 @@ const FIELDS = {
 
 type Sent = { url: string; body: { text?: string } };
 let sent: Sent[] = [];
+let labelled: { url: string; add: string[]; remove: string[] }[] = [];
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -50,8 +51,13 @@ beforeEach(() => {
   // The keyword path. The agent path has its own tests.
   vi.stubEnv("OPENAI_API_KEY", "");
   sent = [];
+  labelled = [];
   vi.stubGlobal("fetch", async (url: string | URL, init?: RequestInit) => {
-    sent.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : {} });
+    const body = init?.body ? JSON.parse(String(init.body)) : {};
+    // Labelling a message is a PATCH to the same inbox; it is not a send, and
+    // must not be mistaken for the reply a test is reading.
+    if (Array.isArray(body.add_labels)) labelled.push({ url: String(url), add: body.add_labels, remove: body.remove_labels ?? [] });
+    else sent.push({ url: String(url), body });
     return new Response(JSON.stringify({ message_id: `<out-${sent.length}@test>`, thread_id: "thread-1" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

@@ -27,10 +27,29 @@ export const onMessageReceived = internalMutation({
   args: { message: v.any(), thread: v.any(), eventId: v.string() },
   returns: v.null(),
   handler: async (ctx, { message }) => {
-    await handleInbound(ctx, message, true);
+    const result = await handleInbound(ctx, message, true);
+    if (!result.duplicate) {
+      await ctx.scheduler.runAfter(0, internal.mail.label, {
+        agentInboxId: String(message?.inbox_id ?? ""),
+        messageId: String(message?.message_id ?? ""),
+        add: tagsFor(result),
+      });
+    }
     return null;
   },
 });
+
+/**
+ * What the inbox should say about this message, in its own labels: how we read
+ * it, what it was about, and what came of it. A reply adds "answered" and takes
+ * "unread" off when it goes, so the unread ones are the ones a person owes.
+ */
+function tagsFor(r: InboundResult): string[] {
+  const tags = [r.intent === "empty" ? "no-question" : r.intent];
+  if (r.kind !== "none") tags.push(r.kind);
+  tags.push(r.sent ? "answered" : r.pending ? "working" : "held");
+  return tags.map((t) => t.toLowerCase().replace(/[^a-z0-9-]+/g, "-").slice(0, 40)).filter(Boolean);
+}
 
 export interface InboundResult {
   intent: string;

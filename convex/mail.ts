@@ -25,11 +25,11 @@ const onFailureValidator = v.object({
   email: v.string(),
 });
 
-async function call(path: string, body: unknown): Promise<{ message_id: string; thread_id: string }> {
+async function call(path: string, body: unknown, method = "POST"): Promise<{ message_id: string; thread_id: string }> {
   const key = process.env.AGENTMAIL_API_KEY;
   if (!key) throw new Error("AGENTMAIL_API_KEY is not set");
   const res = await fetch(`${API}${path}`, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify(body),
   });
@@ -103,6 +103,13 @@ export const reply = internalAction({
         headers: { "Auto-Submitted": "auto-replied" },
       });
       await ctx.runMutation(internal.mail.markSent, { receiptId: a.receiptId, inboxId: a.inboxId, outboundId: r.message_id });
+      // The message we just answered stops being unread and says so.
+      await ctx.scheduler.runAfter(0, internal.mail.label, {
+        agentInboxId: a.agentInboxId,
+        messageId: a.parentMessageId,
+        add: ["answered"],
+        remove: ["unread", "working"],
+      });
       await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: true });
       console.log(`[mail] replied in thread ${r.thread_id}`);
     } catch (e) {
@@ -155,6 +162,39 @@ export const send = internalAction({
       // provider's; counting it would silence everybody for fifteen minutes.
       if (providerFault(e)) await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: false, error: String(e) });
       if (a.onFailure) await ctx.runMutation(internal.digest.requeue, { ...a.onFailure, dropThread: false });
+    }
+    return null;
+  },
+});
+
+/**
+ * Label a message where it lives, in the inbox. AgentMail keeps labels per
+ * message, so the inbox is a working surface and not only a pipe: each thread
+ * carries what we read it as (ask, follow, letter, keep, stop), what came of it
+ * (answered, working, held) and why a held one was held. What is still unread
+ * in there is what nothing has handled — which is the list a person wants.
+ */
+export const label = internalAction({
+  args: {
+    agentInboxId: v.string(),
+    messageId: v.string(),
+    add: v.array(v.string()),
+    remove: v.optional(v.array(v.string())),
+  },
+  returns: v.null(),
+  handler: async (_ctx, a) => {
+    // A text arrives through Photon, which has no inbox and no labels.
+    if (!a.messageId || a.agentInboxId === "photon" || !process.env.AGENTMAIL_API_KEY) return null;
+    try {
+      await call(
+        `/inboxes/${encodeURIComponent(a.agentInboxId)}/messages/${encodeURIComponent(a.messageId)}`,
+        { add_labels: a.add, remove_labels: a.remove ?? [] },
+        "PATCH",
+      );
+    } catch (e) {
+      // A label is a convenience for whoever opens the inbox. Never a reason
+      // for a person's answer to fail.
+      console.warn(`[mail] label failed: ${String(e)}`);
     }
     return null;
   },
