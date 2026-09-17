@@ -1174,6 +1174,48 @@ Live after the deploy at 08:12 UTC: ASK 155 Linden Boulevard, Brooklyn answered
 in 12.8 seconds, three certified repairs listed with the dates HPD's 70 days
 run to.
 
+### 2026-09-17 - 23ab193
+The inbox says what it made of each message, in AgentMail's own labels. Mail
+arrived, was read and answered, and the mailbox knew none of it: every thread
+sat unread whatever had happened to it. Each inbound message now carries how we
+read it (ask, follow, letter, keep, stop), what it was about when we knew, and
+what came of it - answered, working, or held. The reply takes "unread" off as
+it goes, so what is still unread in getnotice@agentmail.to is exactly what
+nothing has handled. A label is a PATCH to the message and is allowed to fail:
+logged, never at the cost of someone's answer.
+
+Live at 08:18 UTC: a message sent from the test inbox came back labelled
+received, lookup, answered, with unread gone - the messages from before the
+deploy still sitting unread beside it.
+
+### 2026-09-17 - 70a3c30
+A bounce or a complaint stops the mail, because the provider said so. AgentMail's
+delivery events were written onto the receipt and no further: a dead mailbox
+would have got a digest every day it stayed dead, and someone who reported us as
+spam would have got the next one too. A bounce, a rejection or a complaint now
+writes the address down and takes every follow off with it. The two are not the
+same and are not treated the same. A complaint is final - a person who reports us
+has said everything they need to say. A bounce is about a mailbox, not a person,
+so it clears the moment mail arrives from that address, which is proof the
+mailbox works.
+
+### 2026-09-17 - 366bfbc
+FIND and a name: the open web searched through Firecrawl, and the first page
+held. Keeping a page only worked for someone who already had the link; the
+question a tenant actually has is what this owner says where they have not
+looked. FIND and a company, an owner or an address searches through Firecrawl,
+replies with every page that names them host by host, and holds the first as it
+was served, with a picture of it and a checksum. What anyone reads comes from
+the page we hold and never from a result summary: a link and a blurb both go
+stale, and the copy behind them, dated and hashed, is what the reply is worth.
+The agent gets an eleventh tool, find_pages; a person gets it by writing FIND.
+FIND with a link in it is a page to keep, not a search.
+
+Live at 08:25 UTC, FIND Linden Plaza Preservation LLC: five pages named, among
+them the owner's own PDF on affordablehousingonline.com and City Limits' "The
+Price of Housing Preservation: Linden Plaza's Saga", and the first held - 123 KB
+as served, SHA-256 f909f133229c6cfd..., first time we have read it.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
