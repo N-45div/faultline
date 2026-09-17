@@ -1216,6 +1216,36 @@ them the owner's own PDF on affordablehousingonline.com and City Limits' "The
 Price of Housing Preservation: Linden Plaza's Saga", and the first held - 123 KB
 as served, SHA-256 f909f133229c6cfd..., first time we have read it.
 
+### 2026-09-17 - 629c295
+Which repair a person means is decided by their own words. An answer carrying a
+number was never in doubt; an answer without one was. The keyword reader took
+the newest question still waiting, and the model, when it ran, could pick any
+open number with nothing downstream to disagree. Two repairs open on one
+building and a sentence about one of them was a coin toss with a receipt.
+
+The city's description is embedded when we ask (text-embedding-3-small, 1536
+dimensions), the person's sentence when they answer, and a Convex vector index
+filtered to their own address says which question the words are nearest. Where
+the model's number and the words disagree by more than a tenth of a point of
+similarity, nothing is recorded: they are asked, with both conditions in the
+city's own words. Where no number was given and more than one repair waits, the
+same search places it, and where the words do not single one out, we ask.
+
+Found by running it, not by reading it. At 08:34 UTC the live inbox was sent
+"the latch on the compactor closet door is still broken" and answered "Kept,
+dated" against #19178388 - the plexiglass at the building entrance door. The
+words named a repair; the newest question won anyway. After the deploy the same
+sentence came back "Which repair do you mean?" with four numbers, two of which
+are near-identical latch violations at the same compactor closet - so asking is
+the only honest answer there, and no embedding would have been better.
+
+That run also found something for Divij, not for the code: the deployment's
+OpenAI key has no credits left (429, "You have no credits remaining"). Every
+model path is falling through to the keyword reader, which is why it answered
+at all. The last priced call was 16 September. Nothing is broken; the agent,
+the letter reader, the corroboration and now the embeddings are all off until
+credits are added.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
