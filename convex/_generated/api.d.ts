@@ -32,6 +32,7 @@ import type * as llm from "../llm.js";
 import type * as llmActions from "../llmActions.js";
 import type * as lookup from "../lookup.js";
 import type * as mail from "../mail.js";
+import type * as match from "../match.js";
 import type * as packBuild from "../packBuild.js";
 import type * as packs from "../packs.js";
 import type * as pages from "../pages.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   llmActions: typeof llmActions;
   lookup: typeof lookup;
   mail: typeof mail;
+  match: typeof match;
   packBuild: typeof packBuild;
   packs: typeof packs;
   pages: typeof pages;

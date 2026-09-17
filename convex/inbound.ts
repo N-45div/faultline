@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalQuery, internalMutation, type MutationCtx } from "./_generated/server";
+import { internalQuery, internalMutation, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { daysBetween, fnv1a64 } from "../engine/canon";
@@ -301,6 +301,19 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       );
       const imageId = String(imageAtt?.attachment_id ?? imageAtt?.id ?? "");
       const photo = imageAtt && imageId ? { id: imageId, filename: String(imageAtt.filename ?? "photo") } : null;
+      // They gave no number and more than one repair is waiting on them. Taking
+      // the newest would put their word on a repair they may not be describing,
+      // so their own words decide it, and if the words do not, we ask.
+      const waiting = await openViolationIds(ctx, from);
+      if (!intent.violationId && !photo && waiting.length > 1) {
+        await ctx.scheduler.runAfter(0, internal.match.answerByWords, {
+          inboxId,
+          answer: intent.answer,
+          note: intent.note,
+          words: body.slice(0, 4_000),
+        });
+        return { intent: intent.kind, query, kind: "none", text: "", sent: false, pending: true };
+      }
       receipt = await answerReceipt(ctx, target, from, open, intent.answer, intent.note, photo, now);
       break;
     }
@@ -1199,6 +1212,83 @@ function titleOf(title: string): string {
  * and which one is being kept. Links are named by their host, so a person can
  * see whose page each one is without opening it.
  */
+/** The repairs this person has been asked about and has not answered. */
+async function openViolationIds(ctx: QueryCtx, email: string): Promise<string[]> {
+  const rows = await ctx.db.query("attestations").withIndex("by_email_asked", (q) => q.eq("email", email)).order("desc").take(40);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const r of rows) {
+    if (seen.has(r.violationId)) continue;
+    seen.add(r.violationId);
+    if (r.answer === undefined) out.push(r.violationId);
+  }
+  return out;
+}
+
+export const agentOpenViolations = internalQuery({
+  args: { inboxId: v.id("inbox") },
+  returns: v.array(v.string()),
+  handler: async (ctx, { inboxId }) => {
+    const row = await ctx.db.get(inboxId);
+    return row ? await openViolationIds(ctx, row.fromAddress) : [];
+  },
+});
+
+/** The address a message came from, for work that happens in an action. */
+export const agentWriter = internalQuery({
+  args: { inboxId: v.id("inbox") },
+  returns: v.union(v.null(), v.object({ email: v.string() })),
+  handler: async (ctx, { inboxId }) => {
+    const row = await ctx.db.get(inboxId);
+    return row ? { email: row.fromAddress } : null;
+  },
+});
+
+/**
+ * Two repairs, and their own words could be either. Ask, with the city's
+ * description of both, rather than record one of them and hope.
+ */
+export const agentAskWhichOfTwo = internalMutation({
+  args: { inboxId: v.id("inbox"), violationIds: v.array(v.string()) },
+  returns: v.string(),
+  handler: async (ctx, { inboxId, violationIds }) => {
+    const target = await agentTarget(ctx, inboxId);
+    if (!target) return "no such message";
+    const from = target.row.fromAddress;
+    const lines: string[] = [];
+    for (const id of violationIds.slice(0, 2)) {
+      const row = await ctx.db
+        .query("attestations")
+        .withIndex("by_email_violation", (q) => q.eq("email", from).eq("violationId", id))
+        .order("desc")
+        .first();
+      if (row) lines.push(`- #${id}: ${row.description ? `"${row.description.slice(0, 100)}"` : row.askedStatus}`);
+    }
+    if (lines.length < 2) {
+      await deliver(ctx, target.t, await whichViolation(ctx, from), []);
+      return "asked which, from everything open";
+    }
+    await deliver(
+      ctx,
+      target.t,
+      {
+        kind: "none",
+        query: "which:violation",
+        headline: "Which repair do you mean?",
+        blocks: [
+          ["Your words could be about either of these, and we would rather ask than put your answer on the wrong one."],
+          lines,
+          [`Reply with the number and what you see - for example: #${violationIds[0]} STILL BROKEN.`],
+        ],
+        links: [],
+        footer: [],
+      },
+      [],
+    );
+    return "two repairs could match; asked them which";
+  },
+});
+
 export const agentFound = internalMutation({
   args: {
     inboxId: v.id("inbox"),

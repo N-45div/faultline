@@ -104,7 +104,15 @@ const tools = [
     strict: true,
     execute: async ({ violationId, answer, note }, rc) => {
       const c = contextOf(rc);
-      const out = await c.convex.runMutation(internal.inbound.agentRecordAnswer, { inboxId: c.inboxId, violationId, answer, note });
+      // Their own words go with the choice: what they wrote decides which
+      // question this is about if the number the model picked disagrees.
+      const out = await c.convex.runAction(internal.match.recordChecked, {
+        inboxId: c.inboxId,
+        violationId,
+        answer,
+        note,
+        words: c.text,
+      });
       c.acted = "record_answer";
       return out;
     },

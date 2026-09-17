@@ -278,3 +278,45 @@ test("a bounce stops the mail, and clears when that address writes to us", async
   expect(await receive(t, "<m2@test>", `Re: ${LABEL}`, "ASK")).toContain(LABEL);
   expect(await t.run((ctx) => ctx.db.query("suppressions").first())).toBe(null);
 });
+
+/** A second repair on the same building, open and unanswered. */
+async function secondAsk(t: T) {
+  await t.run(async (ctx) => {
+    await ctx.db.insert("attestations", {
+      email: TENANT,
+      subjectKey: BBL,
+      violationId: "19115547",
+      askedAt: Date.now() - 30_000,
+      askedStatus: "NOV CERTIFIED ON TIME",
+      askedStatusDate: "2026-09-12",
+      certifiedBy: null,
+      hazardClass: "B",
+      description: "PROPERLY REPAIR OR REPLACE THE BROKEN LATCH SET AT DOOR AT COMPACTOR CLOSET",
+    });
+  });
+}
+
+test("with two repairs open and no number given, nothing is recorded on a guess", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await secondAsk(t);
+
+  // No number, and the words alone. Without a way to tell which repair they
+  // mean - here there is no key, so no embedding - they are asked.
+  const reply = await receive(t, "<m2@test>", `Re: ${LABEL}`, "still broken");
+  expect(reply).toContain("Which repair do you mean?");
+  expect(reply).toContain("#19115547");
+  const answered = await t.run((ctx) => ctx.db.query("attestations").collect());
+  expect(answered.every((a) => a.answer === undefined)).toBe(true);
+});
+
+test("one repair open and no number given is still answered without asking", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  const reply = await receive(t, "<m2@test>", `Re: ${LABEL}`, "still broken");
+  expect(reply).toContain("Kept, dated: you said still broken");
+  const answered = await t.run((ctx) => ctx.db.query("attestations").collect());
+  expect(answered.some((a) => a.answer === "still_broken")).toBe(true);
+});

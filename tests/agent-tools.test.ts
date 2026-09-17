@@ -52,6 +52,14 @@ beforeEach(() => {
   labelled = [];
   vi.stubGlobal("fetch", async (url: string | URL, init?: RequestInit) => {
     const body = init?.body ? JSON.parse(String(init.body)) : {};
+    // One axis per idea: two texts about the same thing share an axis, and
+    // cosine similarity is then 1 for a match and 0 for anything else.
+    if (String(url).includes("/embeddings")) {
+      return new Response(JSON.stringify({ data: [{ embedding: axis(String(body.input)) }], usage: { total_tokens: 6 } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     // Labelling a message is a PATCH to the same inbox; it is not a send, and
     // must not be mistaken for the reply a test is reading.
     if (Array.isArray(body.add_labels)) labelled.push({ url: String(url), add: body.add_labels, remove: body.remove_labels ?? [] });
@@ -68,6 +76,12 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.useRealTimers();
 });
+
+/** A unit vector on one axis, picked by which condition the words are about. */
+function axis(text: string): number[] {
+  const at = /tile|ceramic|floor/i.test(text) ? 3 : /latch|door|compactor/i.test(text) ? 7 : 11;
+  return Array.from({ length: 1536 }, (_, i) => (i === at ? 1 : 0));
+}
 
 async function seed(t: T) {
   await t.run(async (ctx) => {
@@ -340,4 +354,85 @@ test("when nothing on the open web names them, it says so and holds nothing", as
   const inboxId = await incoming(t, "<m-find0@test>");
   await t.mutation(internal.inbound.agentFound, { inboxId, what: "Nobody Incorporated", results: [] });
   expect(await lastReply(t)).toContain('Nothing on the open web names "Nobody Incorporated"');
+});
+
+test("their own words decide which repair, when the model picks the other one", async () => {
+  const t = make();
+  vi.stubEnv("OPENAI_API_KEY", "test-key");
+  await seed(t);
+  const OTHER = "19115547";
+  await t.run(async (ctx) => {
+    for (const [id, description] of [
+      [VIOLATION, "PROPERLY REPAIR THE BROKEN OR DEFECTIVE CERAMIC TILES AT FLOOR"],
+      [OTHER, "PROPERLY REPAIR OR REPLACE THE BROKEN LATCH SET AT DOOR AT COMPACTOR CLOSET"],
+    ] as const) {
+      await ctx.db.insert("attestations", {
+        email: TENANT,
+        subjectKey: BBL,
+        violationId: id,
+        askedAt: Date.now() - 60_000,
+        askedStatus: "NOV CERTIFIED ON TIME",
+        askedStatusDate: "2026-09-10",
+        certifiedBy: null,
+        hazardClass: "B",
+        description,
+      });
+    }
+  });
+  // What we asked, remembered in words, as the ask itself would have done.
+  await t.action(internal.match.remember, {
+    email: TENANT,
+    items: [
+      { violationId: VIOLATION, text: "PROPERLY REPAIR THE BROKEN OR DEFECTIVE CERAMIC TILES AT FLOOR" },
+      { violationId: OTHER, text: "PROPERLY REPAIR OR REPLACE THE BROKEN LATCH SET AT DOOR AT COMPACTOR CLOSET" },
+    ],
+  });
+
+  const inboxId = await incoming(t, "<m-match@test>");
+  // The words are about the compactor door; the model picked the tiles.
+  const out = await t.action(internal.match.recordChecked, {
+    inboxId,
+    violationId: VIOLATION,
+    answer: "still_broken",
+    note: null,
+    words: "the latch on the compactor closet door is still broken",
+  });
+  expect(out).toContain("asked them which");
+  const reply = await lastReply(t);
+  expect(reply).toContain("Which repair do you mean?");
+  expect(reply).toContain(`#${OTHER}`);
+  // Nothing was recorded against either of them.
+  expect((await t.run((ctx) => ctx.db.query("attestations").collect())).every((a) => a.answer === undefined)).toBe(true);
+});
+
+test("when their words match the number the model picked, the answer is recorded", async () => {
+  const t = make();
+  vi.stubEnv("OPENAI_API_KEY", "test-key");
+  await seed(t);
+  await t.run(async (ctx) => {
+    await ctx.db.insert("attestations", {
+      email: TENANT,
+      subjectKey: BBL,
+      violationId: VIOLATION,
+      askedAt: Date.now() - 60_000,
+      askedStatus: "NOV CERTIFIED ON TIME",
+      askedStatusDate: "2026-09-10",
+      certifiedBy: null,
+      hazardClass: "B",
+      description: "PROPERLY REPAIR THE BROKEN OR DEFECTIVE CERAMIC TILES AT FLOOR",
+    });
+  });
+  await t.action(internal.match.remember, {
+    email: TENANT,
+    items: [{ violationId: VIOLATION, text: "PROPERLY REPAIR THE BROKEN OR DEFECTIVE CERAMIC TILES AT FLOOR" }],
+  });
+  const inboxId = await incoming(t, "<m-match-ok@test>");
+  const out = await t.action(internal.match.recordChecked, {
+    inboxId,
+    violationId: VIOLATION,
+    answer: "still_broken",
+    note: null,
+    words: "the ceramic tiles by the floor are still cracked",
+  });
+  expect(out).toBe("recorded and replied");
 });

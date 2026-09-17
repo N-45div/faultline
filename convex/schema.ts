@@ -207,6 +207,23 @@ export default defineSchema({
     messageId: v.optional(v.string()),
   }).index("by_email", ["email"]),
 
+  /**
+   * The condition behind each question we asked, as an embedding, so a
+   * person's own sentence can be compared with what we asked them rather than
+   * only with a number. The vector index carries the address, so one person's
+   * words are only ever measured against their own open questions.
+   */
+  questionVectors: defineTable({
+    email: v.string(),
+    violationId: v.string(),
+    /** The city's words for the condition, kept beside the vector so a reply can quote them. */
+    text: v.string(),
+    embedding: v.array(v.float64()),
+    at: v.number(),
+  })
+    .index("by_email_violation", ["email", "violationId"])
+    .vectorIndex("by_words", { vectorField: "embedding", dimensions: 1536, filterFields: ["email"] }),
+
   receipts: defineTable({
     inboxId: v.optional(v.id("inbox")),
     threadId: v.optional(v.string()),

@@ -23,6 +23,9 @@ export function siteBase(): string {
  * not make a second row.
  */
 export async function recordAsks(ctx: MutationCtx, email: string, subjectKey: string, asks: Ask[], now: number): Promise<void> {
+  // What a question is about, in words, so a person's own sentence can be
+  // matched against it later and not only against its number.
+  const fresh: { violationId: string; text: string }[] = [];
   for (const a of asks) {
     const last = await ctx.db
       .query("attestations")
@@ -41,6 +44,10 @@ export async function recordAsks(ctx: MutationCtx, email: string, subjectKey: st
       hazardClass: a.hazardClass,
       description: a.description,
     });
+    if (a.description) fresh.push({ violationId: a.violationId, text: a.description });
+  }
+  if (fresh.length > 0 && email.includes("@")) {
+    await ctx.scheduler.runAfter(0, internal.match.remember, { email, items: fresh.slice(0, 10) });
   }
 }
 
