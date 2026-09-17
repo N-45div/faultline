@@ -58,6 +58,18 @@ async function embed(text: string): Promise<{ vector: number[]; tokens: number }
   }
 }
 
+/** An embedding costs little, and little is not nothing: it goes in the ledger too. */
+async function price(ctx: { runMutation: (ref: any, args: any) => Promise<any> }, tokens: number) {
+  await ctx.runMutation(internal.llm.recordUsage, {
+    model: EMBED_MODEL,
+    purpose: "match",
+    inputTokens: tokens,
+    cachedTokens: 0,
+    outputTokens: 0,
+    costCents: Math.round(((tokens * EMBED_PRICE) / 1_000_000) * 100 * 10_000) / 10_000,
+  });
+}
+
 /** Remember what we asked this person, in a form their words can be compared with. */
 export const remember = internalAction({
   args: { email: v.string(), items: v.array(v.object({ violationId: v.string(), text: v.string() })) },
@@ -74,14 +86,7 @@ export const remember = internalAction({
         text: item.text.slice(0, 400),
         embedding: got.vector,
       });
-      await ctx.runMutation(internal.llm.recordUsage, {
-        model: EMBED_MODEL,
-        purpose: "match",
-        inputTokens: got.tokens,
-        cachedTokens: 0,
-        outputTokens: 0,
-        costCents: Math.round((got.tokens * EMBED_PRICE) / 1_000_000 * 100 * 10_000) / 10_000,
-      });
+      await price(ctx, got.tokens);
     }
     return null;
   },
@@ -145,6 +150,7 @@ export const answerByWords = internalAction({
     const who: { email: string } | null = await ctx.runQuery(internal.inbound.agentWriter, { inboxId: a.inboxId });
     const waiting: string[] = await ctx.runQuery(internal.inbound.agentOpenViolations, { inboxId: a.inboxId });
     const said = who ? await embed(a.words) : null;
+    if (said) await price(ctx, said.tokens);
     const nearest = said && who ? await nearestOf(ctx, who.email, said.vector, waiting) : null;
     if (!nearest) {
       return await ctx.runMutation(internal.inbound.agentClarify, { inboxId: a.inboxId, what: "violation" });
@@ -200,6 +206,7 @@ export const recordChecked = internalAction({
     const who: { email: string } | null = await ctx.runQuery(internal.inbound.agentWriter, { inboxId: a.inboxId });
     const chosen = a.violationId.replace(/\D/g, "");
     const said = await embed(a.words);
+    if (said) await price(ctx, said.tokens);
     if (who && said && chosen) {
       const hits = await ctx.vectorSearch("questionVectors", "by_words", {
         vector: said.vector,
