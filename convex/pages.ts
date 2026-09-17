@@ -1,10 +1,11 @@
 "use node";
 
 import { v } from "convex/values";
-import { internalAction } from "./_generated/server";
+import { internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { sha256Hex } from "../engine/canon";
-import { scrapePage } from "./ingest/firecrawl";
+import { scrapePage, searchWeb } from "./ingest/firecrawl";
+import type { Id } from "./_generated/dataModel";
 
 // A page someone sends us, kept. Firecrawl reads it from its side and hands
 // back the page as it was served and a picture of it; both go into file
@@ -29,7 +30,55 @@ export const keep = internalAction({
       await ctx.runMutation(internal.inbound.agentPageRefused, { inboxId, url: clean, why: room.why });
       return room.why;
     }
+    return await hold(ctx, inboxId, clean);
+  },
+});
 
+/**
+ * The open web, looked over, and the first page of it held. Someone writes FIND
+ * and a landlord's name, a management company, an employer: Firecrawl searches,
+ * we say what names them, and we keep the first as it was served - because a
+ * result that is only a link is worth nothing once the page behind it changes.
+ *
+ * The words the person reads come from the pages we hold, never from a summary.
+ */
+export const find = internalAction({
+  args: { inboxId: v.id("inbox"), what: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { inboxId, what }): Promise<string> => {
+    const words = what.trim().replace(/\s+/g, " ").slice(0, 200);
+    if (words.length < 3) {
+      await ctx.runMutation(internal.inbound.agentFindRefused, { inboxId, what: words, why: "we need a name or an address to look for" });
+      return "nothing to look for";
+    }
+    const room: { ok: boolean; why: string } | null = await ctx.runMutation(internal.inbound.agentPageAllow, { inboxId });
+    if (!room) return "no such message";
+    if (!room.ok) {
+      await ctx.runMutation(internal.inbound.agentFindRefused, { inboxId, what: words, why: room.why });
+      return room.why;
+    }
+
+    let found: { url: string; title: string; description: string }[] = [];
+    try {
+      // Our own pages are not evidence about anyone; they are a copy of what we
+      // already said. Firecrawl leaves them out of the results.
+      const ours = (process.env.CONVEX_SITE_URL ?? "").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+      found = await searchWeb(ctx, words, { limit: 5, excludeDomains: ours ? [ours] : [] });
+    } catch (e) {
+      console.warn(`[page] the web could not be read for "${words}": ${String(e)}`);
+      await ctx.runMutation(internal.inbound.agentFindRefused, { inboxId, what: words, why: "we couldn't read the web just now" });
+      return "could not be read";
+    }
+    await ctx.runMutation(internal.inbound.agentFound, { inboxId, what: words, results: found });
+    if (found.length === 0) return "found nothing";
+    console.log(`[page] ${found.length} result${found.length === 1 ? "" : "s"} for "${words}", keeping ${found[0].url}`);
+    return await hold(ctx, inboxId, found[0].url);
+  },
+});
+
+/** Read it, keep the bytes and the picture, reply with the checksum. */
+async function hold(ctx: ActionCtx, inboxId: Id<"inbox">, clean: string): Promise<string> {
+  {
     try {
       // Firecrawl waits for the page's own scripts, and returns its change
       // tracking against its previous capture for us, so a page we have read
@@ -65,5 +114,5 @@ export const keep = internalAction({
       await ctx.runMutation(internal.inbound.agentPageRefused, { inboxId, url: clean, why: "the page could not be read" });
       return "could not be read";
     }
-  },
-});
+  }
+}

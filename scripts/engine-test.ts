@@ -177,6 +177,12 @@ console.log("\n== tenant loop");
   check(classifyInbound("keep me posted", "keep me posted please").kind !== "keep", "keep me posted is not a page to hold");
   const bareLink = classifyInbound("", "https://example.gov/notice");
   check(bareLink.kind === "keep" && bareLink.url === "https://example.gov/notice", "a line that is nothing but a link is a page to hold");
+
+  // FIND: a name to look for on the open web.
+  const find = classifyInbound("FIND Linden Plaza Associates", "");
+  check(find.kind === "find" && find.what === "Linden Plaza Associates", "FIND and a name looks that name up");
+  check(classifyInbound("FIND", "").kind !== "find", "FIND with nothing after it is not a search");
+  check(classifyInbound("FIND https://example.gov/notice", "").kind === "keep", "FIND and a link is still a page to hold");
 }
 
 // Firecrawl's git-diff, cut to what moved.

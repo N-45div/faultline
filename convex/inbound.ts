@@ -333,6 +333,21 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       };
       break;
     }
+    case "find": {
+      // Firecrawl looks from its side; what it found, and the page we kept,
+      // land in this thread behind this one.
+      await ctx.scheduler.runAfter(0, internal.pages.find, { inboxId, what: intent.what });
+      receipt = {
+        kind: "none",
+        query: `find:${intent.what}`,
+        subjectKey: undefined,
+        headline: `Looking for "${intent.what}" now.`,
+        blocks: [["Two replies follow in this thread: what on the open web names them, and the receipt for the first page, kept as it was served."]],
+        links: [],
+        footer: [],
+      };
+      break;
+    }
     case "monitor": {
       receipt = {
         kind: "none",
@@ -1169,6 +1184,76 @@ export const agentPageKept = internalMutation({
 });
 
 /** A page we could not keep, and why, in the same thread. */
+/**
+ * A page's own title, as a line in a list: whitespace collapsed, cut at a
+ * length that fits, and without the dash or ellipsis a cut leaves behind.
+ */
+function titleOf(title: string): string {
+  const one = title.replace(/\s+/g, " ").trim();
+  const cut = one.length > 72 ? one.slice(0, 72).replace(/\s\S*$/, "") : one;
+  return cut.replace(/[\s\-|·…]+$/, "");
+}
+
+/**
+ * What the open web has, before we hold any of it: every page that names them,
+ * and which one is being kept. Links are named by their host, so a person can
+ * see whose page each one is without opening it.
+ */
+export const agentFound = internalMutation({
+  args: {
+    inboxId: v.id("inbox"),
+    what: v.string(),
+    results: v.array(v.object({ url: v.string(), title: v.string(), description: v.string() })),
+  },
+  returns: v.string(),
+  handler: async (ctx, { inboxId, what, results }) => {
+    const target = await agentTarget(ctx, inboxId);
+    if (!target) return "no such message";
+    const n = results.length;
+    const receipt =
+      n === 0
+        ? {
+            headline: `Nothing on the open web names "${what}".`,
+            blocks: [["Try the name as it appears on paperwork: the company on a letterhead, the owner on a notice, the address with its borough."]],
+            links: [] as { label: string; url: string }[],
+          }
+        : {
+            headline: `${n} page${n === 1 ? "" : "s"} on the open web name${n === 1 ? "s" : ""} "${what}".`,
+            blocks: [
+              results.map((r, i) => `${i + 1}. ${titleOf(r.title) || hostOf(r.url)} - ${hostOf(r.url)}`),
+              [`We are keeping the first one as it was served. The receipt for it - the time, the size, the checksum - lands in this thread in a few seconds.`],
+              ["The rest are listed as they were found, and not held: if you want one of them kept, reply KEEP and the address."],
+            ],
+            links: results.slice(0, 5).map((r) => ({ label: hostOf(r.url), url: r.url })),
+          };
+    await deliver(ctx, target.t, { kind: "none", query: `find:${what}`, ...receipt, footer: [] }, []);
+    return n === 0 ? "found nothing" : "found and replied";
+  },
+});
+
+export const agentFindRefused = internalMutation({
+  args: { inboxId: v.id("inbox"), what: v.string(), why: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { inboxId, what, why }) => {
+    const target = await agentTarget(ctx, inboxId);
+    if (!target) return "no such message";
+    await deliver(
+      ctx,
+      target.t,
+      {
+        kind: "none",
+        query: `find:${what}`,
+        headline: `We couldn't look that up: ${why}.`,
+        blocks: [["Reply FIND and a company, an owner or a building address, and we'll say what on the open web names them and keep the first page as it was served."]],
+        links: [],
+        footer: [],
+      },
+      [],
+    );
+    return why;
+  },
+});
+
 export const agentPageRefused = internalMutation({
   args: { inboxId: v.id("inbox"), url: v.string(), why: v.string() },
   returns: v.string(),

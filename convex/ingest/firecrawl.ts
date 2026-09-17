@@ -27,6 +27,31 @@ export type Scraped = {
   changeDiff?: string;
 };
 
+export type Found = { url: string; title: string; description: string };
+
+/**
+ * What the open web says about a name, through Firecrawl's search. We take the
+ * addresses and nothing else: the words a person reads come from the page we
+ * then hold ourselves, hashed and dated, not from a result summary that no one
+ * can check later.
+ */
+export async function searchWeb(ctx: { runAction: any }, query: string, opts: { limit?: number; excludeDomains?: string[] } = {}): Promise<Found[]> {
+  const res = await firecrawl.search(ctx as Parameters<FirecrawlClient["search"]>[0], query.slice(0, 300), {
+    sources: ["web"],
+    limit: Math.min(Math.max(opts.limit ?? 5, 1), 10),
+    timeout: 45_000,
+    ...(opts.excludeDomains?.length ? { excludeDomains: opts.excludeDomains } : {}),
+  });
+  const rows = (res.web ?? []) as Array<Record<string, any>>;
+  return rows
+    .map((r) => ({
+      url: String(r.url ?? r.metadata?.sourceURL ?? ""),
+      title: String(r.title ?? r.metadata?.title ?? "").slice(0, 120),
+      description: String(r.description ?? r.metadata?.description ?? "").slice(0, 200),
+    }))
+    .filter((r) => /^https?:\/\//.test(r.url));
+}
+
 /** One page, as HTML and markdown, and when asked, a screenshot and Firecrawl's own change tracking. Throws on a non-2xx from the target. */
 export async function scrapePage(ctx: { runAction: any }, url: string, opts: { waitForMs?: number; evidence?: boolean } = {}): Promise<Scraped> {
   const formats: Format[] = ["html", "markdown"];

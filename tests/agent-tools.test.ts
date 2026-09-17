@@ -313,3 +313,31 @@ test("the inbox says what it made of a message, in its own labels", async () => 
   // The reply took "unread" off, so what is still unread is what nothing did.
   expect(labelled.flatMap((l) => l.remove)).toContain("unread");
 });
+
+test("what the open web has is listed first, and only the first page is held", async () => {
+  const t = make();
+  await seed(t);
+  const inboxId = await incoming(t, "<m-find@test>");
+  await t.mutation(internal.inbound.agentFound, {
+    inboxId,
+    what: "Linden Plaza Associates",
+    results: [
+      { url: "https://landlord.test/about", title: "About us", description: "" },
+      { url: "https://news.test/story", title: "Landlord sued", description: "" },
+    ],
+  });
+  const reply = await lastReply(t);
+  expect(reply).toContain('2 pages on the open web name "Linden Plaza Associates"');
+  expect(reply).toContain("1. About us - landlord.test");
+  expect(reply).toContain("keeping the first one as it was served");
+  // Nothing is held by the listing itself: the receipt for the page follows.
+  expect(await t.run((ctx) => ctx.db.query("pages").collect())).toHaveLength(0);
+});
+
+test("when nothing on the open web names them, it says so and holds nothing", async () => {
+  const t = make();
+  await seed(t);
+  const inboxId = await incoming(t, "<m-find0@test>");
+  await t.mutation(internal.inbound.agentFound, { inboxId, what: "Nobody Incorporated", results: [] });
+  expect(await lastReply(t)).toContain('Nothing on the open web names "Nobody Incorporated"');
+});

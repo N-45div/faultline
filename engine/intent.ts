@@ -11,6 +11,7 @@ export type Intent =
   | { kind: "pack"; query: string }
   | { kind: "csv"; query: string }
   | { kind: "keep"; url: string }
+  | { kind: "find"; what: string }
   | { kind: "monitor" }
   | { kind: "letter"; text: string }
   | { kind: "answer"; answer: Answer; violationId: string | null; note: string }
@@ -66,6 +67,17 @@ export function classifyInbound(subjectRaw: string, bodyRaw: string, opts: { ans
   const keepMatch = (isReply ? null : /^keep\b[:\s-]*(.*)$/i.exec(subject)) ?? /^keep\b[:\s-]*(.*)$/i.exec(firstLine);
   const keepUrl = keepMatch ? URL_IN.exec(keepMatch[1]) : URL_IN.exec(firstLine) && /^https?:\/\/[^\s<>"]+$/i.test(firstLine) ? URL_IN.exec(firstLine) : null;
   if (keepUrl) return { kind: "keep", url: keepUrl[0].slice(0, 500) };
+
+  // FIND and a name: what the open web has on them, with the first page held.
+  // A link after FIND is a page, not a search, so KEEP above has it already.
+  const findMatch = (isReply ? null : /^find\b[:\s-]*(.*)$/i.exec(subject)) ?? /^find\b[:\s-]*(.*)$/i.exec(firstLine);
+  const findWhat = findMatch ? findMatch[1].trim().replace(/\s+/g, " ") : "";
+  if (findWhat.length >= 3) {
+    // Someone who writes FIND and a link has already found it; hold that page.
+    const linkInFind = URL_IN.exec(findWhat);
+    if (linkInFind) return { kind: "keep", url: linkInFind[0].slice(0, 500) };
+    return { kind: "find", what: findWhat.slice(0, 200) };
+  }
   if (commands.some((c) => /^monitor$/.test(c))) return { kind: "monitor" };
 
   // A letter: it talks like one. "I got a letter saying my position is being
