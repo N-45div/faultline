@@ -376,7 +376,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         <span className="num">12</span>
         <h2 className="h2">Under the hood, in one paragraph.</h2>
         <p>
-          Convex: schema, indexes, full-text search, queries, mutations, actions, node actions, HTTP actions, crons,
+          Convex: schema, indexes, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons,
           scheduled functions, file storage, realtime queries, Convex Auth, static hosting, and three components —
           AgentMail, which verifies the inbox's events, stores each once, and hands us inbound mail and delivery
           reports; Firecrawl; and the rate limiter, which holds one counter for each ceiling the inbox keeps instead of
@@ -385,7 +385,9 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           from the state's own page. AgentMail's delivery reports are acted on, not only recorded: a bounce or a spam
           complaint stops the mail and takes the follows off with it, and every message is labelled in the inbox with
           how it was read and what came of it, so what is still unread there is what nothing has handled. OpenAI: GPT-6
-          Astra on the Agents SDK with eleven strict tools for the inbox;
+          Astra on the Agents SDK with eleven strict tools for the inbox; text-embedding-3-small over the condition
+          behind every question we ask, in a Convex vector index, so which repair a person means is decided by their own
+          words and not by which we asked last;
           gpt-5.6-luna with one zod schema for both strict output and validation, a byte-stable cached prefix, and PDF
           and image input for letters and photographed notices; hosted web search; free moderation. Photon: a signed
           endpoint and the Spectrum SDK in a node action, so the same loop works by text — its free tier texts only
