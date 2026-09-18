@@ -148,7 +148,11 @@ export const scorecard = query({
   returns: v.union(v.null(), v.object({ asOf: v.number(), states: v.array(stateCard) })),
   handler: async (ctx) => {
     const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "scorecard")).unique();
-    return row ? (row.value as { asOf: number; states: Array<typeof stateCard.type> }) : null;
+    if (!row) return null;
+    // The stored row also carries the fingerprint refreshScorecard compares
+    // against. Returning it whole failed the validator and took the page down.
+    const { asOf, states } = row.value as { asOf: number; states: Array<typeof stateCard.type> };
+    return { asOf, states };
   },
 });
 
