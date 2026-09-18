@@ -1284,6 +1284,21 @@ On production at 13:05 IST: the first read after the deploy ran the full diff
 and stored the fingerprint; the next came back "the same rows as the last read;
 nothing to compare".
 
+### 2026-09-18 - 71040b9
+The usage page's breakdown by function, read line by line. Of 1.73 GB of
+database reads against a 2 GB month: 1,002 MB was prevFor on production - the
+housing file, fixed in the commit before this one; 103 MB was prevFor on the
+dev deployment, which nobody uses and whose crons had been reading the same
+government files around the clock; about 250 MB was one-off work already done
+(a snapshot import, index backfills, three debug repairs); 40 MB the daily
+scorecard, 23 MB the hourly landing count.
+
+The dev deployment is paused with NOTICE_PAUSE=all. The scorecard now compares
+the eight layoff files' row fingerprints with the ones it last scored and, when
+none moved, keeps its answer and moves only its date. The landing count runs
+every six hours instead of every hour. Both honour the pause, which they did
+not: paused, the dev deployment was still scoring every day.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
