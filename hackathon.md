@@ -1319,6 +1319,27 @@ itself; the built bundle now names clear-dogfish-72 only, and the landing's data
 arrives in 1.9 seconds. The rule from here: the site is only ever built by the
 deploy command, never by hand.
 
+### 2026-09-19 - f3742c5
+The last of the free-tier problem was the city doing its job. The usage page
+read 1.79 of 2 GB of database reads a day after the fixes, +60 MB in the day;
+the changes table said why: HPD moves ~2,350 statuses and adds ~600 violations
+a day across the 303 housing buildings we watched, and each one is a row read
+and written. At that rate the month runs out around 27-29 September - judging
+week. Only nine of the 303 buildings had ever been asked about, followed or
+pulled for a case.
+
+Production now watches 46: those nine, 155 Linden Boulevard, and 41 seeded
+buildings with light real activity (1.5% of the daily changes), and 8 of 197
+restaurant addresses, the ones that changed at all. The housing read went from
+6,097 rows to 162, the restaurant read from 6,736 to 695, neither recording a
+false removal (housing is closed-world; restaurants are compared only across
+watched addresses). The switch is debug.trimWatched and it reverses with
+restoreAll. The landing's watched-buildings count now reads 46, which is true.
+
+Asking someone about a building re-activates its watch whatever the list says,
+with a test: the question is only worth asking if the city's second word about
+that building can still reach us.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
