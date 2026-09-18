@@ -156,6 +156,24 @@ export const refreshScorecard = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
+    if (paused("ingest")) return 0;
+    // The scorecard is a function of the rows we hold and nothing else. Each
+    // layoff file's row fingerprint says whether those rows moved; when none
+    // did, the answer is the one already stored, and reading every row of
+    // every state again - 40 MB of this deployment's database reads in twelve
+    // days - would only confirm it. The date moves; the numbers cannot.
+    const prints: string[] = [];
+    for (const slug of Object.keys(LAYOFF_STATES)) {
+      const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+      prints.push(`${slug}:${src?.lastRowsHash ?? "?"}`);
+    }
+    const fingerprint = prints.join("|");
+    const held = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "scorecard")).unique();
+    if (held && !fingerprint.includes(":?") && held.value?.fingerprint === fingerprint) {
+      await ctx.db.patch(held._id, { value: { ...held.value, asOf: Date.now() }, updatedAt: Date.now() });
+      return held.value.states?.length ?? 0;
+    }
+
     const states: Array<typeof stateCard.type> = [];
     for (const [slug, jurisdiction] of Object.entries(LAYOFF_STATES)) {
       const s = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
@@ -207,8 +225,8 @@ export const refreshScorecard = internalMutation({
         deleted: s.removedCount ?? 0,
       });
     }
-    const value = { asOf: Date.now(), states };
-    const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "scorecard")).unique();
+    const value = { asOf: Date.now(), states, fingerprint };
+    const row = held;
     if (row) await ctx.db.patch(row._id, { value, updatedAt: Date.now() });
     else await ctx.db.insert("stats", { key: "scorecard", value, updatedAt: Date.now() });
     return states.length;
@@ -298,8 +316,10 @@ export const refreshStats = internalMutation({
   args: {},
   returns: buildingsShape,
   handler: async (ctx) => {
-    const value = await countBuildings(ctx);
     const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "buildings")).unique();
+    // Paused reads change nothing to count; the stored count still stands.
+    if (paused("ingest")) return row?.value ?? { buildings: 0, records: 0, since: "" };
+    const value = await countBuildings(ctx);
     if (row) await ctx.db.patch(row._id, { value, updatedAt: Date.now() });
     else await ctx.db.insert("stats", { key: "buildings", value, updatedAt: Date.now() });
     return value;
