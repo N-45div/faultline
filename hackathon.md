@@ -1265,6 +1265,25 @@ live failure that found the second. Every count recounted rather than carried
 over: 31 tables, 57 indexes, 151 deployed functions, four components, ten files,
 eleven tools, 300 automated checks.
 
+### 2026-09-18 - 388a799
+The free tier, again, and the same file as 4 September. The deployment was
+nearing its limits; the logs said the city's housing file came back every hour
+as "rows=5125 new=0 changes=0", and to learn that, the diff looked up every one
+of the 5,125 rows we hold for it. Convex counts the whole document read - about
+1.1 KB each - not the two hashes the query returns: six megabytes an hour, up
+to 280 a day, to find nothing.
+
+Only a 304 skipped the diff, and the city's API never sends one. It answers the
+same query with the same rows in a different order, so the bytes differ every
+time. Each read now fingerprints its rows (identity and content hash, sorted),
+and when that matches the last read committed in full, nothing is compared and
+nothing held is read. The read is still recorded. A deferred read forgets the
+fingerprint, and an operator's one-off deeper read is never compared.
+
+On production at 13:05 IST: the first read after the deploy ran the full diff
+and stored the fingerprint; the next came back "the same rows as the last read;
+nothing to compare".
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
