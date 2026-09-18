@@ -79,6 +79,7 @@ export const getBySlug = internalQuery({
       cursor: v.optional(v.string()),
       lastEtag: v.optional(v.string()),
       lastBodySha256: v.optional(v.string()),
+      lastRowsHash: v.optional(v.string()),
       consecutiveFailures: v.number(),
     }),
     v.null(),
@@ -93,6 +94,7 @@ export const getBySlug = internalQuery({
       cursor: s.cursor,
       lastEtag: s.lastEtag,
       lastBodySha256: s.lastBodySha256,
+      lastRowsHash: s.lastRowsHash,
       consecutiveFailures: s.consecutiveFailures,
     };
   },
@@ -434,6 +436,8 @@ export const finishCommit = internalMutation({
     etag: v.optional(v.string()),
     /** Forget the stored etag, so the next cycle asks for the whole file again. */
     clearEtag: v.optional(v.boolean()),
+    /** The fingerprint of the rows this read committed in full; "" forgets it. */
+    rowsHash: v.optional(v.string()),
     next: v.object({ nextRunAt: v.number(), cursor: v.optional(v.string()), lastStatus: v.string() }),
   },
   returns: v.null(),
@@ -448,6 +452,7 @@ export const finishCommit = internalMutation({
       lastStatus: args.next.lastStatus,
       lastEtag: args.clearEtag ? undefined : (args.etag ?? source.lastEtag),
       lastBodySha256: args.bodySha256,
+      ...(args.rowsHash !== undefined ? { lastRowsHash: args.rowsHash || undefined } : {}),
       lockedUntil: undefined,
       consecutiveFailures: 0,
       shadowCycles: source.emit ? source.shadowCycles : source.shadowCycles + 1,

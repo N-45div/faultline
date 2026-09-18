@@ -31,6 +31,13 @@ export default defineSchema({
     /** Rows in the last full read. A 304 keeps the previous count. */
     rowCount: v.optional(v.number()),
     lastBodySha256: v.optional(v.string()),
+    /**
+     * The rows of the last full read, fingerprinted: each row's identity and
+     * content hash, sorted. Bytes are not enough - the city's API answers the
+     * same query with the same rows in a different order - so this is what
+     * says a read found nothing new without reading what we hold.
+     */
+    lastRowsHash: v.optional(v.string()),
     lastEtag: v.optional(v.string()),
     cursor: v.optional(v.string()),
     lockedUntil: v.optional(v.number()),

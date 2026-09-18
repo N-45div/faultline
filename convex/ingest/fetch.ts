@@ -87,6 +87,42 @@ export const runSource = internalAction({
         throw new Error(`HTTP ${fetched.status} parsed to 0 rows`);
       }
 
+      // The same rows as the last read we committed in full - same keys, same
+      // content, in whatever order they came back - cannot hold a change, so
+      // the diff is not run and what we hold is not read. Without this the
+      // city's housing file cost six megabytes of database reads an hour to
+      // learn, nearly every hour, that nothing had moved. The read still
+      // counts as a read: it is recorded, and the page's "last read" is true.
+      // A one-off deeper read is a different slice and is never compared.
+      const oneOff = trailDays !== undefined || subjectKeys !== undefined;
+      const rowsHash = oneOff ? "" : await sha256Hex(
+        new TextEncoder().encode(observations.map((o) => `${o.identityKey}\t${o.fullHash}`).sort().join("\n")),
+      );
+      if (rowsHash && rowsHash === source.lastRowsHash) {
+        await ctx.runMutation(internal.ingest.write.beginCommit, {
+          sourceId: source._id,
+          snapshot: {
+            capturedAt: startedAt,
+            requestUrl: fetched.url,
+            httpStatus: fetched.status,
+            etag: fetched.etag,
+            lastModified: fetched.lastModified,
+            bodySha256: fetched.bodySha256,
+            rowCount: observations.length,
+            degraded: false,
+          },
+        });
+        await ctx.runMutation(internal.ingest.write.finishCommit, {
+          sourceId: source._id,
+          capturedAt: startedAt,
+          bodySha256: fetched.bodySha256,
+          etag: fetched.etag,
+          next: { ...next, lastStatus: `${fetched.status} · ${observations.length} rows, as last read` },
+        });
+        console.log(`[${slug}] ${fetched.status} rows=${observations.length} the same rows as the last read; nothing to compare`);
+        return null;
+      }
+
       // The "before" side, read in slices — a city asks about thousands of rows.
       const prev: PrevIndex = {};
       const mode = adapter.presence === "open_world" ? "all" : "keys";
@@ -232,6 +268,8 @@ export const runSource = internalAction({
         bodySha256: fetched.bodySha256,
         etag: fetched.etag,
         clearEtag: deferred,
+        // Only a read committed in full may stand for "nothing new" next time.
+        ...(oneOff ? {} : { rowsHash: deferred ? "" : rowsHash }),
         next,
       });
       console.log(
