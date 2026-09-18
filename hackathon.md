@@ -1299,6 +1299,26 @@ none moved, keeps its answer and moves only its date. The landing count runs
 every six hours instead of every hour. Both honour the pause, which they did
 not: paused, the dev deployment was still scoring every day.
 
+### 2026-09-18 - site redeploy (no code change)
+Correction, and the worst one this week. From the evening of 17 September until
+14:10 IST on the 18th, the live site's pages were talking to the dev deployment,
+not production. Redeploying the site after the README and tour copy changes, the
+frontend was built with a plain `npm run build` - which reads VITE_CONVEX_URL
+from .env.local, the dev deployment - and uploaded with the hosting tool's own
+production build skipped. For that day anyone on clear-dogfish-72.convex.site
+read dev's data: the landing showed the layoff card where the ASK reply belongs,
+the city's numbers band was missing, and a private record link, whose token only
+production holds, found nothing. The inbox was never affected: mail runs on the
+production backend.
+
+Found while re-rendering the film: the new landing shots did not match the old,
+and a browser pointed at the live site opened a socket to
+colorless-guineapig-605. Fixed by letting the hosting tool build (`npx
+@convex-dev/static-hosting deploy --skip-convex`), which sets the production URL
+itself; the built bundle now names clear-dogfish-72 only, and the landing's data
+arrives in 1.9 seconds. The rule from here: the site is only ever built by the
+deploy command, never by hand.
+
 ## About
 
 When a company lays people off, or a landlord says a repair is done, they tell
