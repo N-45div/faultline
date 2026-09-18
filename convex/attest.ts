@@ -49,6 +49,17 @@ export async function recordAsks(ctx: MutationCtx, email: string, subjectKey: st
   if (fresh.length > 0 && email.includes("@")) {
     await ctx.scheduler.runAfter(0, internal.match.remember, { email, items: fresh.slice(0, 10) });
   }
+  // Someone is now waiting on this building's record: whatever else we have
+  // stopped watching, the city's second word about it must still reach us.
+  if (asks.length > 0) await keepWatching(ctx, subjectKey);
+}
+
+async function keepWatching(ctx: MutationCtx, bbl: string) {
+  const hpd = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
+  if (!hpd) return;
+  const t = await ctx.db.query("targets").withIndex("by_source_subject", (q) => q.eq("sourceId", hpd._id).eq("subjectKey", bbl)).unique();
+  if (!t) await ctx.db.insert("targets", { sourceId: hpd._id, subjectKey: bbl, active: true, addedBy: "case" });
+  else if (!t.active) await ctx.db.patch(t._id, { active: true });
 }
 
 function newToken(): string {

@@ -332,6 +332,35 @@ export const purgeArtefactEdits = internalMutation({
  * remove that address's follow, queued lines and answers, so no real
  * building carries a test answer as if a tenant had given it.
  */
+/**
+ * A watched file costs in proportion to the buildings we watch (housing, and the
+ * restaurants at an address). The housing file: across 500,
+ * the city's own daily updates were ~2,900 changes a day, most of what was
+ * left of the free plan's database reads. Watch only these, plus every
+ * building someone was asked about or follows (asking re-activates one on its
+ * own). Reversible: `restoreAll: true` watches every building again.
+ */
+export const trimWatched = internalMutation({
+  args: { keep: v.array(v.string()), restoreAll: v.optional(v.boolean()), slug: v.optional(v.string()) },
+  returns: v.object({ watching: v.number(), off: v.number() }),
+  handler: async (ctx, { keep, restoreAll, slug }) => {
+    const hpd = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug ?? "nyc-hpd")).unique();
+    if (!hpd) throw new Error(`no ${slug ?? "nyc-hpd"} source`);
+    const wanted = new Set(keep);
+    for (const s of await ctx.db.query("subscriptions").collect()) if (s.active) wanted.add(s.subjectKey);
+    for (const a of await ctx.db.query("attestations").take(5000)) wanted.add(a.subjectKey);
+    let watching = 0;
+    let off = 0;
+    for (const t of await ctx.db.query("targets").withIndex("by_source_active", (q) => q.eq("sourceId", hpd._id)).collect()) {
+      const on = restoreAll || t.addedBy === "case" || wanted.has(t.subjectKey);
+      if (t.active !== on) await ctx.db.patch(t._id, { active: on });
+      if (on) watching++;
+      else off++;
+    }
+    return { watching, off };
+  },
+});
+
 export const forgetTester = internalMutation({
   args: { email: v.string(), subjectKeys: v.optional(v.array(v.string())) },
   returns: v.object({ subscriptions: v.number(), alerts: v.number(), attestations: v.number() }),

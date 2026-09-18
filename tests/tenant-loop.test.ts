@@ -320,3 +320,17 @@ test("one repair open and no number given is still answered without asking", asy
   const answered = await t.run((ctx) => ctx.db.query("attestations").collect());
   expect(answered.some((a) => a.answer === "still_broken")).toBe(true);
 });
+
+test("asking about a building we had stopped watching starts watching it again", async () => {
+  const t = make();
+  await seed(t);
+  await t.run(async (ctx) => {
+    const hpd = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
+    await ctx.db.insert("targets", { sourceId: hpd!._id, subjectKey: BBL, active: false, addedBy: "standing" });
+  });
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  const target = await t.run((ctx) => ctx.db.query("targets").first());
+  // Someone is waiting on this building's record now; the city's second word
+  // about it has to reach us.
+  expect(target?.active).toBe(true);
+});
