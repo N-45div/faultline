@@ -117,7 +117,7 @@ scripts/     fixture tests on real government bytes, plus a copy lint over every
 data/        the fixtures those tests run on
 ```
 
-**300 automated checks:** 105 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 27 convex-test tests covering the tenant loop, the agent's eleven tools, the delivery-event suppressions and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
+**301 automated checks:** 105 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 28 convex-test tests covering the tenant loop, the agent's eleven tools, the delivery-event suppressions, re-watching a building someone is asked about, and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
 
 ## Running it
 
