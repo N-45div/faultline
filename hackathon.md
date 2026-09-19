@@ -13,7 +13,7 @@
 - **Components (4):** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex, @convex-dev/rate-limiter
 - **Convex features:** schema, 31 tables, 57 indexes, 157 functions, 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
 - **Auth:** Convex Auth, email + password only, and optional everywhere: it is needed only to follow a filing from the web. Every other path, the judges' included, needs no account
-- **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: eleven strict tools, tool choice required, a cost ledger in cents); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
+- **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: eleven strict tools, tool choice required, a cost ledger in cents); gpt-4o-mini-transcribe and gpt-4o-mini-tts (the browser trial by voice: say your answer, hear ours, and the recording is never kept); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
 - **Firecrawl:** the Convex component: scrape with waits for a state page this deployment cannot reach, change tracking in git-diff mode kept beside our own diff, full-page screenshots, and search (FIND)
 - **AgentMail:** the inbox; the component's verified webhook and event store; delivery events that are acted on (a bounce or complaint stops the mail); labels on every message; attachments in and out
 - **Photon:** the same inbox by text, behind a signed webhook
@@ -1454,6 +1454,41 @@ If the meter still climbs, the order is: NOTICE_PAUSE=ingest (the scheduled
 reads stop; the inbox, the site and the browser trial go on working, and "last
 read" says so), then NOTICE_PAUSE=ingest,web. The site does not need to be
 redeployed for either.
+
+### 2026-09-19 - 5a04b2a
+Say it, and hear it. Plenty of the people this is for would rather say it than
+type it, so the browser trial takes speech. POST /voice/hear takes a recording,
+has OpenAI write it down (gpt-4o-mini-transcribe), and sends the words through
+the door a typed message uses: the same keyword reader, the same GPT-6 Astra
+agent, the same tools. The recording is never stored - what we keep of speech
+is what we keep of an email, the words - and the message then says how it was
+heard as well as how it was read. GET /voice/say reads one of our replies aloud
+(gpt-4o-mini-tts), streamed so it starts in a couple of seconds, and only a
+reply that is in the asking browser's own thread, in the words the tool wrote.
+engine/speech.ts makes a receipt sayable and adds nothing to it: no web
+addresses or citations, a violation by its last four digits, dates as a month
+and a day, the city's cut-off words dropped, the address said once, forty
+seconds at most. So the rule holds by voice: the model writes no sentence anyone
+hears. It writes down theirs and reads out ours. Voice is charged from rooms of
+its own before any model is called.
+
+On production, in a real browser whose microphone played a recorded tenant: the
+sentence was written down word for word, "heard by gpt-4o-mini-transcribe - read
+by GPT-6 Astra -> record_answer - 0.88c", recorded against #19041834, and Listen
+began playing 2.7 seconds after it was pressed. Another browser asking for the
+same reply got a 404.
+
+### 2026-09-19 - 85b1828
+Groundwork for the same questions by telephone, through CALL-E's line: the
+script the voice would be given and the only shape an answer may come back in,
+as pure tested code (engine/call.ts, sixteen checks). The call says at once that
+it is automated and was asked for; the voice is told to state no fact the tools
+did not write; an answer may only name a repair we asked about; the person's own
+words cannot carry a number or an answer of their own; and each answer becomes
+the line a person would have typed, so the keyword reader reads it with no model
+and the same tool refuses a number that is not theirs. Nothing here places a
+call yet: that part rings a real telephone and spends real credit, and waits on
+a decision.
 
 ## About
 
