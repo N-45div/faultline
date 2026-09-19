@@ -16,6 +16,7 @@ import { classifyInbound } from "../engine/intent";
 import { changedLines } from "../engine/evidence";
 import { forSpeech, SPOKEN_MAX } from "../engine/speech";
 import { answerLine, answersFromCall, callResultSchema, callTask, normalisePhone, saidIt, secondReaderInput, settle, wroteNumber } from "../engine/call";
+import { LIVE_GREETING, LIVE_INSTRUCTIONS, liveCents, spokenToTyped, utterance } from "../engine/live";
 import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../engine/types";
 
 const snapDir = join("data", "snapshots");
@@ -263,6 +264,23 @@ console.log("\n== tenant loop");
   check(callIntent.kind === "call" && callIntent.phone === "+1 718 555 0142", "CALL ME and a number asks for a call to that number");
   const bareCall = classifyInbound("", "call me");
   check(bareCall.kind === "call" && bareCall.phone === null, "CALL ME with no number asks which number");
+  {
+    // A conversation: the request for help carries no words, so the fragments are the message.
+    const f = (delta: string, start_ms: number, end_ms: number) => ({ delta, start_ms, end_ms });
+    const said = [f("Ask about", 1000, 1400), f(" 155 Linden", 1400, 2100), f(" Boulevard, Brooklyn.", 2100, 3000)];
+    const first = utterance(said, 0);
+    check(first.text === "Ask about 155 Linden Boulevard, Brooklyn." && first.untilMs === 3000, "live: fragments are joined as they arrived, with their own spaces");
+    const later = utterance([...said, f(" No,", 9000, 9300), f(" nobody  came.", 9300, 10100)], first.untilMs);
+    check(later.text === "No, nobody came." && later.untilMs === 10100, "live: what was already sent through the door is not sent again");
+    check(utterance(said, 3000).text === "", "live: nothing new said is nothing to send");
+    check(spokenToTyped("Ask about 155 Linden Boulevard, Brooklyn.") === "ASK 155 Linden Boulevard, Brooklyn", "live: a spoken ask becomes the command the keyword reader takes, without the full stop a transcriber adds");
+    const asked = classifyInbound("", spokenToTyped("Please ask me about 155 Linden Boulevard, Brooklyn."));
+    check(asked.kind === "ask" && asked.query === "155 Linden Boulevard, Brooklyn", "live: and the keyword reader reads it with no model");
+    check(spokenToTyped("About 155 Linden Boulevard, Brooklyn.") === "ASK 155 Linden Boulevard, Brooklyn" && spokenToTyped("I live at 1520 Sedgwick Avenue, the Bronx.") === "ASK 1520 Sedgwick Avenue, the Bronx" && spokenToTyped("155 Linden Boulevard") === "ASK 155 Linden Boulevard", "live: an address, said any of the ways people say one, is a request to be asked about it, even when the transcriber drops the first word");
+    check(spokenToTyped("Nobody came. It looks the same.") === "Nobody came. It looks the same." && !spokenToTyped("About 3 weeks ago the super painted over it, but the water is still coming through the ceiling.").startsWith("ASK") && spokenToTyped("About 3 weeks ago.") === "About 3 weeks ago." && spokenToTyped("2 of them are fixed.") === "2 of them are fixed.", "live: anything else goes through as it was said, and a sentence that opens on a number is not an address unless it names a street or a borough");
+    check(liveCents(90) === 7.5 && liveCents(0) === 0, "live: ninety seconds of gpt-live-1 is seven and a half cents");
+    check(/Delegation policy:/.test(LIVE_INSTRUCTIONS) && /You know nothing about any building/.test(LIVE_INSTRUCTIONS) && /automated voice/.test(LIVE_GREETING), "live: the voice is told it knows nothing, to delegate, and to say first that it is automated");
+  }
   {
     const turns = [
       { who: "call", text: "Is it fixed, still broken, or are you not sure?" },
