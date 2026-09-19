@@ -41,8 +41,11 @@ export const say = mutation({
     if (!all.ok) return { ok: false, why: `The browser trial has had its day's worth of messages. The inbox works the same way: ${INBOX()}.` };
     // Asking about a building reads every row we hold for it, and an address
     // we have never seen starts a read of the city's file.
+    // The sample building answers from one small row (wall.refreshSampleAsk),
+    // so the first button on the page does not spend this.
     const intent = classifyInbound("", words);
-    if (intent.kind === "ask" || (intent.kind === "lookup" && looksLikeAddress(intent.query))) {
+    const sample = /\b155\s+linden\b/i.test(words);
+    if (!sample && (intent.kind === "ask" || (intent.kind === "lookup" && looksLikeAddress(intent.query)))) {
       const asks = await limits.limit(ctx, "webAsk");
       if (!asks.ok) return { ok: false, why: `The browser trial has looked up its buildings for today. By email it works the same way: ${INBOX()}.` };
     }

@@ -534,7 +534,10 @@ async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: s
     kind: receipt.kind,
     subjectKey: receipt.subjectKey,
     text,
-    html,
+    // The HTML is the email's. A browser thread shows the text, and its live
+    // query re-reads every reply in the thread each time one arrives, so a row
+    // three times the size would be read three times as often for nothing.
+    html: byWeb ? "" : html,
     createdAt: Date.now(),
   });
   if (receipt.subjectKey) await ctx.db.patch(t.inboxId, { matchedSubjectKey: receipt.subjectKey });

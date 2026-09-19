@@ -24,10 +24,10 @@ export const limits = new RateLimiter(components.rateLimiter, {
   // can open a thousand. It gets rooms of its own: nothing done in a browser
   // can spend the inbox's replies, its pages, or its agent runs.
   webSender: { kind: "fixed window", rate: 25, period: DAY },
-  webAll: { kind: "fixed window", rate: 150, period: DAY },
+  webAll: { kind: "fixed window", rate: 300, period: DAY },
   /** Asking about a building reads every row we hold for it. */
   webAsk: { kind: "fixed window", rate: 40, period: DAY },
-  webAgentRun: { kind: "fixed window", rate: 40, period: DAY },
+  webAgentRun: { kind: "fixed window", rate: 80, period: DAY },
   webPage: { kind: "fixed window", rate: 6, period: DAY },
   /** Runs of the inbox agent, which cost money. */
   agentRun: { kind: "fixed window", rate: AGENT_DAILY_CAP, period: DAY },
