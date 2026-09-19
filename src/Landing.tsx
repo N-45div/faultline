@@ -74,11 +74,8 @@ export default function Landing({ go }: { go: (p: string) => void }) {
               are told, with both dates.
             </p>
             <div className="lede-ctas">
-              <a className="cta primary" href={mailto("ASK ")}>
-                Email ASK and your address
-              </a>
               <a
-                className="cta"
+                className="cta primary"
                 href="/try"
                 onClick={(e) => {
                   e.preventDefault();
@@ -86,6 +83,9 @@ export default function Landing({ go }: { go: (p: string) => void }) {
                 }}
               >
                 Try it here, no email
+              </a>
+              <a className="cta" href={mailto("ASK ")}>
+                Email ASK and your address
               </a>
             </div>
             <p className="fine">

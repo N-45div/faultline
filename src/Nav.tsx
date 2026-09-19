@@ -109,7 +109,7 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Look up a company or a NYC address"
+              placeholder="A company, or a NYC address"
               aria-label="Look up a company or a New York City address"
             />
           </form>
@@ -180,7 +180,7 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
       {open && (
         <div id="mobile-menu" className="sheet container">
           <form className="barsearch" role="search" onSubmit={search}>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Look up a company or a NYC address" aria-label="Look up" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="A company, or a NYC address" aria-label="Look up" />
           </form>
           {LINKS.map(([to, label]) => (
             <a key={to} href={to} onClick={(e) => nav(to, e)} aria-current={current(to) ? "page" : undefined}>
