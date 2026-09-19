@@ -7,6 +7,7 @@ import { hashFields, sha256Hex } from "../../engine/canon";
 import { diffRows } from "../../engine/diff";
 import type { DiffResult, FetchBody, Observation, PrevIndex, SourceAdapter } from "../../engine/types";
 import { scrapePage } from "./firecrawl";
+import { SAMPLE_BBL } from "../../engine/hpd";
 
 // The one place bytes from the outside world are touched. Parse, hash and diff
 // here; hand the mutation only what it needs to write.
@@ -273,7 +274,7 @@ export const runSource = internalAction({
         next,
       });
       // The landing's reply card is a row of its own; it moves when this file does.
-      if (slug === "nyc-hpd" && (wrote > 0 || emitted > 0)) await ctx.runMutation(internal.wall.refreshSampleAsk, {});
+      if (slug === "nyc-hpd" && diff.changes.some((c) => c.subject.key === SAMPLE_BBL)) await ctx.runMutation(internal.wall.refreshSampleAsk, {});
       console.log(
         `[${slug}] ${fetched.status} rows=${observations.length} new=${wrote} changes=${emitted}` +
           ` silent=${diff.silentUpdates} suppressed=${diff.suppressed} degraded=${diff.degraded} emit=${emittedFlag}`,
