@@ -151,9 +151,20 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           out loud, and OpenAI writes your words down (the recording is dropped); every reply has a Listen button that
           reads what the tool wrote. The model writes no sentence you hear either.
         </p>
+        <p>
+          Or have it ring you. Once it has asked you about a repair, the same page offers a real phone call: write your
+          own number (US or India), tick the box, and CALL-E places the call on our line. It says at once that it is
+          automated and that you asked for it, then puts the same questions to you by voice. When you hang up, the
+          transcript appears in your thread and is read twice, separately: by CALL-E, which held the conversation, and
+          by GPT-6 Astra, which is not shown what CALL-E made of it. An answer is recorded only where the two agree, a
+          quote is kept only if the transcript has you saying it, and where they differ you are asked again in writing.
+          Say you never asked for the call and that number is never rung again.
+        </p>
         <p className="fine">
-          Eleven tools with strict schemas, tool choice required, one call at a time, low reasoning effort, at most six
-          turns, and free moderation first. Four of them are the components: send a link and Firecrawl reads the page,
+          Twelve tools with strict schemas, tool choice required, one call at a time, low reasoning effort, at most six
+          turns, and free moderation first. The twelfth rings a telephone, and only a number that appears in the
+          person's own message: the model can pick the wrong tool, but it cannot ring a number nobody wrote. One number
+          is rung at most twice a day, and our tables keep a hash of it and its last four digits. Four of them are the components: send a link and Firecrawl reads the page,
           which is kept as it was served with a picture of it and a checksum; name an owner or an employer and Firecrawl
           looks over the open web, lists every page that names them, and holds the first one the same way; ask for proof
           and the evidence pack or the filings spreadsheet arrives attached to the thread. You can have the first two
@@ -405,7 +416,8 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           from the state's own page. AgentMail's delivery reports are acted on, not only recorded: a bounce or a spam
           complaint stops the mail and takes the follows off with it, and every message is labelled in the inbox with
           how it was read and what came of it, so what is still unread there is what nothing has handled. OpenAI: GPT-6
-          Astra on the Agents SDK with eleven strict tools for the inbox; text-embedding-3-small over the condition
+          Astra on the Agents SDK with twelve strict tools for the inbox, and again as the second reader of every
+          phone call; text-embedding-3-small over the condition
           behind every question we ask, in a Convex vector index, so which repair a person means is decided by their own
           words and not by which we asked last;
           gpt-5.6-luna with one zod schema for both strict output and validation, a byte-stable cached prefix, and PDF
