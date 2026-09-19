@@ -18,7 +18,7 @@
 - **AgentMail:** the inbox; the component's verified webhook and event store; delivery events that are acted on (a bounce or complaint stops the mail); labels on every message; attachments in and out
 - **Photon:** the same inbox by text, behind a signed webhook
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-19
+- **Last updated:** 2026-09-19 (evening)
 
 ## Log
 
@@ -1402,6 +1402,58 @@ receipt on the days it does not show it.
 And the scorecard's skip from the 18th never fired: California answers 304, is
 never parsed, and so never had a row fingerprint, which the skip read as
 "unknown, recompute". It falls back to the hash of the bytes last served.
+
+### 2026-09-19 - fd99c38
+The top bar. Every item in it could shrink, and it lives in an 1120px container,
+so on any page with the search box - at every desktop width, 1920 included - the
+box was squashed to 26px and "Email us" and "Sign in" each broke onto two lines;
+around 1024px the bar overflowed the page. Adding "Try it" only made it visible.
+Every item now keeps its natural width, the search box is the one flexible thing
+with a 200px floor, and when there is no room the least useful thing leaves
+first: the tagline, the search box, the address pill, and at 720 the links fold
+into the menu as before. Measured at 27 widths on two pages with a script that
+checks for wraps, overlaps, clipping and overflow: none.
+
+### 2026-09-19 - e40f1c2
+Found while filming the browser trial: GPT-6 Astra is told to quote the person's
+words and sometimes hands them over already inside quotation marks; the receipt
+adds its own, and the reply read ""Nobody has been..."". One pair now, with a
+test. The model still writes no sentence anyone reads - but it does pass one
+string, and this is what a string from a model needs: cleaning at the door.
+
+### 2026-09-19 - 7208ef8
+The winners are named around the 25th and the site has to stay up to the end of
+the month on what is left of the free plan: about 150 MB of database reads for
+eleven days. The production logs said the scheduled work is no longer the cost -
+eleven reads in three and a half hours, every one "the same rows", about 0.02 MB
+between them. What is left is pages, so each one a judge can reach was read for
+what it reads.
+
+The worst was the commit log. It counted each commit's changes by reading up to
+201 change rows for every commit it listed, thirty a page: about nine megabytes
+to open /file/nyc-hpd once, never cached, because every read adds a snapshot -
+and the landing links to it. Each commit's added, changed and removed are now
+counted onto its snapshot as it is written, slice by slice, and the log reads
+those: exact, and free. Reads from before today are counted the old way within a
+budget of 450 rows a view; past it an old commit is listed as one, "changes
+recorded". One commit's page shows a hundred changes, not three hundred.
+
+### 2026-09-19 - 06b9f69
+The housing file every three hours, not every hour. Every read patches the
+file's row, and every page that quotes "last read" is recomputed when it does;
+the building page is most of a megabyte (237 rows, up to 300 stored versions of
+them, its changes, the restaurants at the address), and everything on the site
+links to it. Hourly reads made it that much an hour for as long as anyone was
+looking. The city gives a tenant 70 days; hearing of a stamp two hours later
+costs them nothing, and "last read" stays exactly true. The landing's card is
+now rebuilt only when the sample building itself moved, and the daily rebuild
+honours the pause, so the switched-off dev deployment - which shares this
+team's quota - stays off.
+
+If the meter still climbs, the order is: NOTICE_PAUSE=ingest (the scheduled
+reads stop; the inbox, the site and the browser trial go on working, and "last
+read" says so), then NOTICE_PAUSE=ingest,web. The site does not need to be
+redeployed for either.
 
 ## About
 
