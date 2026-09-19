@@ -1132,7 +1132,14 @@ export const agentRecordAnswer = internalMutation({
       return "that is not a violation this person was asked about; asked them which";
     }
     const now = Date.now();
-    const note = (a.note ?? "").replace(/\s+/g, " ").trim().slice(0, 200);
+    // The model is told to quote their words, and sometimes hands them over
+    // already inside quotation marks; the receipt adds its own. One pair.
+    const note = (a.note ?? "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^["'\u201c\u201d\u2018\u2019]+|["'\u201c\u201d\u2018\u2019]+$/g, "")
+      .trim()
+      .slice(0, 200);
     const receipt = await answerReceipt(ctx, target.t, from, open, a.answer, note, null, now);
     const word = a.answer === "fixed" ? "fixed" : a.answer === "still_broken" ? "still broken" : "not sure";
     await deliver(ctx, target.t, receipt, [

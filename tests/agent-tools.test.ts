@@ -436,3 +436,14 @@ test("when their words match the number the model picked, the answer is recorded
   });
   expect(out).toBe("recorded and replied");
 });
+
+test("a note the model hands over already in quotation marks is quoted once", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m-q1@test>", `Re: ${LABEL}`, "ASK");
+  const inboxId = await incoming(t, "<m-q2@test>");
+  await t.mutation(internal.inbound.agentRecordAnswer, { inboxId, violationId: VIOLATION, answer: "still_broken", note: '"water still comes through"' });
+  const reply = await lastReply(t);
+  expect(reply).toContain('"water still comes through"');
+  expect(reply).not.toContain('""');
+});
