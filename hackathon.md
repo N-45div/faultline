@@ -2,17 +2,23 @@
 
 - **Project:** Faultline
 - **Event:** Convex All Gas Hackathon
-- **What it does:** Email a company name or a New York City address and get back what they filed with the government, dated, with every version the agency overwrote. Seven states' layoff files, New York City's housing records, and the city's restaurant inspections — a file the Health Department says, in its own words, keeps only restaurants that are open today.
+- **What it does:** Your landlord told New York City the repair is done. Is it? Faultline is an email address (getnotice@agentmail.to): write ASK and your address and it sends back every repair the owner certified there, in the city's words, with the day the city's 70 days run out. Answer in your own words; GPT-6 Astra reads it but can only choose a tool, and the tool writes the reply. Your answer is kept private and dated beside the city's record, and you are told the day the city stamps that certification FALSE. Underneath: ten government files that overwrite themselves (NYC housing violations, NYC restaurant inspections, eight states' layoff notices), read on a schedule with every version kept. Email a company name and get back what it filed, including the versions the state has since overwritten.
 - **Live app:** https://clear-dogfish-72.convex.site
+- **Try it without email or sign-in:** https://clear-dogfish-72.convex.site/try
+- **Tour for judges:** https://clear-dogfish-72.convex.site/judge
+- **Demo video:** https://www.youtube.com/watch?v=oZGHuZrlAnQ
 - **Repo:** https://github.com/N-45div/faultline
-- **Frontend:** Convex static hosting
+- **Frontend:** Convex static hosting (convex.site)
 - **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held)
-- **Components:** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex
-- **Convex features:** schema, tables, indexes, full-text search, queries, mutations, actions, HTTP actions, crons, scheduled functions, file storage, realtime queries
-- **Auth:** Convex Auth, email + password only — no outside identity provider; optional everywhere, needed only to follow a filing from the web
-- **AI models:** gpt-5.6-luna (strict structured outputs, prompt caching, PDF file input, hosted web search), omni-moderation-latest
+- **Components (4):** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex, @convex-dev/rate-limiter
+- **Convex features:** schema, 31 tables, 57 indexes, 157 functions, 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
+- **Auth:** Convex Auth, email + password only, and optional everywhere: it is needed only to follow a filing from the web. Every other path, the judges' included, needs no account
+- **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: eleven strict tools, tool choice required, a cost ledger in cents); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
+- **Firecrawl:** the Convex component: scrape with waits for a state page this deployment cannot reach, change tracking in git-diff mode kept beside our own diff, full-page screenshots, and search (FIND)
+- **AgentMail:** the inbox; the component's verified webhook and event store; delivery events that are acted on (a bounce or complaint stops the mail); labels on every message; attachments in and out
+- **Photon:** the same inbox by text, behind a signed webhook
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-16T06:38:00Z
+- **Last updated:** 2026-09-19
 
 ## Log
 
@@ -1340,29 +1346,87 @@ Asking someone about a building re-activates its watch whatever the list says,
 with a test: the question is only worth asking if the city's second word about
 that building can still reach us.
 
+### 2026-09-19 - 0976b75
+Correction. Yesterday's scorecard change stored a fingerprint beside the
+numbers, and the public query returned the stored row whole, so its validator
+refused it: the Scorecard page, which is in the site's navigation, was blank
+from the afternoon of the 18th until 06:40 UTC on the 19th. Found by capturing
+every page of the live site and reading the page errors; the query now returns
+the two fields it promises, with a test. The rule from it: a page a judge can
+reach gets opened after every deploy, not only the pages the change was about.
+
+### 2026-09-19 - be240f5
+/try: the inbox in a browser, with no email and no sign-in. A judge could open
+every page without an account, but the part worth seeing - the agent reading a
+sentence, the private record, the reply arriving - only happened to someone who
+sent a real email and waited. /try is a third way in, beside email and text.
+What is typed there goes through the same handler: the same keyword reader, the
+same GPT-6 Astra agent, the same tools writing the reply. The reply is a
+receipts row the page holds a live Convex query on, so it appears the moment
+the mutation that wrote it commits. Under each message it says how it was read:
+by the keyword reader with no model, or by GPT-6 Astra, with the tool it
+finished on and what the run cost.
+
+A door anyone can open gets fences. It pays at the door from rate-limit rooms of
+its own - 25 messages a browser a day, 150 in all, 40 building lookups, 40 agent
+runs, 6 kept pages - so nothing typed into a browser can spend the inbox's. A
+trial has no mailbox, so it cannot follow, and the pack and the spreadsheet say
+they work by email. And because anyone can say anything in one, what is said
+there is kept on the trial's own page and is never a tenant's word on a public
+one: not in the building page's count, not beside the city's stamp, and the
+city's second word is never mailed to it. Three convex-test tests hold those
+lines.
+
+On production, from a browser with no cookies, at 09:05 UTC: ASK 155 Linden
+Boulevard answered in 1.6 seconds, read by the keyword reader; "Nobody has been
+to look at the vinyl floor tiles. It looks the same as it did before." answered
+in 8.7 seconds - "read by GPT-6 Astra -> record_answer - 2.28c" - against
+#19041834, the vinyl floor tiles; and the private record page it linked to
+opened without a login, with each reply marked "Shown in your browser".
+
+### 2026-09-19 - 7dc85e3
+The landing's reply card is one small row. Database reads stood at 1.84 of 2 GB,
+fifty megabytes up in a day, with visitors arriving since the submission. The
+landing page and the tour both built their ASK card from lookup.building, which
+reads every violation we hold for the sample building (237 rows), every stored
+version of each, the restaurants at the address and the two source rows - and
+because a source row is patched on every read of the city's file, the cached
+result was thrown away every hour. Most of a megabyte, per hour and per cold
+view, to show three lines. The repairs that could be asked about are now worked
+out into one stats row when the housing file commits a change, and once a day;
+both pages read that row (3.8 KB) and still apply today's date themselves. An
+ASK about that building - the tour's first step, the trial's first button -
+answers from the same row. The landing no longer fetches the Spirit Airlines
+receipt on the days it does not show it.
+
+And the scorecard's skip from the 18th never fired: California answers 304, is
+never parsed, and so never had a row fingerprint, which the skip read as
+"unknown, recompute". It falls back to the hash of the bytes last served.
+
 ## About
 
-When a company lays people off, or a landlord says a repair is done, they tell
-you one story. They also file paperwork with the government, and that paperwork
-often tells a different one. Almost nobody knows the filings exist, and the
-files get overwritten — yesterday's version is gone.
+When a landlord in New York City tells the housing agency a repair is done, the
+violation closes after 70 days unless the city sends an inspector back. The
+city's file holds the landlord's word and has no place for the tenant's.
+Faultline asks the person who lives there, keeps their answer private and dated
+beside the city's own record, and tells them the day the city agrees - which it
+does, in its own words, about 45 times a day: FALSE CERTIFICATION, then the
+status is overwritten. We keep the stamp.
 
-- **Layoffs.** New York and California publish every WARN layoff notice. Of 193
-  notices in New York's file on 29 Aug 2026, 87 gave less than the 90 days the
-  law requires, and 96 were posted after the layoff had already started.
-  California publishes its current-year notices as one spreadsheet and overwrites
-  it in place — edits within the year are lost, and only fiscal-year-end PDFs
-  survive on the state's site. We hold every version since 29 Aug.
-  Two dates matter and we keep them apart: the notice date is the employer's; the
-  posting date is the state's. "Posted after the layoff started" is about the
-  state's lag, never the employer's.
-- **Housing.** NYC HPD stamps a landlord's "it's fixed" as FALSE CERTIFICATION —
-  in those words — about 38 times a day, then overwrites the status. We keep the
-  stamp.
+That is the top of a wider record. Governments publish what companies and
+landlords file, then overwrite the file in place. Faultline reads ten of those
+files on a schedule - New York City's housing violations and restaurant
+inspections, and eight states' layoff notices - compares every row with the
+last version it holds, and keeps all of them. Email a company name and the reply
+is what it filed, the notice date and the layoff date side by side against the
+statute that actually applies, and every version the state has since replaced.
 
-We never say "illegal". We show two dates and one statute and link to the
-government's page. Employers can claim exceptions; that is a lawyer's call. We
-are the dated proof you bring them.
+We never say "illegal". We show dates, a statute and the government's own page.
+Exceptions are a lawyer's call; we are the dated proof you bring them.
+
+How to try it, in order of effort: open /try (no email, no sign-in); email
+ASK 155 Linden Boulevard, Brooklyn to getnotice@agentmail.to; or follow /judge,
+eight minutes, every step live.
 
 ## Plan
 
