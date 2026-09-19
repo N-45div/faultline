@@ -4,9 +4,9 @@
 
 Faultline asks the person living with it, keeps their answer dated beside the city's own record, and tells them the day that record agrees. It also keeps every government file the government overwrites — layoff notices, housing violations, restaurant inspections — so yesterday's version still exists when someone needs it.
 
-It is an inbox. There is nothing to install and no account to make.
+It is an inbox. There is nothing to install and no account to make. **No email handy? [Try it in your browser](https://clear-dogfish-72.convex.site/try)**: the same handler, the same agent, the reply arriving live, with no sign-in.
 
-**Live:** https://clear-dogfish-72.convex.site · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), one entry per commit
+**Live:** https://clear-dogfish-72.convex.site · **Try it, no email:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://www.youtube.com/watch?v=oZGHuZrlAnQ) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), one entry per commit
 
 Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 
@@ -14,7 +14,9 @@ Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 
 ## Try it in sixty seconds
 
-Email **getnotice@agentmail.to**. Any of these, in the subject or the first line:
+**In a browser:** open [/try](https://clear-dogfish-72.convex.site/try) and press the first button. What you type goes through the handler an email goes through, the reply arrives on the page by itself from a live Convex query, and under each of your messages it says how it was read: by the keyword reader with no model, or by GPT-6 Astra, with the tool it finished on and what the run cost. Nothing is emailed, and what is said in a trial is never counted on a public page.
+
+**By email:** write to **getnotice@agentmail.to**. Any of these, in the subject or the first line:
 
 | Write this | What comes back, in the same thread |
 |---|---|
@@ -81,7 +83,7 @@ Say "violation" about a layoff (the word is *gap*; exceptions are a lawyer's que
 
 | | Where it does real work |
 |---|---|
-| **Convex** | The whole backend. 31 tables, 57 indexes, a full-text index and a vector index; 151 deployed functions (50 queries, 67 mutations, 23 actions, 11 HTTP); 7 crons; file storage for packs, held bytes and screenshots; realtime queries behind every page; Convex Auth; static hosting; convex-test. **Four components:** static hosting, AgentMail, Firecrawl, and `@convex-dev/rate-limiter`, which holds one counter for each ceiling the inbox keeps instead of counting a table that only grows. |
+| **Convex** | The whole backend. 31 tables, 57 indexes, a full-text index and a vector index; 157 deployed functions (52 queries, 71 mutations, 23 actions, 11 HTTP); 8 crons; file storage for packs, held bytes and screenshots; realtime queries behind every page; Convex Auth; static hosting; convex-test. **Four components:** static hosting, AgentMail, Firecrawl, and `@convex-dev/rate-limiter`, which holds one counter for each ceiling the inbox keeps instead of counting a table that only grows, and gives the browser trial rooms of its own, so a public page that can reach a paid model cannot spend the inbox's replies or its agent runs. |
 | **AgentMail** | The front door and the back door. The component verifies the inbox's webhook, stores each event once, and hands us inbound mail and the delivery events for what we send. Those events are **acted on**: a bounce, rejection or complaint writes the address down and takes every follow off with it — a complaint is final, a bounce clears when mail arrives from that address, which is proof the mailbox works. Every inbound message is **labelled where it lives**: how it was read, what it was about, what came of it, with `unread` removed when the reply goes, so what is still unread in the inbox is exactly what nothing has handled. Attachments both ways: PDFs and photos in, packs and spreadsheets out. |
 | **OpenAI** | GPT-6 Astra on the Agents SDK is the inbox agent: **eleven strict tools**, tool choice required, one call at a time, at most six turns, a byte-stable cached prefix, a cost ledger in cents and a daily cap. gpt-5.6-luna reads forwarded letters and photographed notices into one zod schema that drives both strict output and validation, with PDF and image input and a capped hosted web search. **text-embedding-3-small** embeds the condition behind every question we ask and the sentence a person answers with. Free moderation runs first. |
 | **Firecrawl** | Fetches Wisconsin's page from its side, because the host does not resolve from the deployment, and waits for the page's own scripts. Every read asks for **change tracking in git-diff mode** and a **full-page screenshot**, so each capture carries a second reading beside ours — including when the two disagree. **KEEP** holds any page someone sends, as served, hashed. **FIND** uses Firecrawl **search** for the other half of the question: what does this owner say where we have not looked? |
@@ -117,7 +119,7 @@ scripts/     fixture tests on real government bytes, plus a copy lint over every
 data/        the fixtures those tests run on
 ```
 
-**301 automated checks:** 105 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 28 convex-test tests covering the tenant loop, the agent's eleven tools, the delivery-event suppressions, re-watching a building someone is asked about, and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
+**306 automated checks:** 105 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 33 convex-test tests covering the tenant loop, the agent's eleven tools, the delivery-event suppressions, re-watching a building someone is asked about, the browser trial's fences (nothing mailed, never counted publicly, its own rate-limit rooms), and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
 
 ## Running it
 
