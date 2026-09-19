@@ -1138,3 +1138,50 @@ a {
 .links a {
   white-space: nowrap;
 }
+
+/* ---------- the top bar: nothing in it wraps, and nothing is squeezed ----------
+   Every item keeps its natural width. The search box is the one flexible thing,
+   and it has a floor. When there is no room, the least useful thing leaves, in
+   this order: the tagline, the search box, the address pill; at 720 the links
+   fold into the menu, as before. Measured with faultline-demo/nav_check.py. */
+.topbar .container {
+  max-width: 1320px;
+}
+.bar > *,
+.actions > * {
+  flex-shrink: 0;
+}
+.bar .cta.small,
+.bar .signin,
+.address,
+.account {
+  white-space: nowrap;
+}
+.bar > .barsearch {
+  flex: 1 1 200px;
+  min-width: 200px;
+  max-width: 360px;
+}
+@media (max-width: 1420px) {
+  .bar:has(> .barsearch) .brand .tagline {
+    display: none;
+  }
+}
+@media (max-width: 1215px) {
+  .bar > .barsearch {
+    display: none;
+  }
+  .bar > .barsearch + .actions {
+    margin-left: auto;
+  }
+}
+@media (max-width: 1140px) {
+  .brand .tagline {
+    display: none;
+  }
+}
+@media (max-width: 980px) {
+  .bar > .actions > .address {
+    display: none;
+  }
+}
