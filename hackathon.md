@@ -11,7 +11,7 @@
 - **Frontend:** Convex static hosting (convex.site)
 - **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held)
 - **Components (4):** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex, @convex-dev/rate-limiter
-- **Convex features:** schema, 33 tables, 60 indexes, 176 functions, 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
+- **Convex features:** schema, 33 tables, 67 indexes, 181 functions (npx convex function-spec --prod: 56 queries, 83 mutations, 27 actions, 15 HTTP actions), 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
 - **Auth:** Convex Auth, email + password only, and optional everywhere: it is needed only to follow a filing from the web. Every other path, the judges' included, needs no account
 - **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: twelve strict tools, tool choice required, a cost ledger in cents; and the second reader of every phone call, through one strict tool); gpt-live-1 over WebRTC with client delegation (talk to it in the browser: the voice hands every request to the same door as typing, and the server ends each conversation at two and a half minutes); gpt-4o-mini-transcribe and gpt-4o-mini-tts (say your answer, hear ours, and the recording is never kept); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
 - **Firecrawl:** the Convex component: scrape with waits for a state page this deployment cannot reach, change tracking in git-diff mode kept beside our own diff, full-page screenshots, and search (FIND)
@@ -19,7 +19,7 @@
 - **Photon:** the same inbox by text, behind a signed webhook
 - **CALL-E:** the same questions on a real telephone: one API call carrying the script the tools wrote and a strict result schema, an unsigned webhook believed for nothing but a call id, the call read back with our own key, and the transcript read a second time by GPT-6 Astra before anything is recorded
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-19 (night)
+- **Last updated:** 2026-09-20
 
 ## Log
 
@@ -1615,6 +1615,38 @@ ways, the time against its limit, and the delegation loop. Each reply a tool
 writes while the conversation is open is handed to the voice once, made sayable
 by engine/speech.ts, against the request it answers; a request that gets no
 reply in forty seconds is told so. 359 automated checks.
+
+### 2026-09-20 - 34d2659
+The first real call, and what it found. Three calls were placed from /try on
+production to Divij's own phone, which he typed into the page himself.
+
+The first rang and he hung up: he had no idea what it was going to ask. The
+second rang, he picked up, the voice said its greeting, and ten seconds later
+it hung up by itself. CALL-E's own record of that call: "no person responded".
+The greeting ended on "if you did not ask for this call, say so now" - and a
+person who DID ask for the call has nothing to say to that. He sat waiting for
+a question; the voice took his silence for nobody being there. No test could
+have found it: the stand-in for CALL-E never waits for anyone. The script now
+asks nothing in its opening, runs straight into the first repair, gives people
+time, asks once more after a silence, and only ends early a call on which
+nobody has spoken at all after the first question was asked twice.
+
+The third call ran 1 minute 58. He answered three questions in his own words -
+"the super painted over it, but water is still coming" for the plaster,
+"I'm not sure about it" for the leak, "yes, that one is fixed" for the tiles.
+The card on the page went from ringing to "the call has ended - GPT-6 Astra is
+reading the transcript", and five seconds later to ended, with the transcript
+and "placed and heard by CALL-E - read again by GPT-6 Astra -> report_call -
+1.76c - recorded only where the two agree". The log line: agreed=3 unsure=0,
+1,221 tokens in, 107 out. Three receipts arrived, one per repair, each with his
+own words quoted and the line that two readers went over the call separately
+and read the answer the same way. CALL-E heard "coming soon" where he said
+"coming through", and that is what the receipt quotes: it is what the
+transcript has, and the receipt says how to correct it.
+
+Both failed calls are on the table as what they were - "not answered", nothing
+recorded - and the number was not put on the do-not-call list, because hanging
+up is not saying you never asked.
 
 ## About
 
