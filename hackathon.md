@@ -1594,6 +1594,21 @@ the transcriber wrote "Ask about 155 Linden Boulevard" as "About 155 Linden
 Boulevard", so an address said any of the ways people say one is now read as a
 request to be asked about it.
 
+On production, after the deploy, the same browser held the whole conversation:
+"Ask about 155 Lyndon Boulevard, Brooklyn" (the transcriber's spelling) was read
+by the keyword reader with no model, found 155 Linden Boulevard, and the three
+repairs the owner has certified were handed to the voice 1.4 seconds after it
+asked. The tenant's answer - "No. Nobody came. The super painted over the
+ceiling, but water is still coming through" - went to GPT-6 Astra, which
+finished on record_answer for 2.41c and put it on #19106317, the water leak at
+the ceiling, and not on either of the other two. The thread says, under the two
+messages, "heard by gpt-live-1 - read by the keyword reader - no model" and
+"heard by gpt-live-1 - read by GPT-6 Astra -> record_answer - 2.41c", and then
+"A conversation with gpt-live-1 - 142 seconds - 11.83c - ended by the page".
+The telephone's refusals were checked there too, none of which can reach
+CALL-E: CALL ME with no number asks which; a British number is refused as one
+we cannot ring; the call is not offered until a repair has been asked about.
+
 ### 2026-09-19 - 15fb198
 /try: Talk to it. useLive holds the WebRTC conversation: live captions both
 ways, the time against its limit, and the delegation loop. Each reply a tool
