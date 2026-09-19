@@ -11,14 +11,15 @@
 - **Frontend:** Convex static hosting (convex.site)
 - **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held)
 - **Components (4):** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex, @convex-dev/rate-limiter
-- **Convex features:** schema, 31 tables, 57 indexes, 157 functions, 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
+- **Convex features:** schema, 33 tables, 60 indexes, 176 functions, 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
 - **Auth:** Convex Auth, email + password only, and optional everywhere: it is needed only to follow a filing from the web. Every other path, the judges' included, needs no account
-- **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: eleven strict tools, tool choice required, a cost ledger in cents); gpt-4o-mini-transcribe and gpt-4o-mini-tts (the browser trial by voice: say your answer, hear ours, and the recording is never kept); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
+- **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: twelve strict tools, tool choice required, a cost ledger in cents; and the second reader of every phone call, through one strict tool); gpt-live-1 over WebRTC with client delegation (talk to it in the browser: the voice hands every request to the same door as typing, and the server ends each conversation at two and a half minutes); gpt-4o-mini-transcribe and gpt-4o-mini-tts (say your answer, hear ours, and the recording is never kept); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
 - **Firecrawl:** the Convex component: scrape with waits for a state page this deployment cannot reach, change tracking in git-diff mode kept beside our own diff, full-page screenshots, and search (FIND)
 - **AgentMail:** the inbox; the component's verified webhook and event store; delivery events that are acted on (a bounce or complaint stops the mail); labels on every message; attachments in and out
 - **Photon:** the same inbox by text, behind a signed webhook
+- **CALL-E:** the same questions on a real telephone: one API call carrying the script the tools wrote and a strict result schema, an unsigned webhook believed for nothing but a call id, the call read back with our own key, and the transcript read a second time by GPT-6 Astra before anything is recorded
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-19 (evening)
+- **Last updated:** 2026-09-19 (night)
 
 ## Log
 
@@ -1489,6 +1490,116 @@ the line a person would have typed, so the keyword reader reads it with no model
 and the same tool refuses a number that is not theirs. Nothing here places a
 call yet: that part rings a real telephone and spends real credit, and waits on
 a decision.
+
+### 2026-09-19 - 5ff1037
+The rules for a phone call, as pure tested code, before anything could ring one.
+CALL ME is a command, and the number is taken from whichever line carries one.
+wroteNumber(): the last ten digits to be rung must appear in the person's own
+message - a model can pick the wrong tool, but it cannot ring a number nobody
+wrote. saidIt(): a quote is kept only if most of its words are words the person
+spoke on the call; transcription bends a contraction, it does not invent a
+sentence, and neither may a model that is summarising one. settle(): two
+readers, one call - an answer stands only where both read the same word for the
+same repair; a repair only one of them heard is recorded by neither; and if the
+second reader heard them say they never asked for the call, nothing is recorded
+at all.
+
+### 2026-09-19 - 8b8e96c
+A table for calls that keeps no number: a hash of it for the limits and the
+do-not-call list, and its last four digits so the person can see which phone
+will ring. One number twice a day, one person twice, twelve calls a day in all,
+and NOTICE_PAUSE=calls stops every call without a deploy.
+
+### 2026-09-19 - 64610ab
+CALL ME. Some tenants would rather talk than type, and some cannot type at all.
+Write CALL ME and your number - or ask in a sentence, and GPT-6 Astra may pick
+its twelfth tool, call_me, which refuses any number that is not in the person's
+own message - and CALL-E places a real call on our line. One API call carries
+the script the tools wrote (it says at once that the call is automated and was
+asked for, and is told to state no fact that is not written in it) and a strict
+result_schema whose violation enum holds only the numbers this person was asked
+about. CALL-E's webhooks are unsigned, so nothing in one is believed: it names a
+call, and the call is read back from CALL-E's API with our own key, and on a
+schedule in case no webhook comes.
+
+When the call ends nothing is recorded yet. The transcript goes to GPT-6 Astra,
+through the Agents SDK and one strict tool, and it is not shown what CALL-E made
+of the call: two readers who have seen each other's answers are one reader.
+What both agree on goes through the same recordAnswer the record_answer tool
+uses, including its refusal of a number nobody was asked about. Where they
+differ nothing is recorded, and the person is asked again in writing. A quote
+nobody said is dropped. Someone who says they never asked for the call is never
+rung again: the list a spam complaint goes on, and as final. With no model to
+ask, CALL-E's reading stands alone, as a typed keyword does, and a second
+reading that never returns is not waited for. The inbox row of a CALL ME keeps
+the command, not the digits.
+
+Seven convex-test tests against a stand-in for CALL-E: nothing in a test can
+ring a telephone. CALL-E accepts our key (a GET for a made-up call answers 404
+with it and 401 without). As this is written no real telephone has been rung:
+that waits for Divij's word and his own number.
+
+### 2026-09-19 - 564a42b
+/try offers the call once a repair has been asked about: the number, a box to
+tick that it is your own phone, and what will happen in plain words. The thread
+gets a call card on a live query - placing, ringing, on the call, GPT-6 Astra
+reading the transcript, ended - then the transcript both ways and a line saying
+who read it, what the second reading cost, and that only what both readers
+agreed on was recorded. The browser keeps the last four digits, as our tables do.
+
+### 2026-09-19 - bdd428d
+A conversation, the part that needs no network. gpt-live-1 listens and speaks
+at once and is built to hand anything that needs thought to a backend; here the
+backend is the inbox. engine/live.ts holds what the voice is told (OpenAI's own
+structure for a GPT-Live prompt: it knows nothing about any building, repair or
+law, it delegates, it adds no fact to a result), the greeting it says exactly,
+and how the fragments of a transcript become the message - because a request
+for help arrives with no words in it.
+
+### 2026-09-19 - 8211554
+POST /voice/live. The browser sends its WebRTC offer; the action pays from the
+conversation's own room (three a day for one browser, twenty-five for all),
+makes a gpt-live-1 session with our key, our instructions and client
+delegation, and hands back the answer. The audio goes between the browser and
+OpenAI. What the person asks for comes back through web.say with live set,
+which is believed only while a conversation our own server started is open for
+that browser; the words then go through the door typing uses.
+
+A conversation is billed by the second and it is the person's browser that
+holds it open, so every one is given its end when it is made: a node action
+attaches to the session (OpenAI lets the server that made a session attach to
+it) and closes it at two and a half minutes. A tab left open, or a page that is
+not ours, cannot keep one running on our key. Ending is idempotent and priced
+once, at five cents a minute, and a page's own count of seconds is believed
+only up to what the clock allows.
+
+Everywhere else the rule is that a model writes no sentence anyone reads or
+hears. A conversation cannot keep that to the letter: gpt-live-1 is trained to
+put a result into its own words. So the page says what is true: the written
+reply in the thread is the record, and the voice is not.
+
+Run for real against gpt-live-1 from the dev deployment, in a browser whose
+microphone played a recorded tenant: the greeting was said word for word; the
+request for help arrived about a second after they stopped speaking; their
+words went through web.say and the reply was handed back 2.2 seconds later as
+session.commentary.append, acknowledged, and said - shortened by the voice,
+which dropped a sentence, with the date and the address intact, and that is
+exactly why the page calls the written reply the record; End closed it at 124
+seconds, and the thread says "A conversation with
+gpt-live-1 - 124 seconds - 10.33c - ended by the page". Then a second
+conversation was left open and the server's hangUp was run against it: the page
+received session.closed (close_requested) and the thread says "ended by the
+server, at the time limit". The first run also found a bug the tests could not:
+the transcriber wrote "Ask about 155 Linden Boulevard" as "About 155 Linden
+Boulevard", so an address said any of the ways people say one is now read as a
+request to be asked about it.
+
+### 2026-09-19 - 15fb198
+/try: Talk to it. useLive holds the WebRTC conversation: live captions both
+ways, the time against its limit, and the delegation loop. Each reply a tool
+writes while the conversation is open is handed to the voice once, made sayable
+by engine/speech.ts, against the request it answers; a request that gets no
+reply in forty seconds is told so. 359 automated checks.
 
 ## About
 
