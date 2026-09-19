@@ -152,6 +152,14 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           reads what the tool wrote. The model writes no sentence you hear either.
         </p>
         <p>
+          Or talk to it. Press Talk to it on the same page and gpt-live-1 becomes the voice, listening and speaking at
+          once over WebRTC. It is told it knows nothing about any building or law. When you ask for something it hands
+          your words to the same door as typing, so the keyword reader, GPT-6 Astra and the tools decide and write the
+          reply, and that reply is handed back for the voice to say. A conversation is the one place a model may rephrase
+          what you hear, so the page says what is true: the written reply is the record, and the voice is not. The
+          server ends every conversation at two and a half minutes.
+        </p>
+        <p>
           Or have it ring you. Once it has asked you about a repair, the same page offers a real phone call: write your
           own number (US or India), tick the box, and CALL-E places the call on our line. It says at once that it is
           automated and that you asked for it, then puts the same questions to you by voice. When you hang up, the
@@ -417,7 +425,8 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           complaint stops the mail and takes the follows off with it, and every message is labelled in the inbox with
           how it was read and what came of it, so what is still unread there is what nothing has handled. OpenAI: GPT-6
           Astra on the Agents SDK with twelve strict tools for the inbox, and again as the second reader of every
-          phone call; text-embedding-3-small over the condition
+          phone call; gpt-live-1 with client delegation for a spoken conversation whose every decision is still the
+          tools'; text-embedding-3-small over the condition
           behind every question we ask, in a Convex vector index, so which repair a person means is decided by their own
           words and not by which we asked last;
           gpt-5.6-luna with one zod schema for both strict output and validation, a byte-stable cached prefix, and PDF
