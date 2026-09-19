@@ -15,7 +15,7 @@ import { askFrom, challengeDeadline, fixedClaim, nextStepFor, parseAnswer, pickA
 import { classifyInbound } from "../engine/intent";
 import { changedLines } from "../engine/evidence";
 import { forSpeech, SPOKEN_MAX } from "../engine/speech";
-import { answerLine, answersFromCall, callResultSchema, callTask, normalisePhone } from "../engine/call";
+import { answerLine, answersFromCall, callResultSchema, callTask, normalisePhone, saidIt, secondReaderInput, settle, wroteNumber } from "../engine/call";
 import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../engine/types";
 
 const snapDir = join("data", "snapshots");
@@ -257,6 +257,31 @@ console.log("\n== tenant loop");
   check(parseAnswer("", `${answerLine(got.answers[0])}\n${got.answers[0].words}`)?.answer === "still_broken", "call: and the keyword reader reads that line as the answer, whatever their words say");
   check(answersFromCall({ reached: "yes", asked_for_this_call: "no", answers: [] }, ["1"]).declined === true, "call: someone who did not ask for the call is marked as having said so");
   check(answersFromCall(null, ["1"]).reached === false, "call: no result at all is a call that reached nobody");
+  check(wroteNumber("could you ring me on (718) 555-0142 after six?", "+1 718 555 0142"), "call: a number written in their message, however it was punctuated, is theirs to have rung");
+  check(!wroteNumber("please call me", "+1 718 555 0142") && !wroteNumber("my number is 718 555 0143", "+17185550142"), "call: a number they did not write is not rung, whatever the model hands over");
+  const callIntent = classifyInbound("", "CALL ME +1 718 555 0142");
+  check(callIntent.kind === "call" && callIntent.phone === "+1 718 555 0142", "CALL ME and a number asks for a call to that number");
+  const bareCall = classifyInbound("", "call me");
+  check(bareCall.kind === "call" && bareCall.phone === null, "CALL ME with no number asks which number");
+  {
+    const turns = [
+      { who: "call", text: "Is it fixed, still broken, or are you not sure?" },
+      { who: "you", text: "No. The super painted over it, but water's still coming through." },
+    ];
+    check(saidIt("the super painted over it but water is still coming through", turns), "call: a quote is theirs when the transcript has them saying it, give or take a contraction");
+    check(!saidIt("the landlord is a criminal", turns) && !saidIt("Is it fixed, still broken", turns), "call: words they never said, and the voice's own words, are not their quote");
+    const a = (violationId: string, answer: "fixed" | "still_broken" | "not_sure", words = "") => ({ violationId, answer, words });
+    const one = settle([a("1", "still_broken", "water's still coming through")], { answers: [a("1", "still_broken", "made up by a model")], declined: false }, turns);
+    check(one.agreed.length === 1 && one.agreed[0].words === "water's still coming through" && one.unsure.length === 0, "call: two readers who agree record the answer, with the quote the transcript bears out");
+    const split = settle([a("1", "fixed"), a("2", "not_sure")], { answers: [a("1", "still_broken"), a("3", "fixed")], declined: false }, turns);
+    check(split.agreed.length === 0 && split.unsure.join() === "1,2,3", "call: a repair the two readers read differently, or only one heard, is recorded by neither");
+    const no = settle([a("1", "fixed")], { answers: [a("1", "fixed")], declined: true }, turns);
+    check(no.declined && no.agreed.length === 0, "call: if the second reader heard them say they never asked for the call, nothing is recorded");
+    const alone = settle([a("1", "fixed", "never said this at all")], null, turns);
+    check(alone.agreed.length === 1 && alone.agreed[0].words === "", "call: with one reader the answer stands, and a quote nobody said is still dropped");
+    const given = secondReaderInput([{ violationId: "1", description: "REPAIR THE LEAK  AT CEILING", statusDate: "2026-08-01" }], turns);
+    check(given.includes("violation 1: REPAIR THE LEAK AT CEILING") && given.includes("THEM: No. The super") && given.includes("CALL: Is it fixed") && !given.includes("still_broken"), "call: the second reader is handed the questions and the transcript, and not the first reader's answers");
+  }
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

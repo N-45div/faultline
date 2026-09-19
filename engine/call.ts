@@ -17,6 +17,8 @@ import { sayCondition, sayDate } from "./speech";
 
 export type CallQuestion = { violationId: string; description: string; statusDate: string };
 export type CallAnswer = { violationId: string; answer: "fixed" | "still_broken" | "not_sure"; words: string };
+/** One line of the call as it was transcribed: "you" is the person who answered, anything else is the voice. */
+export type CallTurn = { who: string; text: string };
 
 /** Where CALL-E may ring for us: a US or an Indian mobile or landline, typed by the person who wants the call. */
 export function normalisePhone(raw: string): { e164: string; region: "US" | "IN"; locale: string } | null {
@@ -30,6 +32,16 @@ export function normalisePhone(raw: string): { e164: string; region: "US" | "IN"
   if (/^\+1[2-9]\d{2}[2-9]\d{6}$/.test(e164)) return { e164, region: "US", locale: "en-US" };
   if (/^\+91[6-9]\d{9}$/.test(e164)) return { e164, region: "IN", locale: "en-IN" };
   return null;
+}
+
+/**
+ * Did they write this number themselves? The last ten digits of the number to
+ * be rung must appear, in order, among the digits of their own message.
+ */
+export function wroteNumber(theirMessage: string, phone: string): boolean {
+  const to = normalisePhone(phone);
+  if (!to) return false;
+  return theirMessage.replace(/\D/g, "").includes(to.e164.replace(/\D/g, "").slice(-10));
 }
 
 /** What the voice is given. Every fact in it is one the tools already wrote; it is told to add none. */
@@ -117,6 +129,68 @@ export function answersFromCall(structured: unknown, asked: string[]): { answers
     answers.push({ violationId, answer, words });
   }
   return { answers, declined: s.asked_for_this_call === "no", reached: s.reached === "yes" || answers.length > 0 };
+}
+
+const wordsOf = (s: string): string[] =>
+  s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+
+/**
+ * Did they say it? A quote is kept only if most of its words are words the
+ * person spoke on the call. Transcription bends a contraction; it does not
+ * invent a sentence, and neither may a model that is summarising one.
+ */
+export function saidIt(quote: string, turns: CallTurn[]): boolean {
+  const said = new Set(wordsOf(turns.filter((t) => t.who === "you").map((t) => t.text).join(" ")));
+  const words = wordsOf(quote);
+  if (words.length === 0 || said.size === 0) return false;
+  return words.filter((w) => said.has(w)).length / words.length >= 0.8;
+}
+
+/** What the second reader is handed: the repairs by number, in the city's words, and the call as it was transcribed. */
+export function secondReaderInput(questions: CallQuestion[], turns: CallTurn[]): string {
+  return [
+    "The repairs the call asked about:",
+    ...questions.map((q) => `- violation ${q.violationId}: ${q.description.replace(/\s+/g, " ").trim().slice(0, 300)}`),
+    "",
+    "The call, as it was transcribed. CALL is the automated voice. THEM is the person who answered the phone.",
+    ...turns.map((t) => `${t.who === "you" ? "THEM" : "CALL"}: ${t.text.replace(/\s+/g, " ").trim()}`),
+  ].join("\n");
+}
+
+/**
+ * Two readers, one call. CALL-E, which held the conversation, says what it
+ * heard; GPT-6 Astra reads the transcript without being told what CALL-E made
+ * of it. An answer stands only where both read the same word for the same
+ * repair. Where they differ, or only one of them heard an answer, nothing is
+ * recorded and the person is asked again in writing. If either reader heard
+ * them say they never asked for the call, nothing at all is recorded.
+ *
+ * With no second reader (no key, a cap reached, the model down) the first
+ * stands alone, as a typed keyword does. Either way a quote is kept only if
+ * the transcript has them saying it.
+ */
+export function settle(
+  first: CallAnswer[],
+  second: { answers: CallAnswer[]; declined: boolean } | null,
+  turns: CallTurn[],
+): { agreed: CallAnswer[]; unsure: string[]; declined: boolean } {
+  const quote = (...candidates: string[]): string => candidates.find((w) => w.length > 0 && saidIt(w, turns)) ?? "";
+  if (!second) return { agreed: first.map((a) => ({ ...a, words: quote(a.words) })), unsure: [], declined: false };
+  if (second.declined) return { agreed: [], unsure: [], declined: true };
+  const agreed: CallAnswer[] = [];
+  const unsure: string[] = [];
+  for (const id of [...new Set([...first, ...second.answers].map((a) => a.violationId))]) {
+    const a = first.find((x) => x.violationId === id);
+    const b = second.answers.find((x) => x.violationId === id);
+    if (a && b && a.answer === b.answer) agreed.push({ violationId: id, answer: a.answer, words: quote(b.words, a.words) });
+    else unsure.push(id);
+  }
+  return { agreed, unsure, declined: false };
 }
 
 /** An answer from a call, as the line a person would have typed: read by the keyword reader, with no model. */

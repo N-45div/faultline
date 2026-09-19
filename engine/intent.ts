@@ -12,6 +12,7 @@ export type Intent =
   | { kind: "csv"; query: string }
   | { kind: "keep"; url: string }
   | { kind: "find"; what: string }
+  | { kind: "call"; phone: string | null }
   | { kind: "monitor" }
   | { kind: "letter"; text: string }
   | { kind: "answer"; answer: Answer; violationId: string | null; note: string }
@@ -39,6 +40,15 @@ export function classifyInbound(subjectRaw: string, bodyRaw: string, opts: { ans
   const replying = /^\s*(re|fwd|fw)\s*:/i.test(subjectRaw ?? "");
   const askMatch = (replying ? null : /^ask\b[:\s-]*(.*)$/i.exec(subject)) ?? /^ask\b[:\s-]*(.*)$/i.exec(firstLine);
   if (askMatch) return { kind: "ask", query: askMatch[1].trim().slice(0, 120) };
+
+  // CALL ME and a number: ring me, and ask me by phone. The number has to be
+  // in the message, because the only number we will ring is one they wrote.
+  const callIn = [replying ? null : /^call\s*me\b[:\s-]*(.*)$/i.exec(subject), /^call\s*me\b[:\s-]*(.*)$/i.exec(firstLine)].filter((m): m is RegExpExecArray => m !== null);
+  if (callIn.length > 0) {
+    // "CALL ME" as the subject and the number in the body is one request, not two.
+    const written = callIn.map((m) => m[1].trim().slice(0, 40)).find((w) => w.replace(/\D/g, "").length >= 10);
+    return { kind: "call", phone: written ?? null };
+  }
 
   // "Is it fixed?" answered: FIXED, STILL BROKEN or NOT SURE in the person's
   // own lines. Read before the letter test, because the quoted question below
