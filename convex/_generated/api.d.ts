@@ -29,6 +29,7 @@ import type * as ingest_firecrawl from "../ingest/firecrawl.js";
 import type * as ingest_seed from "../ingest/seed.js";
 import type * as ingest_write from "../ingest/write.js";
 import type * as limits from "../limits.js";
+import type * as liveActions from "../liveActions.js";
 import type * as llm from "../llm.js";
 import type * as llmActions from "../llmActions.js";
 import type * as lookup from "../lookup.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   "ingest/seed": typeof ingest_seed;
   "ingest/write": typeof ingest_write;
   limits: typeof limits;
+  liveActions: typeof liveActions;
   llm: typeof llm;
   llmActions: typeof llmActions;
   lookup: typeof lookup;

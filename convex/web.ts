@@ -7,6 +7,9 @@ import { classifyInbound } from "../engine/intent";
 import { looksLikeAddress } from "../engine/match";
 import { validSession, webIdentity, WEB_CHANNEL } from "../engine/web";
 import { forSpeech } from "../engine/speech";
+import { LIVE_MAX_SECONDS, liveCents, spokenToTyped } from "../engine/live";
+import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 
 // The browser trial: the inbox, without the email.
 //
@@ -28,9 +31,80 @@ export const say = mutation({
     /** The browser's own id for this message, so it can lay its words beside our reply. */
     id: v.string(),
     text: v.string(),
+    /** Set by the page when the words came out of a conversation with gpt-live-1. */
+    live: v.optional(v.boolean()),
   },
   returns: v.object({ ok: v.boolean(), why: v.string() }),
-  handler: async (ctx, a) => await through(ctx, a),
+  handler: async (ctx, { live, ...a }) => {
+    if (!live) return await through(ctx, a);
+    // Believed only while a conversation our own server started is open for this browser.
+    if (!(await openLive(ctx, a.session))) return { ok: false, why: "That conversation has ended. Start another, or type it." };
+    const out = await through(ctx, { ...a, text: spokenToTyped(a.text) });
+    if (out.ok) {
+      const row = await ctx.db.query("inbox").withIndex("by_message_id", (q) => q.eq("messageId", `web:${a.session}:${a.id}`)).unique();
+      if (row) await ctx.db.patch(row._id, { heardBy: "gpt-live-1" });
+    }
+    return out;
+  },
+});
+
+/** The conversation this browser has open, if our server started one and has not ended it. */
+async function openLive(ctx: MutationCtx, session: string): Promise<Doc<"liveSessions"> | null> {
+  if (!validSession(session)) return null;
+  const last = await ctx.db.query("liveSessions").withIndex("by_session", (q) => q.eq("session", session)).order("desc").first();
+  if (!last || last.endedAt !== undefined || Date.now() - last.createdAt > (LIVE_MAX_SECONDS + 40) * 1000) return null;
+  return last;
+}
+
+/** A conversation has been made. It is given its end now: the server closes it if the page has not. */
+export const liveStarted = internalMutation({
+  args: { session: v.string(), liveId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { session, liveId }) => {
+    const row = await ctx.db.insert("liveSessions", { session, liveId, createdAt: Date.now() });
+    await ctx.scheduler.runAfter((LIVE_MAX_SECONDS + 10) * 1000, internal.liveActions.hangUp, { row });
+    return null;
+  },
+});
+
+export const liveRow = internalQuery({
+  args: { row: v.id("liveSessions") },
+  returns: v.union(v.null(), v.object({ liveId: v.string(), ended: v.boolean() })),
+  handler: async (ctx, { row }) => {
+    const r = await ctx.db.get(row);
+    return r ? { liveId: r.liveId, ended: r.endedAt !== undefined } : null;
+  },
+});
+
+/** Ended, and priced: by the page when the person stops, or by the server when the time is up. */
+async function endLive(ctx: MutationCtx, r: Doc<"liveSessions">, seconds: number | undefined, endedBy: string): Promise<void> {
+  if (r.endedAt !== undefined) return;
+  // A count of seconds is believed only up to what the clock allows. (Our clock starts when OpenAI
+  // has answered, a few seconds after theirs.)
+  const elapsed = Math.ceil((Date.now() - r.createdAt) / 1000) + 5;
+  const billed = Math.max(0, Math.min(seconds ?? elapsed, elapsed, LIVE_MAX_SECONDS + 30));
+  await ctx.db.patch(r._id, { endedAt: Date.now(), seconds: billed, endedBy });
+  await ctx.runMutation(internal.llm.recordUsage, { model: "gpt-live-1", purpose: "live", inputTokens: 0, cachedTokens: 0, outputTokens: 0, costCents: liveCents(billed) });
+}
+
+export const liveClosed = internalMutation({
+  args: { row: v.id("liveSessions"), seconds: v.optional(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, { row, seconds }) => {
+    const r = await ctx.db.get(row);
+    if (r) await endLive(ctx, r, seconds, "the server, at the time limit");
+    return null;
+  },
+});
+
+export const liveEnded = mutation({
+  args: { session: v.string(), liveId: v.string(), seconds: v.optional(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, { session, liveId, seconds }) => {
+    const r = await openLive(ctx, session);
+    if (r && r.liveId === liveId) await endLive(ctx, r, seconds, "the page");
+    return null;
+  },
 });
 
 /**
@@ -52,14 +126,14 @@ export const sayHeard = internalMutation({
 
 /** Room to hear a recording or to read a reply aloud, taken before any model is called. */
 export const allowVoice = internalMutation({
-  args: { session: v.string(), what: v.union(v.literal("hear"), v.literal("speak")) },
+  args: { session: v.string(), what: v.union(v.literal("hear"), v.literal("speak"), v.literal("live")) },
   returns: v.object({ ok: v.boolean(), why: v.string() }),
   handler: async (ctx, { session, what }) => {
     if (!validSession(session)) return { ok: false, why: "This page lost its place. Reload it and try again." };
-    if (paused("web") || paused("llm")) return { ok: false, why: `Voice is paused. Typing works, and so does the inbox: ${INBOX()}.` };
-    const mine = await limits.limit(ctx, what === "hear" ? "webHearSender" : "webSpeakSender", { key: session });
-    if (!mine.ok) return { ok: false, why: "That is a day's worth of voice for one browser. Typing still works." };
-    const all = await limits.limit(ctx, what === "hear" ? "webHear" : "webSpeak");
+    if (paused("web") || paused("llm") || (what === "live" && paused("live"))) return { ok: false, why: `Voice is paused. Typing works, and so does the inbox: ${INBOX()}.` };
+    const mine = await limits.limit(ctx, what === "hear" ? "webHearSender" : what === "speak" ? "webSpeakSender" : "webLiveSender", { key: session });
+    if (!mine.ok) return { ok: false, why: what === "live" ? "That is a day's worth of conversations for one browser. Say it or type it instead." : "That is a day's worth of voice for one browser. Typing still works." };
+    const all = await limits.limit(ctx, what === "hear" ? "webHear" : what === "speak" ? "webSpeak" : "webLive");
     if (!all.ok) return { ok: false, why: "The browser trial has used its voice for today. Typing still works." };
     return { ok: true, why: "" };
   },
@@ -132,7 +206,7 @@ export const thread = query({
     v.object({
       id: v.string(),
       at: v.number(),
-      who: v.union(v.literal("you"), v.literal("faultline"), v.literal("call")),
+      who: v.union(v.literal("you"), v.literal("faultline"), v.literal("call"), v.literal("live")),
       text: v.string(),
       read: v.optional(v.string()),
       heard: v.optional(v.string()),
@@ -145,6 +219,8 @@ export const thread = query({
       turns: v.optional(v.array(v.object({ who: v.string(), text: v.string() }))),
       readBy: v.optional(v.string()),
       unsure: v.optional(v.array(v.string())),
+      /** For a finished conversation: how long gpt-live-1 was open. */
+      seconds: v.optional(v.number()),
     }),
   ),
   handler: async (ctx, { session }) => {
@@ -153,8 +229,12 @@ export const thread = query({
     const theirs = await ctx.db.query("inbox").withIndex("by_thread", (q) => q.eq("threadId", threadId)).take(80);
     const ours = await ctx.db.query("receipts").withIndex("by_thread", (q) => q.eq("threadId", threadId)).take(160);
     const calls = await ctx.db.query("calls").withIndex("by_thread", (q) => q.eq("threadId", threadId)).take(10);
+    const talks = await ctx.db.query("liveSessions").withIndex("by_session", (q) => q.eq("session", session)).order("desc").take(6);
     const prefix = `${threadId}:`;
     return [
+      ...talks
+        .filter((l) => l.endedAt !== undefined)
+        .map((l) => ({ id: String(l._id), at: l.endedAt ?? l.createdAt, who: "live" as const, text: "", seconds: l.seconds ?? 0, cents: liveCents(l.seconds ?? 0), status: l.endedBy ?? "" })),
       ...calls.map((c) => ({
         id: String(c._id),
         at: c.createdAt + 1,

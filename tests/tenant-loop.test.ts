@@ -494,6 +494,43 @@ test("by voice: the message says how it was heard, a reply is read only to its o
   expect((await t.mutation(internal.web.allowVoice, { session: SESSION, what: "speak" })).ok).toBe(true);
 });
 
+test("as a conversation: words are taken only while a conversation our server started is open, and it is priced by the clock", async () => {
+  const t = make();
+  await seed(t);
+  // No conversation is open for this browser, so the page cannot claim its words came from one.
+  expect((await t.mutation(api.web.say, { session: SESSION, id: "0000a001", text: `Ask about ${LABEL}.`, live: true })).ok).toBe(false);
+  expect(await t.query(api.web.thread, { session: SESSION })).toEqual([]);
+
+  // Our server starts one (POST /voice/live ends here), and gives it its end.
+  await t.mutation(internal.web.liveStarted, { session: SESSION, liveId: "live_test_1" });
+  // "Ask about <address>." as a transcriber writes it becomes the command, and is read with no model.
+  const out = await t.mutation(api.web.say, { session: SESSION, id: "0000a002", text: `Ask about ${LABEL}.`, live: true });
+  expect(out).toEqual({ ok: true, why: "" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await lastShown(t)).toContain("They say it's fixed. Is it?");
+  const mine = (await t.query(api.web.thread, { session: SESSION })).filter((m) => m.who === "you");
+  expect(mine.at(-1)).toMatchObject({ heard: "gpt-live-1", read: "ask", answered: true });
+
+  // The page says how long it ran. It is believed only up to what the clock allows, and priced.
+  await t.mutation(api.web.liveEnded, { session: SESSION, liveId: "live_test_1", seconds: 99_999 });
+  const row = await t.run((ctx) => ctx.db.query("liveSessions").first());
+  expect(row?.endedBy).toBe("the page");
+  expect(row?.seconds).toBeLessThanOrEqual(180);
+  const priced = (await t.run((ctx) => ctx.db.query("llmUsage").collect())).filter((u) => u.purpose === "live");
+  expect(priced).toHaveLength(1);
+  expect(priced[0]).toMatchObject({ model: "gpt-live-1" });
+  // Ended twice is ended once; and an ended conversation takes no more words.
+  await t.mutation(api.web.liveEnded, { session: SESSION, liveId: "live_test_1", seconds: 5 });
+  expect((await t.run((ctx) => ctx.db.query("llmUsage").collect())).filter((u) => u.purpose === "live")).toHaveLength(1);
+  expect((await t.mutation(api.web.say, { session: SESSION, id: "0000a003", text: "hello", live: true })).ok).toBe(false);
+  // It is in the thread as what it was: a conversation, so many seconds long.
+  expect((await t.query(api.web.thread, { session: SESSION })).find((m) => m.who === "live")).toMatchObject({ seconds: row?.seconds });
+
+  // Three conversations a day for one browser, charged before any model is called.
+  for (let i = 0; i < 3; i++) expect((await t.mutation(internal.web.allowVoice, { session: SESSION, what: "live" })).ok).toBe(true);
+  expect((await t.mutation(internal.web.allowVoice, { session: SESSION, what: "live" })).ok).toBe(false);
+});
+
 // ---------------------------------------------------------------- CALL ME
 const NUMBER = "+1 718 555 0142";
 const finished = (structured: unknown, turns: { speaker: string; text: string }[] = [{ speaker: "bot", text: "Is it fixed?" }, { speaker: "user", text: "No. Nobody came, it's the same." }]) => ({

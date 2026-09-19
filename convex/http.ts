@@ -5,7 +5,7 @@ import { registerStaticRoutes } from "@convex-dev/static-hosting";
 import { agentmail } from "./agentmailClient";
 import { auth } from "./auth";
 import { verifySpectrumSignature } from "../engine/photon";
-import { hear, say } from "./voice";
+import { hear, live, say } from "./voice";
 
 
 const http = httpRouter();
@@ -87,6 +87,8 @@ http.route({
 // The browser trial by voice: a recording in, one of our replies read out.
 http.route({ path: "/voice/hear", method: "POST", handler: hear });
 http.route({ path: "/voice/say", method: "GET", handler: say });
+// And as a conversation: the browser's offer in, gpt-live-1's answer out.
+http.route({ path: "/voice/live", method: "POST", handler: live });
 
 http.route({
   path: "/health",

@@ -1,6 +1,7 @@
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { costCents } from "./llm";
+import { LIVE_GREETING, LIVE_INSTRUCTIONS, LIVE_MAX_SECONDS } from "../engine/live";
 
 // The browser trial, by voice.
 //
@@ -17,8 +18,20 @@ import { costCents } from "./llm";
 //                      sayable, and adds none): this is not a free voice for
 //                      whatever text someone sends.
 //
-// So the rule holds by voice too: the model writes no sentence anyone hears.
-// It writes down theirs, and reads out ours.
+//   POST /voice/live   a conversation. The browser sends its WebRTC offer; we
+//                      make a gpt-live-1 session with our key and our
+//                      instructions and hand back the answer. The audio goes
+//                      between the browser and OpenAI; what the person asks
+//                      for comes back through web.say, the door typing uses,
+//                      and the reply a tool wrote is handed to the voice to
+//                      say (engine/live.ts). The server ends every
+//                      conversation at two and a half minutes (liveActions.ts).
+//
+// So the rule holds for the first two: the model writes no sentence anyone
+// hears; it writes down theirs, and reads out ours. A conversation cannot keep
+// it to the letter - gpt-live-1 puts a result into its own spoken words - so
+// there the page says what is true: the written reply is the record, and the
+// voice is not.
 
 const HEAR_MODELS = () => [process.env.OPENAI_TRANSCRIBE_MODEL ?? "gpt-4o-mini-transcribe", "whisper-1"];
 const SAY_MODELS = () => [process.env.OPENAI_TTS_MODEL ?? "gpt-4o-mini-tts", "tts-1"];
@@ -138,4 +151,44 @@ export const say = httpAction(async (ctx, request) => {
     console.warn(`[voice] ${m} could not speak: ${res.status} ${(await res.text()).slice(0, 160)}`);
   }
   return json({ ok: false, why: "We couldn't read that aloud just now." }, 502);
+});
+
+const LIVE_MODEL = () => process.env.OPENAI_LIVE_MODEL ?? "gpt-live-1";
+
+export const live = httpAction(async (ctx, request) => {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return json({ ok: false, why: "Voice is switched off right now. Type it instead." }, 503);
+  const session = new URL(request.url).searchParams.get("session") ?? "";
+  let sdp = "";
+  try {
+    sdp = String(((await request.json()) as { sdp?: unknown })?.sdp ?? "");
+  } catch {
+    /* no offer */
+  }
+  if (!sdp.startsWith("v=0") || sdp.length > 60_000) return json({ ok: false, why: "This browser could not start a conversation. Say it or type it instead." }, 400);
+
+  // Paid for before the model is called, from a room of its own.
+  const room: { ok: boolean; why: string } = await ctx.runMutation(internal.web.allowVoice, { session, what: "live" });
+  if (!room.ok) return json(room, 429);
+
+  const res = await fetch("https://api.openai.com/v1/live/sessions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      // Client delegation: when the voice needs anything done it asks the page, and the page asks us.
+      session: { model: LIVE_MODEL(), instructions: LIVE_INSTRUCTIONS, delegation: { type: "client" } },
+      transport: { type: "webrtc", sdp },
+    }),
+  });
+  if (!res.ok) {
+    console.warn(`[live] ${LIVE_MODEL()} would not start: ${res.status} ${(await res.text()).slice(0, 300)}`);
+    return json({ ok: false, why: "The conversation could not be started just now. Say it or type it instead." }, 502);
+  }
+  const made: any = await res.json();
+  const liveId = String(made?.session?.id ?? "");
+  const answer = String(made?.transport?.sdp ?? "");
+  if (!liveId || !answer) return json({ ok: false, why: "The conversation could not be started just now. Say it or type it instead." }, 502);
+  await ctx.runMutation(internal.web.liveStarted, { session, liveId });
+  console.log(`[live] started ${liveId.slice(0, 12)}… with ${LIVE_MODEL()}, to be ended by ${LIVE_MAX_SECONDS}s`);
+  return json({ ok: true, why: "", liveId, sdp: answer, maxSeconds: LIVE_MAX_SECONDS, greeting: LIVE_GREETING }, 201);
 });
