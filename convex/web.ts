@@ -1,11 +1,12 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
 import { handleInbound } from "./inbound";
 import { limits } from "./limits";
 import { paused } from "./guard";
 import { classifyInbound } from "../engine/intent";
 import { looksLikeAddress } from "../engine/match";
 import { validSession, webIdentity, WEB_CHANNEL } from "../engine/web";
+import { forSpeech } from "../engine/speech";
 
 // The browser trial: the inbox, without the email.
 //
@@ -29,7 +30,60 @@ export const say = mutation({
     text: v.string(),
   },
   returns: v.object({ ok: v.boolean(), why: v.string() }),
-  handler: async (ctx, { session, id, text }) => {
+  handler: async (ctx, a) => await through(ctx, a),
+});
+
+/**
+ * The same door, for words that arrived as speech (convex/voice.ts). Internal:
+ * only our own transcription may say a message was heard, and by what.
+ */
+export const sayHeard = internalMutation({
+  args: { session: v.string(), id: v.string(), text: v.string(), heardBy: v.string() },
+  returns: v.object({ ok: v.boolean(), why: v.string() }),
+  handler: async (ctx, { heardBy, ...a }) => {
+    const out = await through(ctx, a);
+    if (out.ok) {
+      const row = await ctx.db.query("inbox").withIndex("by_message_id", (q) => q.eq("messageId", `web:${a.session}:${a.id}`)).unique();
+      if (row) await ctx.db.patch(row._id, { heardBy });
+    }
+    return out;
+  },
+});
+
+/** Room to hear a recording or to read a reply aloud, taken before any model is called. */
+export const allowVoice = internalMutation({
+  args: { session: v.string(), what: v.union(v.literal("hear"), v.literal("speak")) },
+  returns: v.object({ ok: v.boolean(), why: v.string() }),
+  handler: async (ctx, { session, what }) => {
+    if (!validSession(session)) return { ok: false, why: "This page lost its place. Reload it and try again." };
+    if (paused("web") || paused("llm")) return { ok: false, why: `Voice is paused. Typing works, and so does the inbox: ${INBOX()}.` };
+    const mine = await limits.limit(ctx, what === "hear" ? "webHearSender" : "webSpeakSender", { key: session });
+    if (!mine.ok) return { ok: false, why: "That is a day's worth of voice for one browser. Typing still works." };
+    const all = await limits.limit(ctx, what === "hear" ? "webHear" : "webSpeak");
+    if (!all.ok) return { ok: false, why: "The browser trial has used its voice for today. Typing still works." };
+    return { ok: true, why: "" };
+  },
+});
+
+/**
+ * One of our replies, made sayable - and only for the browser whose thread it
+ * is in. What is read aloud is what the tool wrote; nothing is composed here.
+ */
+export const spokenReply = internalQuery({
+  args: { session: v.string(), replyId: v.string() },
+  returns: v.union(v.null(), v.string()),
+  handler: async (ctx, { session, replyId }) => {
+    if (!validSession(session)) return null;
+    const id = ctx.db.normalizeId("receipts", replyId);
+    if (!id) return null;
+    const reply = await ctx.db.get(id);
+    if (!reply || reply.threadId !== `web:${session}`) return null;
+    return forSpeech(reply.text);
+  },
+});
+
+async function through(ctx: MutationCtx, { session, id, text }: { session: string; id: string; text: string }): Promise<{ ok: boolean; why: string }> {
+  {
     if (!validSession(session) || !/^[a-f0-9]{8,32}$/.test(id)) return { ok: false, why: "This page lost its place. Reload it and try again." };
     const words = text.replace(/\r/g, "").trim().slice(0, 600);
     if (words.length < 2) return { ok: false, why: "Write something first." };
@@ -63,8 +117,8 @@ export const say = mutation({
       true,
     );
     return { ok: true, why: "" };
-  },
-});
+  }
+}
 
 /**
  * The thread, live. Our replies in full, and for each message of theirs how it
@@ -81,6 +135,7 @@ export const thread = query({
       who: v.union(v.literal("you"), v.literal("faultline")),
       text: v.string(),
       read: v.optional(v.string()),
+      heard: v.optional(v.string()),
       tool: v.optional(v.string()),
       cents: v.optional(v.number()),
       answered: v.optional(v.boolean()),
@@ -99,6 +154,7 @@ export const thread = query({
         who: "you" as const,
         text: "",
         read: m.intent,
+        ...(m.heardBy ? { heard: m.heardBy } : {}),
         ...(m.agentTool ? { tool: m.agentTool } : {}),
         ...(m.agentCents !== undefined ? { cents: m.agentCents } : {}),
         answered: m.replied,

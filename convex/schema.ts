@@ -204,6 +204,8 @@ export default defineSchema({
     /** When the agent read this message: the one tool it finished with, and what the run cost. */
     agentTool: v.optional(v.string()),
     agentCents: v.optional(v.number()),
+    /** When the message arrived as speech: the model that wrote the words down. The recording is not kept. */
+    heardBy: v.optional(v.string()),
   })
     .index("by_message_id", ["messageId"])
     .index("by_thread", ["threadId"])

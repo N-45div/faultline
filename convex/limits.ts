@@ -29,6 +29,12 @@ export const limits = new RateLimiter(components.rateLimiter, {
   webAsk: { kind: "fixed window", rate: 40, period: DAY },
   webAgentRun: { kind: "fixed window", rate: 80, period: DAY },
   webPage: { kind: "fixed window", rate: 6, period: DAY },
+  // Speech is paid for by the second. A recording is charged here before any
+  // model hears it, and so is a reply before it is read aloud.
+  webHearSender: { kind: "fixed window", rate: 15, period: DAY },
+  webHear: { kind: "fixed window", rate: 120, period: DAY },
+  webSpeakSender: { kind: "fixed window", rate: 25, period: DAY },
+  webSpeak: { kind: "fixed window", rate: 150, period: DAY },
   /** Runs of the inbox agent, which cost money. */
   agentRun: { kind: "fixed window", rate: AGENT_DAILY_CAP, period: DAY },
 });

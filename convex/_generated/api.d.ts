@@ -38,6 +38,7 @@ import type * as packs from "../packs.js";
 import type * as pages from "../pages.js";
 import type * as photon from "../photon.js";
 import type * as sources from "../sources.js";
+import type * as voice from "../voice.js";
 import type * as wall from "../wall.js";
 import type * as web from "../web.js";
 
@@ -78,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   pages: typeof pages;
   photon: typeof photon;
   sources: typeof sources;
+  voice: typeof voice;
   wall: typeof wall;
   web: typeof web;
 }>;

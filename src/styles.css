@@ -1185,3 +1185,54 @@ a {
     display: none;
   }
 }
+
+/* ---------- /try, by voice ---------- */
+.try-mic {
+  flex-shrink: 0;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14.5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.try-mic:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.try-mic.recording {
+  border-color: var(--accent);
+  color: var(--accent);
+  animation: try-pulse 1.1s ease-in-out infinite;
+}
+.try-mic:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.try-listen {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.try-listen:hover,
+.try-listen.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+@media (max-width: 640px) {
+  .try-form {
+    flex-wrap: wrap;
+  }
+  .try-form input {
+    flex-basis: 100%;
+  }
+}

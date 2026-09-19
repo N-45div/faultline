@@ -14,6 +14,7 @@ import { warnNoticeGap } from "../engine/rules";
 import { askFrom, challengeDeadline, fixedClaim, nextStepFor, parseAnswer, pickAsks, secondWordLine } from "../engine/hpd";
 import { classifyInbound } from "../engine/intent";
 import { changedLines } from "../engine/evidence";
+import { forSpeech, SPOKEN_MAX } from "../engine/speech";
 import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../engine/types";
 
 const snapDir = join("data", "snapshots");
@@ -194,6 +195,30 @@ console.log("\n== tenant loop");
   );
   const long = changedLines("@@ -1 +1 @@\n" + Array.from({ length: 100 }, (_, i) => `+line ${i}`).join("\n"), 10);
   check(long.split("\n").length === 11 && long.endsWith("… 91 more lines"), `a diff past the cap says how much it left out (got "${long.split("\n").at(-1)}")`);
+}
+
+// A receipt read aloud: the same words, made sayable, and none added.
+{
+  const written = [
+    "They say 2 things are fixed. Are they?",
+    "",
+    '- #19041834 at 155 LINDEN BOULEVARD, Brooklyn (class A) — "§ 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE VINYL FLOOR TILES IN THE KITCHEN LOCAT…". The owner certified this corrected: NOV CERTIFIED ON TIME as of 2026-09-17. HPD\'s 70 days run to 2026-11-26.',
+    '- #19106317 at 155 LINDEN BOULEVARD, Brooklyn (class B) — "§ 27-2026, 2027 HMC: PROPERLY REPAIR THE SOURCE AND ABATE THE EVIDENCE OF A WATER LEAK AT CEILING AND EAST WALL IN THE …". The owner certified this corrected: NOV CERTIFIED LATE as of 2026-09-17. HPD\'s 70 days run to 2026-11-26.',
+    "",
+    "Your answers, beside the city's record: https://faultline.test/r/abc",
+    "Reply with another company name, or a building address, for another receipt.",
+  ].join("\n");
+  const said = forSpeech(written);
+  check(!/https?:|§|…|#\d|"/.test(said), "spoken: no links, citations, ellipses, number signs or quotation marks");
+  check(said.includes("violation ending 1 8 3 4") && said.includes("violation ending 6 3 1 7"), "spoken: a violation is said by its last four digits");
+  check(said.includes("September 17") && said.includes("November 26") && !/\d{4}-\d{2}-\d{2}/.test(said), "spoken: dates are said as a month and a day");
+  check(said.includes("vinyl floor tiles in the kitchen.") && !/locat\b/i.test(said), "spoken: the city's cut-off word, and the little word left dangling before it, are dropped");
+  check(said.includes("water leak at ceiling and east wall.") && !/ in the \./.test(said), "spoken: a description cut after 'in the' ends on its last whole word");
+  check(said.includes("The owner certified this corrected on September 17.") && said.includes("certified this corrected, late, on September 17."), "spoken: the claim and its date, and late when it was late");
+  check((said.match(/linden boulevard/gi) ?? []).length === 1, "spoken: the address is said once");
+  check(!/Reply with another company/.test(said), "spoken: the line about email is not read out");
+  const long = forSpeech(Array.from({ length: 30 }, (_, i) => `Sentence number ${i} of a very long reply that goes on.`).join(" "));
+  check(long.length <= SPOKEN_MAX + 30 && long.endsWith("The rest is on the page."), `spoken: a long reply stops on a sentence and says where the rest is (${long.length} chars)`);
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

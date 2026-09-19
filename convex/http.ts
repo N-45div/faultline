@@ -5,6 +5,7 @@ import { registerStaticRoutes } from "@convex-dev/static-hosting";
 import { agentmail } from "./agentmailClient";
 import { auth } from "./auth";
 import { verifySpectrumSignature } from "../engine/photon";
+import { hear, say } from "./voice";
 
 
 const http = httpRouter();
@@ -64,6 +65,10 @@ http.route({
     return new Response("ok", { status: 200 });
   }),
 });
+
+// The browser trial by voice: a recording in, one of our replies read out.
+http.route({ path: "/voice/hear", method: "POST", handler: hear });
+http.route({ path: "/voice/say", method: "GET", handler: say });
 
 http.route({
   path: "/health",

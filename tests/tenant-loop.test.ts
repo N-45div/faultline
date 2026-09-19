@@ -455,3 +455,30 @@ test("a commit keeps its own tally, and the file's log reads it instead of the c
   const first = log?.commits.find((c) => c.kind === "commit");
   expect(first).toMatchObject({ added: 1, changed: 2, removed: 0, more: false });
 });
+
+test("by voice: the message says how it was heard, a reply is read only to its own browser, and voice has its own room", async () => {
+  const t = make();
+  await seed(t);
+  await type(t, `ASK ${LABEL}`);
+  // What the transcriber wrote down goes through the same door as typing.
+  const heard = await t.mutation(internal.web.sayHeard, { session: SESSION, id: "0000beef", text: `#${VIOLATION} STILL BROKEN`, heardBy: "gpt-4o-mini-transcribe" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(heard.ok).toBe(true);
+  const thread = await t.query(api.web.thread, { session: SESSION });
+  expect(thread.filter((m) => m.who === "you").at(-1)).toMatchObject({ heard: "gpt-4o-mini-transcribe", read: "answer", answered: true });
+
+  // Read aloud: only a reply in this browser's thread, and as the tool wrote it, made sayable.
+  const reply = thread.filter((m) => m.who === "faultline").at(-1)!;
+  const spoken = await t.query(internal.web.spokenReply, { session: SESSION, replyId: reply.id });
+  expect(spoken).toContain("Kept, dated: you said still broken");
+  expect(spoken).toContain(`violation ending ${VIOLATION.slice(-4).split("").join(" ")}`);
+  expect(spoken).not.toMatch(/https?:/);
+  expect(await t.query(internal.web.spokenReply, { session: "c".repeat(32), replyId: reply.id })).toBe(null);
+  expect(await t.query(internal.web.spokenReply, { session: SESSION, replyId: "not-an-id" })).toBe(null);
+
+  // Fifteen recordings a day for one browser, charged before any model hears them.
+  for (let i = 0; i < 15; i++) expect((await t.mutation(internal.web.allowVoice, { session: SESSION, what: "hear" })).ok).toBe(true);
+  expect((await t.mutation(internal.web.allowVoice, { session: SESSION, what: "hear" })).ok).toBe(false);
+  expect((await t.mutation(internal.web.allowVoice, { session: SESSION, what: "speak" })).ok).toBe(true);
+});
+

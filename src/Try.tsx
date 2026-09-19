@@ -42,12 +42,33 @@ function useSession(): [string, () => void] {
   return [session, fresh];
 }
 
-/** How a message was read, in the words the tour uses. */
-function readBy(read?: string, tool?: string, cents?: number): string {
-  if (read === "agent") return `read by GPT-6 Astra${tool ? ` → ${tool}` : ""}${cents !== undefined ? ` · ${cents.toFixed(2)}¢` : ""}`;
-  if (read === "letter") return "read by gpt-5.6-luna";
-  return "read by the keyword reader · no model";
+/** How a message was heard and read, in the words the tour uses. */
+function readBy(read?: string, tool?: string, cents?: number, heard?: string): string {
+  const by =
+    read === "agent"
+      ? `read by GPT-6 Astra${tool ? ` → ${tool}` : ""}${cents !== undefined ? ` · ${cents.toFixed(2)}¢` : ""}`
+      : read === "letter"
+        ? "read by gpt-5.6-luna"
+        : "read by the keyword reader · no model";
+  return heard ? `heard by ${heard} · ${by}` : by;
 }
+
+/** What this browser records in, and the extension the transcriber knows it by. */
+function recordingFormat(): { mime: string; ext: string } | null {
+  if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) return null;
+  for (const [mime, ext] of [
+    ["audio/webm;codecs=opus", "webm"],
+    ["audio/webm", "webm"],
+    ["audio/mp4", "mp4"],
+    ["audio/ogg;codecs=opus", "ogg"],
+  ] as const) {
+    if (MediaRecorder.isTypeSupported(mime)) return { mime, ext };
+  }
+  return null;
+}
+
+/** A minute is plenty for an answer, and it is what the recording is paid for by. */
+const LONGEST_MS = 45_000;
 
 /**
  * A sentence a neighbour might say about the first repair on the list, made
@@ -103,6 +124,11 @@ export default function Try({ go }: { go: (p: string) => void }) {
     }
   });
   const end = useRef<HTMLDivElement>(null);
+  const format = useMemo(recordingFormat, []);
+  const [mic, setMic] = useState<"idle" | "recording" | "sending">("idle");
+  const recorder = useRef<MediaRecorder | null>(null);
+  const player = useRef<HTMLAudioElement | null>(null);
+  const [speaking, setSpeaking] = useState<string | null>(null);
 
   const messages = thread ?? [];
   const ours = messages.filter((m) => m.who === "faultline");
@@ -141,13 +167,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
     setBusy(true);
     setRefused("");
     const id = hex(6);
-    const kept = { ...mine, [id]: words };
-    setMine(kept);
-    try {
-      localStorage.setItem(MINE, JSON.stringify(kept));
-    } catch {
-      /* kept for this visit only */
-    }
+    keep(id, words);
     try {
       const out = await say({ session, id, text: words });
       if (!out.ok) setRefused(out.why);
@@ -157,6 +177,68 @@ export default function Try({ go }: { go: (p: string) => void }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  function keep(id: string, words: string) {
+    const kept = { ...mine, [id]: words };
+    setMine(kept);
+    try {
+      localStorage.setItem(MINE, JSON.stringify(kept));
+    } catch {
+      /* kept for this visit only */
+    }
+  }
+
+  // Say it. The recording goes to /voice/hear, is written down by OpenAI and
+  // dropped; the words come back, and go through the door typing goes through.
+  async function talk() {
+    if (!format || busy) return;
+    if (mic === "recording") return recorder.current?.stop();
+    if (mic !== "idle") return;
+    setRefused("");
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      return setRefused("The microphone is blocked for this page. Allow it in the address bar, or type it.");
+    }
+    const parts: Blob[] = [];
+    const rec = new MediaRecorder(stream, { mimeType: format.mime });
+    recorder.current = rec;
+    rec.ondataavailable = (e) => e.data.size > 0 && parts.push(e.data);
+    rec.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      setMic("sending");
+      const id = hex(6);
+      try {
+        const res = await fetch(`/voice/hear?session=${session}&id=${id}&ext=${format.ext}`, { method: "POST", headers: { "Content-Type": format.mime.split(";")[0] }, body: new Blob(parts, { type: format.mime }) });
+        const out: { ok: boolean; why: string; text?: string } = await res.json();
+        if (out.text) keep(id, out.text);
+        if (!out.ok) setRefused(out.why);
+      } catch {
+        setRefused("That did not go through. Try again, or type it.");
+      } finally {
+        setMic("idle");
+      }
+    };
+    rec.start();
+    setMic("recording");
+    setTimeout(() => rec.state === "recording" && rec.stop(), LONGEST_MS);
+  }
+
+  // Hear it. Our reply, as the tool wrote it, read aloud as it arrives.
+  function listen(replyId: string) {
+    player.current?.pause();
+    if (speaking === replyId) return setSpeaking(null);
+    const audio = new Audio(`/voice/say?session=${session}&reply=${encodeURIComponent(replyId)}`);
+    player.current = audio;
+    audio.onended = () => setSpeaking(null);
+    audio.onerror = () => {
+      setSpeaking(null);
+      setRefused("That could not be read aloud just now.");
+    };
+    setSpeaking(replyId);
+    void audio.play().catch(() => setSpeaking(null));
   }
 
   return (
@@ -191,7 +273,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
           m.who === "you" ? (
             <div key={`y${m.id}`} className="try-you">
               <p className="try-words">{mine[m.id] ?? "(what you wrote, from another browser)"}</p>
-              <p className="try-read">{m.answered ? readBy(m.read, m.tool, m.cents) : m.read === "agent" ? "GPT-6 Astra is reading it…" : "reading…"}</p>
+              <p className="try-read">{m.answered ? readBy(m.read, m.tool, m.cents, m.heard) : m.read === "agent" ? "GPT-6 Astra is reading it…" : "reading…"}</p>
             </div>
           ) : (
             <div key={`f${m.id}`} className="mail-card try-ours">
@@ -200,6 +282,9 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 <span>
                   <strong>Faultline</strong> · {new Date(m.at).toISOString().slice(11, 19)} UTC
                 </span>
+                <button type="button" className={`try-listen${speaking === m.id ? " on" : ""}`} onClick={() => listen(m.id)} aria-pressed={speaking === m.id}>
+                  {speaking === m.id ? "■ Stop" : "▶ Listen"}
+                </button>
               </div>
               <div className="mail-body try-text">
                 <Linked text={m.text} />
@@ -236,10 +321,29 @@ export default function Try({ go }: { go: (p: string) => void }) {
           placeholder={messages.length === 0 ? "ASK and a New York City address, or a company name" : "Answer in your own words, or ask about another address"}
           aria-label="Your message"
         />
+        {format && (
+          <button
+            type="button"
+            className={`try-mic ${mic}`}
+            onClick={() => void talk()}
+            disabled={busy || mic === "sending"}
+            aria-label={mic === "recording" ? "Stop and send what you said" : "Say it instead of typing"}
+            title={mic === "recording" ? "Stop and send" : "Say it instead"}
+          >
+            {mic === "recording" ? "■ Stop" : mic === "sending" ? "Hearing…" : "🎙 Say it"}
+          </button>
+        )}
         <button className="cta primary" type="submit" disabled={busy || !draft.trim()}>
           Send
         </button>
       </form>
+      {format && (
+        <p className="fine">
+          Or say it: press <strong>Say it</strong>, answer out loud the way you'd tell a neighbour, and press again. OpenAI
+          writes your words down and the recording is dropped; the words go through the same door as typing. Every reply
+          has a <strong>Listen</strong> button, and what it reads is what the tool wrote.
+        </p>
+      )}
       {refused && <p className="fine error">{refused}</p>}
 
       <p className="fine wide">
