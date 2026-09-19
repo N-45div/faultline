@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { INBOX, mailto } from "./Pricing";
 import { SAMPLE_ASK } from "./AskCard";
+import { canTalk, useLive } from "./useLive";
 
 // The inbox, without the email. What is typed here goes through the handler an
 // email goes through - the same keyword reader, the same agent, the same tools
@@ -164,6 +165,9 @@ export default function Try({ go }: { go: (p: string) => void }) {
   const recorder = useRef<MediaRecorder | null>(null);
   const player = useRef<HTMLAudioElement | null>(null);
   const [speaking, setSpeaking] = useState<string | null>(null);
+  const ended = useMutation(api.web.liveEnded);
+  const talkable = useMemo(canTalk, []);
+  const spoken = useRef<Set<string>>(new Set());
   const [calling, setCalling] = useState(false);
   const [phone, setPhone] = useState("");
   const [mineToRing, setMineToRing] = useState(false);
@@ -221,14 +225,28 @@ export default function Try({ go }: { go: (p: string) => void }) {
   }
 
   function keep(id: string, words: string) {
-    const kept = { ...mine, [id]: words };
-    setMine(kept);
-    try {
-      localStorage.setItem(MINE, JSON.stringify(kept));
-    } catch {
-      /* kept for this visit only */
-    }
+    setMine((held) => {
+      const kept = { ...held, [id]: words };
+      try {
+        localStorage.setItem(MINE, JSON.stringify(kept));
+      } catch {
+        /* kept for this visit only */
+      }
+      return kept;
+    });
   }
+
+  // Talk to it. gpt-live-1 is the voice; what the person asks for goes through
+  // the door typing goes through, and each reply a tool writes while the
+  // conversation is open is handed to the voice to say, once.
+  const live = useLive({ session, say, ended, keep, refuse: setRefused });
+  useEffect(() => {
+    for (const m of ours) {
+      if (spoken.current.has(m.id)) continue;
+      spoken.current.add(m.id);
+      if (live.state === "on") live.speak(m.text);
+    }
+  }, [ours.length, live.state]);
 
   // Say it. The recording goes to /voice/hear, is written down by OpenAI and
   // dropped; the words come back, and go through the door typing goes through.
@@ -323,7 +341,11 @@ export default function Try({ go }: { go: (p: string) => void }) {
           </p>
         )}
         {messages.map((m) =>
-          m.who === "call" ? (
+          m.who === "live" ? (
+            <p key={`l${m.id}`} className="try-read try-live-done">
+              🎧 A conversation with gpt-live-1 · {m.seconds ?? 0} seconds · {(m.cents ?? 0).toFixed(2)}¢ · ended by {m.status || "the page"}
+            </p>
+          ) : m.who === "call" ? (
             <div key={`c${m.id}`} className={`try-call-card${["completed", "declined", "not answered"].includes(m.status ?? "") ? "" : " live"}`}>
               <p className="try-call-head">
                 <span aria-hidden="true">📞</span> Call to the number ending {m.tail} · {callStands(m.status)}
@@ -377,7 +399,46 @@ export default function Try({ go }: { go: (p: string) => void }) {
         </div>
       )}
 
-      {beenAsked && !onTheLine && (
+      {talkable && live.state !== "idle" && (
+        <div className={`try-live ${live.state}`} aria-live="off">
+          <p className="try-live-head">
+            <span className="try-live-dot" aria-hidden="true" />
+            {live.state === "connecting" ? "Connecting to gpt-live-1…" : live.state === "ending" ? "Ending the conversation…" : `Live · ${Math.floor(live.seconds / 60)}:${String(live.seconds % 60).padStart(2, "0")} of ${Math.floor(live.limit / 60)}:${String(live.limit % 60).padStart(2, "0")}`}
+            <button type="button" className="try-listen on" onClick={live.stop} disabled={live.state !== "on"}>
+              ■ End
+            </button>
+          </p>
+          {live.heard && (
+            <p className="try-live-cap">
+              <b>You</b>
+              <span>{live.heard}</span>
+            </p>
+          )}
+          {live.voice && (
+            <p className="try-live-cap voice">
+              <b>Voice</b>
+              <span>{live.voice}</span>
+            </p>
+          )}
+          <p className="fine">
+            gpt-live-1 is the voice. When you ask for something it hands your words to the same door as typing: the keyword
+            reader, GPT-6 Astra and the tools decide, and write the reply you see above. The voice is told to add nothing, but
+            it may rephrase. The written reply is the record; the voice is not. It ends by itself at {Math.floor(live.limit / 60)}:
+            {String(live.limit % 60).padStart(2, "0")}.
+          </p>
+        </div>
+      )}
+
+      {talkable && live.state === "idle" && !calling && (
+        <div className="try-call">
+          <button type="button" className="try-chip" onClick={() => void live.start()} disabled={busy || mic !== "idle"}>
+            <span>🎧 Or talk to it: a live conversation</span>
+            <small>gpt-live-1 is the voice · GPT-6 Astra and the tools still decide, and write every reply</small>
+          </button>
+        </div>
+      )}
+
+      {beenAsked && !onTheLine && live.state === "idle" && (
         <div className="try-call">
           {!calling ? (
             <button type="button" className="try-chip" onClick={() => setCalling(true)} disabled={busy || waiting}>
