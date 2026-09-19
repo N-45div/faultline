@@ -43,7 +43,12 @@ export const nycHpd: SourceAdapter<Raw> = {
   // day — a quarter of a gigabyte of database bandwidth daily, and the
   // reason the deployment was switched off on 4 September. A stamp is not
   // undone by being noticed forty minutes later.
-  cadence: { baseMs: 60 * 60_000, hotMs: 30 * 60_000, jitterPct: 15, gate: "always" },
+  // Three-hourly since 19 September. Every read patches the file's row, and
+  // every page that quotes "last read" is recomputed when it does: the building
+  // page is most of a megabyte, so an hourly read made it that much an hour for
+  // as long as anyone was looking. The city gives a tenant 70 days; hearing of
+  // a stamp two hours later costs them nothing.
+  cadence: { baseMs: 3 * 60 * 60_000, hotMs: 90 * 60_000, jitterPct: 15, gate: "always" },
   targeting: "server_filter",
   subjectKind: "building",
   claimKind: "hpd.violation_status",
