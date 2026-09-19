@@ -147,7 +147,9 @@ export default function Judge({ go }: { go: (p: string) => void }) {
             do it in your browser
           </a>
           , where each of your messages says underneath how it was read: by the keyword reader with no model, or by
-          GPT-6 Astra, with the tool it finished on and what the run cost.
+          GPT-6 Astra, with the tool it finished on and what the run cost. You can also say it: press Say it, answer
+          out loud, and OpenAI writes your words down (the recording is dropped); every reply has a Listen button that
+          reads what the tool wrote. The model writes no sentence you hear either.
         </p>
         <p className="fine">
           Eleven tools with strict schemas, tool choice required, one call at a time, low reasoning effort, at most six
