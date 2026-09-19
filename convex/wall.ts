@@ -346,6 +346,9 @@ export const refreshSampleAsk = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
+    // Paused reads move nothing, so there is nothing to rebuild: a deployment
+    // that is switched off (the dev one shares this team's quota) stays off.
+    if (paused("ingest")) return 0;
     const subject = await ctx.db.query("subjects").withIndex("by_kind_key", (q) => q.eq("kind", "building").eq("key", SAMPLE_BBL)).unique();
     const stamps = await stampsFor(ctx.db, SAMPLE_BBL);
     const today = new Date().toISOString().slice(0, 10);
