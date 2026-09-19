@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import type { TableNames } from "./_generated/dataModel";
 import { handleInbound } from "./inbound";
+import { limits } from "./limits";
 import { groupForWall } from "../engine/wall";
 
 // Dev-only. Never exposed publicly.
@@ -358,6 +359,35 @@ export const trimWatched = internalMutation({
       else off++;
     }
     return { watching, off };
+  },
+});
+
+/**
+ * Filming a call takes more than two takes, and two is what one number gets in
+ * a day. This gives back the day's calls to the numbers and people that made
+ * the last few - found from the rows, so no telephone number is ever typed
+ * into a terminal - and lifts a "declined" that was only a take going wrong.
+ */
+export const resetCallLimits = internalMutation({
+  args: { last: v.optional(v.number()), undecline: v.optional(v.boolean()) },
+  returns: v.object({ numbers: v.number(), people: v.number(), undeclined: v.number() }),
+  handler: async (ctx, { last, undecline }) => {
+    const rows = await ctx.db.query("calls").order("desc").take(Math.min(last ?? 6, 20));
+    const numbers = new Set(rows.map((r) => r.phoneHash));
+    const people = new Set(rows.map((r) => r.identity));
+    for (const key of numbers) await limits.reset(ctx, "callNumber", { key });
+    for (const key of people) await limits.reset(ctx, "callSender", { key });
+    await limits.reset(ctx, "callAll");
+    let undeclined = 0;
+    if (undecline) {
+      for (const hash of numbers) {
+        for (const s of await ctx.db.query("suppressions").withIndex("by_email", (q) => q.eq("email", `tel:${hash}`)).collect()) {
+          await ctx.db.delete(s._id);
+          undeclined++;
+        }
+      }
+    }
+    return { numbers: numbers.size, people: people.size, undeclined };
   },
 });
 
