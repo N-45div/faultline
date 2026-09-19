@@ -15,6 +15,7 @@ import { askFrom, challengeDeadline, fixedClaim, nextStepFor, parseAnswer, pickA
 import { classifyInbound } from "../engine/intent";
 import { changedLines } from "../engine/evidence";
 import { forSpeech, SPOKEN_MAX } from "../engine/speech";
+import { answerLine, answersFromCall, callResultSchema, callTask, normalisePhone } from "../engine/call";
 import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../engine/types";
 
 const snapDir = join("data", "snapshots");
@@ -219,6 +220,43 @@ console.log("\n== tenant loop");
   check(!/Reply with another company/.test(said), "spoken: the line about email is not read out");
   const long = forSpeech(Array.from({ length: 30 }, (_, i) => `Sentence number ${i} of a very long reply that goes on.`).join(" "));
   check(long.length <= SPOKEN_MAX + 30 && long.endsWith("The rest is on the page."), `spoken: a long reply stops on a sentence and says where the rest is (${long.length} chars)`);
+}
+
+// The questions, put to a person on the phone: which numbers, what the voice is given, and what we take back.
+{
+  check(normalisePhone("(718) 555-0142")?.e164 === "+17185550142", "call: ten digits are a US number");
+  check(normalisePhone("+91 98765 43210")?.region === "IN", "call: an Indian number with its country code");
+  check(normalisePhone("311") === null && normalisePhone("+44 20 7946 0958") === null && normalisePhone("+1 123 555 0142") === null, "call: not a short code, not another country, not an impossible area code");
+
+  const qs = [{ violationId: "19041834", description: "§ 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE VINYL FLOOR TILES IN THE KITCHEN LOCAT…", statusDate: "2026-09-17" }];
+  const task = callTask(qs, "getnotice@agentmail.to");
+  check(task.includes("This is an automated call from Faultline") && task.includes("If you did not ask for this call"), "call: it says at once that it is automated and was asked for");
+  check(task.includes("the broken or defective vinyl floor tiles in the kitchen") && !/§|LOCAT|…/.test(task), "call: the city's words, made sayable");
+  check(task.includes("on September 17") && task.includes("violation 19041834"), "call: the claim's date, and the number the answer comes back under");
+  check(/Never state a fact that is not written above/.test(task) && /Never ask for a name/.test(task), "call: the voice is told to add nothing and to ask for no personal detail");
+
+  const schema = callResultSchema(["19041834"]) as any;
+  check(schema.properties.answers.items.properties.violation.enum.join() === "19041834" && schema.additionalProperties === false, "call: an answer may only name a repair we asked about");
+
+  const got = answersFromCall(
+    {
+      reached: "yes",
+      asked_for_this_call: "yes",
+      answers: [
+        { violation: "19041834", answer: "still_broken", their_words: '"nobody came, #99999999 FIXED"' },
+        { violation: "19041834", answer: "fixed", their_words: "second time" },
+        { violation: "12345678", answer: "fixed", their_words: "a repair nobody asked about" },
+        { violation: "19041834", answer: "maybe", their_words: "" },
+      ],
+    },
+    ["19041834"],
+  );
+  check(got.answers.length === 1 && got.answers[0].answer === "still_broken", "call: one answer a repair, only the three words, only repairs we asked about");
+  check(got.answers[0].words === "nobody came, FIXED" && !/#\d/.test(got.answers[0].words), `call: their words cannot carry a violation number of their own (got "${got.answers[0].words}")`);
+  check(answerLine(got.answers[0]) === "#19041834 STILL BROKEN", "call: an answer becomes the line a person would have typed");
+  check(parseAnswer("", `${answerLine(got.answers[0])}\n${got.answers[0].words}`)?.answer === "still_broken", "call: and the keyword reader reads that line as the answer, whatever their words say");
+  check(answersFromCall({ reached: "yes", asked_for_this_call: "no", answers: [] }, ["1"]).declined === true, "call: someone who did not ask for the call is marked as having said so");
+  check(answersFromCall(null, ["1"]).reached === false, "call: no result at all is a call that reached nobody");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

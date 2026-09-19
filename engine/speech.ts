@@ -14,7 +14,7 @@ export const SPOKEN_MAX = 640;
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 /** 2026-11-26 -> "November 26". The year is the one they are living in. */
-function sayDate(iso: string): string {
+export function sayDate(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!m) return iso;
   const month = MONTHS[Number(m[2]) - 1];
@@ -35,6 +35,21 @@ function sayWhole(described: string): string {
   let d = described.replace(/\s*\S*…\s*$/, "").trim();
   while (/\s(?:IN|AT|OF|ON|TO|THE|AND|OR|A|AN|FROM|WITH)$/i.test(d)) d = d.replace(/\s\S+$/, "");
   return d;
+}
+
+/**
+ * One of the city's descriptions, as a clause a voice can say: without the
+ * citation in front of it, without the word the city cut in half, in lower case.
+ */
+export function sayCondition(described: string): string {
+  const whole = /…/.test(described) ? sayWhole(described) : described.trim();
+  return whole
+    .replace(/§\s*[\d\-,\s]+(?:ADM CODE|HMC:?|M\/D LAW)?(?:\s*&\s*\d+\s*M\/D LAW)?\s*/gi, "")
+    .replace(/["“”]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/[.;,\s]+$/, "");
 }
 
 export function forSpeech(written: string): string {
