@@ -4,7 +4,8 @@ import { paused } from "./guard";
 import { internal } from "./_generated/api";
 import { noticeSentence, statuteName, warnNoticeGap } from "../engine/rules";
 import { startDateIsCertain } from "../engine/receipt";
-import { LAYOFF_STATES } from "./lookup";
+import { LAYOFF_STATES, stampsFor } from "./lookup";
+import { pickAsks, SAMPLE_BBL } from "../engine/hpd";
 
 // Public, unauthenticated reads. Nothing here touches a model or a network.
 
@@ -169,7 +170,9 @@ export const refreshScorecard = internalMutation({
     const prints: string[] = [];
     for (const slug of Object.keys(LAYOFF_STATES)) {
       const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
-      prints.push(`${slug}:${src?.lastRowsHash ?? "?"}`);
+      // A file that answers 304 is never parsed, so it has no row fingerprint;
+      // the hash of the bytes it last served says the same thing.
+      prints.push(`${slug}:${src?.lastRowsHash ?? src?.lastBodySha256 ?? "?"}`);
     }
     const fingerprint = prints.join("|");
     const held = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "scorecard")).unique();
@@ -313,6 +316,68 @@ export const buildings = query({
     const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "buildings")).unique();
     if (row) return row.value as { buildings: number; records: number; since: string };
     return { buildings: 0, records: 0, since: "" };
+  },
+});
+
+const sampleStamp = v.object({
+  status: v.string(),
+  date: v.string(),
+  hazardClass: v.string(),
+  certifiedBy: v.union(v.string(), v.null()),
+  violationId: v.string(),
+  description: v.union(v.string(), v.null()),
+  inspected: v.union(v.string(), v.null()),
+});
+
+/**
+ * The reply on the landing page and the tour, as one small row.
+ *
+ * Both pages used to build it from `lookup.building`, which reads every
+ * violation we hold for the building (237 rows), every version of each, the
+ * restaurants at the address and the two source rows - and because the source
+ * rows are patched on every read of the city's file, the cached result was
+ * thrown away every hour. Most of a megabyte, per hour and per cold view, to
+ * show three lines. The repairs that could be asked about are worked out here
+ * instead, when the housing file commits a change and once a day, and the
+ * pages read this row. The page still applies today's date itself, so a
+ * certification whose 70 days ran out at midnight drops off without a refresh.
+ */
+export const refreshSampleAsk = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const subject = await ctx.db.query("subjects").withIndex("by_kind_key", (q) => q.eq("kind", "building").eq("key", SAMPLE_BBL)).unique();
+    const stamps = await stampsFor(ctx.db, SAMPLE_BBL);
+    const today = new Date().toISOString().slice(0, 10);
+    const could = new Set(
+      pickAsks(
+        stamps.map((s) => ({ currentstatus: s.status, currentstatusdate: s.date, certifiedbydate: s.certifiedBy, violationid: s.violationId ?? "", class: s.hazardClass, novdescription: s.description ?? null })),
+        today,
+        8,
+      ).map((a) => a.violationId),
+    );
+    const value = {
+      label: subject?.label ?? SAMPLE_BBL,
+      asOf: Date.now(),
+      stamps: stamps
+        .filter((s) => could.has(s.violationId ?? ""))
+        .map((s) => ({ status: s.status, date: s.date, hazardClass: s.hazardClass, certifiedBy: s.certifiedBy, violationId: s.violationId ?? "", description: s.description ?? null, inspected: s.inspected ?? null })),
+    };
+    const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "sampleAsk")).unique();
+    if (row) await ctx.db.patch(row._id, { value, updatedAt: Date.now() });
+    else await ctx.db.insert("stats", { key: "sampleAsk", value, updatedAt: Date.now() });
+    return value.stamps.length;
+  },
+});
+
+export const sampleAsk = query({
+  args: {},
+  returns: v.union(v.null(), v.object({ label: v.string(), asOf: v.number(), stamps: v.array(sampleStamp) })),
+  handler: async (ctx) => {
+    const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "sampleAsk")).unique();
+    if (!row) return null;
+    const { label, asOf, stamps } = row.value as { label: string; asOf: number; stamps: Array<typeof sampleStamp.type> };
+    return { label, asOf, stamps };
   },
 });
 

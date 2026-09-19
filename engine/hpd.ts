@@ -194,6 +194,9 @@ export function nextStepFor(status: string): string {
  * not run out, newest first — the ones HPD has not yet closed. A violation the
  * city already closed is not asked about on request.
  */
+/** The building the landing page, the tour and the browser trial all start from. */
+export const SAMPLE_BBL = "3050840061";
+
 export function pickAsks(rows: Fields[], today: string, max = 3): Ask[] {
   const asks: Ask[] = [];
   for (const f of rows) {

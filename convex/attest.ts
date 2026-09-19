@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, query, type MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
-import { askFrom, askLine, challengeDeadline, CITY_SAYS_FALSE, type Ask } from "../engine/hpd";
+import { askFrom, askLine, challengeDeadline, CITY_SAYS_FALSE, SAMPLE_BBL, type Ask } from "../engine/hpd";
 import { isWeb } from "../engine/web";
 
 // The tenant's word beside the city's. The city's row says the owner
@@ -80,6 +80,17 @@ export async function recordToken(ctx: MutationCtx, email: string): Promise<stri
 
 /** The city's rows we hold for one building, as their fields. */
 export async function heldForBuilding(ctx: MutationCtx, bbl: string): Promise<Doc<"current">["fields"][]> {
+  // The sample building is asked about more than every other put together,
+  // by the tour and the browser trial. Its askable repairs are already worked
+  // out (wall.refreshSampleAsk, on every change to the housing file), so a day
+  // of judges does not read its 237 rows once each.
+  if (bbl === SAMPLE_BBL) {
+    const kept = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "sampleAsk")).unique();
+    const value = kept?.value as { asOf: number; stamps: { status: string; date: string; hazardClass: string; certifiedBy: string | null; violationId: string; description: string | null }[] } | undefined;
+    if (value && Date.now() - value.asOf < 26 * 3_600_000) {
+      return value.stamps.map((s) => ({ currentstatus: s.status, currentstatusdate: s.date, certifiedbydate: s.certifiedBy, violationid: s.violationId, class: s.hazardClass, novdescription: s.description }));
+    }
+  }
   const hpd = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
   if (!hpd) return [];
   const rows = await ctx.db

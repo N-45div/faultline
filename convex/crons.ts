@@ -28,6 +28,10 @@ crons.interval("refresh stats", { hours: 6 }, internal.wall.refreshStats, {});
 // The city's own thirty-day count of certifications and false ones, once a day.
 crons.daily("refresh housing pulse", { hourUTC: 6, minuteUTC: 15 }, internal.wall.refreshHousingPulse, {});
 
+// The landing's reply card, as a backstop: it is rebuilt whenever the housing
+// file commits a change, and this covers the day nothing did.
+crons.daily("refresh sample ask", { hourUTC: 6, minuteUTC: 25 }, internal.wall.refreshSampleAsk, {});
+
 // Sent alerts older than a week.
 crons.daily("gc sent alerts", { hourUTC: 4, minuteUTC: 40 }, internal.digest.gc, {});
 

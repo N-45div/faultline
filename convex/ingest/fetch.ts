@@ -272,6 +272,8 @@ export const runSource = internalAction({
         ...(oneOff ? {} : { rowsHash: deferred ? "" : rowsHash }),
         next,
       });
+      // The landing's reply card is a row of its own; it moves when this file does.
+      if (slug === "nyc-hpd" && (wrote > 0 || emitted > 0)) await ctx.runMutation(internal.wall.refreshSampleAsk, {});
       console.log(
         `[${slug}] ${fetched.status} rows=${observations.length} new=${wrote} changes=${emitted}` +
           ` silent=${diff.silentUpdates} suppressed=${diff.suppressed} degraded=${diff.degraded} emit=${emittedFlag}`,

@@ -15,7 +15,10 @@ export default function Landing({ go }: { go: (p: string) => void }) {
   const log = useQuery(api.wall.changelog, {});
   const b = useQuery(api.wall.buildings, {});
   const pulse = useQuery(api.wall.housingPulse, {});
-  const sample = useQuery(api.lookup.employer, { q: "spirit airlines" });
+  // The layoff receipt is only the stand-in for the day the sample building has
+  // nothing to ask about; it is not fetched on the days it is not shown.
+  const card = useQuery(api.wall.sampleAsk, {});
+  const sample = useQuery(api.lookup.employer, card === null || (card !== undefined && card.stamps.length === 0) ? { q: "spirit airlines" } : "skip");
   const hero = ny?.shortest[0];
   const r = sample?.receipt;
 

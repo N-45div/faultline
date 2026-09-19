@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { askHeadline, askLine, howToAnswer, pickAsks } from "../engine/hpd";
+import { askHeadline, askLine, howToAnswer, pickAsks, SAMPLE_BBL } from "../engine/hpd";
 import { mailto } from "./Pricing";
 
 // The reply to an ASK for one real building, as it would read right now: the
@@ -9,7 +9,6 @@ import { mailto } from "./Pricing";
 // the email reply is built with. Nothing on the card is typed in.
 
 export const SAMPLE_ASK = "ASK 155 Linden Boulevard, Brooklyn";
-const SAMPLE_BBL = "3050840061";
 
 export default function AskCard({
   go,
@@ -21,7 +20,8 @@ export default function AskCard({
   /** Shown instead when no certification at the building is inside its 70 days. */
   whenNone?: ReactNode;
 }) {
-  const b = useQuery(api.lookup.building, { key: SAMPLE_BBL });
+  // One small row, worked out when the city's file changes, not 237 rows a view.
+  const b = useQuery(api.wall.sampleAsk, {});
 
   if (b === undefined) {
     return (
@@ -33,6 +33,7 @@ export default function AskCard({
     );
   }
 
+  if (b === null) return <>{whenNone}</>;
   const today = new Date().toISOString().slice(0, 10);
   const asks = pickAsks(
     b.stamps.map((s) => ({

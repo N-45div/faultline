@@ -416,3 +416,19 @@ test("a browser trial says what needs a mailbox, and keeps to its own room", asy
   expect(refused.why).toContain("By email there is more room");
   expect((await t.run((ctx) => ctx.db.query("inbox").collect())).length).toBe(stored);
 });
+
+test("the landing's reply card is one row, and ASK about that building answers from it", async () => {
+  const t = make();
+  await seed(t);
+  expect(await t.query(api.wall.sampleAsk, {})).toBe(null);
+  expect(await t.mutation(internal.wall.refreshSampleAsk, {})).toBe(1);
+  const card = await t.query(api.wall.sampleAsk, {});
+  expect(card?.label).toBe(LABEL);
+  expect(card?.stamps.map((s) => s.violationId)).toEqual([VIOLATION]);
+
+  // The rows themselves could now be anything; the reply is built from the card.
+  await t.run(async (ctx) => {
+    for (const row of await ctx.db.query("current").collect()) await ctx.db.delete(row._id);
+  });
+  expect(await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK")).toContain(`#${VIOLATION}`);
+});
