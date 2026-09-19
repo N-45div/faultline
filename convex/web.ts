@@ -132,13 +132,19 @@ export const thread = query({
     v.object({
       id: v.string(),
       at: v.number(),
-      who: v.union(v.literal("you"), v.literal("faultline")),
+      who: v.union(v.literal("you"), v.literal("faultline"), v.literal("call")),
       text: v.string(),
       read: v.optional(v.string()),
       heard: v.optional(v.string()),
       tool: v.optional(v.string()),
       cents: v.optional(v.number()),
       answered: v.optional(v.boolean()),
+      /** For a phone call: where it stands, the last four digits rung, and what was said. */
+      status: v.optional(v.string()),
+      tail: v.optional(v.string()),
+      turns: v.optional(v.array(v.object({ who: v.string(), text: v.string() }))),
+      readBy: v.optional(v.string()),
+      unsure: v.optional(v.array(v.string())),
     }),
   ),
   handler: async (ctx, { session }) => {
@@ -146,13 +152,28 @@ export const thread = query({
     const threadId = `web:${session}`;
     const theirs = await ctx.db.query("inbox").withIndex("by_thread", (q) => q.eq("threadId", threadId)).take(80);
     const ours = await ctx.db.query("receipts").withIndex("by_thread", (q) => q.eq("threadId", threadId)).take(160);
+    const calls = await ctx.db.query("calls").withIndex("by_thread", (q) => q.eq("threadId", threadId)).take(10);
     const prefix = `${threadId}:`;
     return [
+      ...calls.map((c) => ({
+        id: String(c._id),
+        at: c.createdAt + 1,
+        who: "call" as const,
+        text: "",
+        status: c.status,
+        tail: c.tail,
+        ...(c.turns ? { turns: c.turns } : {}),
+        ...(c.readBy ? { readBy: c.readBy } : {}),
+        ...(c.readCents !== undefined ? { cents: c.readCents } : {}),
+        ...(c.unsure ? { unsure: c.unsure } : {}),
+      })),
       ...theirs.map((m) => ({
         id: m.messageId.startsWith(prefix) ? m.messageId.slice(prefix.length) : m.messageId,
         at: m.receivedAt,
         who: "you" as const,
-        text: "",
+        // Typed words are kept by the browser that typed them. An answer taken
+        // on a call was typed by nobody, so it comes from here.
+        text: m.said ?? "",
         read: m.intent,
         ...(m.heardBy ? { heard: m.heardBy } : {}),
         ...(m.agentTool ? { tool: m.agentTool } : {}),

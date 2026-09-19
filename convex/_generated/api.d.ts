@@ -13,6 +13,7 @@ import type * as agentmailClient from "../agentmailClient.js";
 import type * as attest from "../attest.js";
 import type * as auth from "../auth.js";
 import type * as breaker from "../breaker.js";
+import type * as calls from "../calls.js";
 import type * as corroborate from "../corroborate.js";
 import type * as corroborateData from "../corroborateData.js";
 import type * as crons from "../crons.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   attest: typeof attest;
   auth: typeof auth;
   breaker: typeof breaker;
+  calls: typeof calls;
   corroborate: typeof corroborate;
   corroborateData: typeof corroborateData;
   crons: typeof crons;

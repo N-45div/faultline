@@ -13,6 +13,7 @@ import { buildReceipt, findBuildings, guessCompanyFromText, noticesFor, siteUrl,
 import { askHeadline, askLine, fixedClaim, howToAnswer, HPD_PAGES, nextStepFor, pickAsks, type Answer } from "../engine/hpd";
 import { heldForBuilding, recordAsks, recordToken, recordUrl } from "./attest";
 import { paused } from "./guard";
+import { settle } from "../engine/call";
 import { limits } from "./limits";
 import { base64Utf8, layoffCsv } from "../engine/export";
 import { urlSlug } from "../engine/canon";
@@ -95,7 +96,8 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
     threadId,
     inboxId: String(m.inbox_id ?? ""),
     fromAddress: from,
-    subject,
+    // A CALL ME subject may carry the number. The row keeps the command, not the digits.
+    subject: intent.kind === "call" ? "CALL ME" : subject,
     receivedAt: now,
     authenticated,
     intent: intent.kind,
@@ -203,6 +205,13 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       });
       return { intent: "agent", query, kind: "none", text: "", sent: false, pending: true };
     }
+  }
+
+  // CALL ME and a number. Whether it may be rung is decided in one place
+  // (callRequested), which also tells them the phone is about to ring.
+  if (intent.kind === "call" && intent.phone) {
+    await ctx.scheduler.runAfter(0, internal.calls.start, { inboxId, phone: intent.phone });
+    return { intent: intent.kind, query, kind: "none", text: "", sent: false, pending: true };
   }
 
   // Following, the evidence pack and the spreadsheet all end in a mailbox: a
@@ -367,6 +376,23 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
         subjectKey: undefined,
         headline: `Looking for "${intent.what}" now.`,
         blocks: [["Two replies follow in this thread: what on the open web names them, and the receipt for the first page, kept as it was served."]],
+        links: [],
+        footer: [],
+      };
+      break;
+    }
+    case "call": {
+      receipt = {
+        kind: "none",
+        query: "call",
+        subjectKey: undefined,
+        headline: "Which number should we ring?",
+        blocks: [
+          [
+            "Write CALL ME and your number with its country code, for example: CALL ME +1 718 555 0142.",
+            "It is one automated call, now, to a number you wrote yourself. It asks about the repairs we asked you about: fixed, still broken, or not sure.",
+          ],
+        ],
         links: [],
         footer: [],
       };
@@ -1121,7 +1147,21 @@ function clarify(what: "building" | "employer" | "unsupported"): Receipt {
 export const agentRecordAnswer = internalMutation({
   args: { inboxId: v.id("inbox"), violationId: v.string(), answer: answerArg, note: v.union(v.string(), v.null()) },
   returns: v.string(),
-  handler: async (ctx, a) => {
+  handler: async (ctx, a) => await recordAnswer(ctx, a, null),
+});
+
+/**
+ * Record one answer against one violation this person was asked about, and
+ * reply. The agent's record_answer tool ends here, and so does an answer taken
+ * on a phone call: whoever heard it, a number they were never asked about is
+ * refused and they are asked which repair they mean.
+ */
+async function recordAnswer(
+  ctx: MutationCtx,
+  a: { inboxId: Id<"inbox">; violationId: string; answer: Answer; note: string | null },
+  onTheCall: null | { twoReaders: boolean },
+): Promise<string> {
+  {
     const target = await agentTarget(ctx, a.inboxId);
     if (!target) return "no such message";
     const from = target.row.fromAddress;
@@ -1142,12 +1182,235 @@ export const agentRecordAnswer = internalMutation({
       .slice(0, 200);
     const receipt = await answerReceipt(ctx, target.t, from, open, a.answer, note, null, now);
     const word = a.answer === "fixed" ? "fixed" : a.answer === "still_broken" ? "still broken" : "not sure";
-    await deliver(ctx, target.t, receipt, [
-      `We read your reply as ${word}, about #${id}. If that's wrong, reply with the number and FIXED, STILL BROKEN or NOT SURE.`,
-    ]);
+    await deliver(
+      ctx,
+      target.t,
+      receipt,
+      onTheCall
+        ? [
+            `On the call you said ${word}, about #${id}. If that's wrong, reply with the number and FIXED, STILL BROKEN or NOT SURE.`,
+            ...(onTheCall.twoReaders ? ["Two readers went over the call separately and read your answer the same way: CALL-E, which placed it, and GPT-6 Astra."] : []),
+          ]
+        : [`We read your reply as ${word}, about #${id}. If that's wrong, reply with the number and FIXED, STILL BROKEN or NOT SURE.`],
+    );
     return "recorded and replied";
+  }
+}
+
+// ---------------------------------------------------------------- CALL ME (convex/calls.ts places the call)
+
+/** May this number be rung for this person? If so: what will be asked, and they are told their phone is about to ring. */
+export const callRequested = internalMutation({
+  args: { inboxId: v.id("inbox"), phoneHash: v.string(), tail: v.string() },
+  returns: v.object({
+    ok: v.boolean(),
+    why: v.string(),
+    callRow: v.optional(v.id("calls")),
+    questions: v.optional(v.array(v.object({ violationId: v.string(), description: v.string(), statusDate: v.string() }))),
+  }),
+  handler: async (ctx, { inboxId, phoneHash, tail }) => {
+    const target = await agentTarget(ctx, inboxId);
+    if (!target) return { ok: false, why: "no such message" };
+    const from = target.row.fromAddress;
+    const refuse = async (why: string, headline: string, more: string[]) => {
+      await deliver(ctx, target.t, { kind: "none", query: "call:refused", headline, blocks: [more], links: [], footer: [] }, []);
+      return { ok: false, why };
+    };
+    if (paused("calls")) return await refuse("calls are paused", "We aren't making calls right now.", ["Typing your answer works, and on the website you can say it out loud."]);
+    const told = await ctx.db.query("suppressions").withIndex("by_email", (q) => q.eq("email", `tel:${phoneHash}`)).first();
+    if (told) return await refuse("that number asked not to be called", "That number asked us not to call it, so we won't.", ["You can answer here instead, in your own words."]);
+
+    // What there is to ask: the repairs this person was asked about and has not answered.
+    const rows = await ctx.db.query("attestations").withIndex("by_email_asked", (q) => q.eq("email", from)).order("desc").take(40);
+    const seen = new Set<string>();
+    const questions: { violationId: string; description: string; statusDate: string }[] = [];
+    for (const r of rows) {
+      if (seen.has(r.violationId)) continue;
+      seen.add(r.violationId);
+      if (r.answer === undefined && r.description) questions.push({ violationId: r.violationId, description: r.description, statusDate: r.askedStatusDate });
+    }
+    if (questions.length === 0) {
+      return await refuse("there is nothing to ask them about", "There is nothing to ask you about yet.", [
+        "Send ASK and your building's address first. When the reply lists the repairs the owner has certified, write CALL ME and your number, and we'll ask you about them by phone.",
+      ]);
+    }
+    const ask = questions.slice(0, 3);
+
+    const mine = await limits.limit(ctx, "callSender", { key: from });
+    const theirs = mine.ok ? await limits.limit(ctx, "callNumber", { key: phoneHash }) : mine;
+    const all = mine.ok && theirs.ok ? await limits.limit(ctx, "callAll") : theirs;
+    if (!mine.ok || !theirs.ok || !all.ok) {
+      return await refuse("the day's calls are used up", "That is as many calls as we make in a day.", ["We ring one number at most twice a day. Your answer counts the same typed: reply with the number and FIXED, STILL BROKEN or NOT SURE, or in your own words."]);
+    }
+
+    const callRow = await ctx.db.insert("calls", {
+      inboxId,
+      identity: from,
+      threadId: target.t.threadId,
+      subjectKey: rows[0]?.subjectKey ?? "",
+      phoneHash,
+      tail,
+      asked: ask.map((q) => q.violationId),
+      questions: ask,
+      status: "placing",
+      createdAt: Date.now(),
+    });
+    await deliver(
+      ctx,
+      target.t,
+      {
+        kind: "none",
+        query: "call:placing",
+        headline: `Calling the number ending ${tail} now.`,
+        blocks: [
+          [
+            `It is an automated call, placed by CALL-E on our line. It says so first, then asks about ${ask.length === 1 ? "the repair" : `the ${ask.length} repairs`} we asked you about, one at a time: fixed, still broken, or not sure. Answer in your own words.`,
+            "What you say is recorded the way a written answer is, by the same tool, and the receipt for it comes here when you hang up.",
+            "If this isn't your number, tell the call you didn't ask for it, and it will never be rung again.",
+          ],
+        ],
+        links: [],
+        footer: [],
+      },
+      [],
+    );
+    return { ok: true, why: "", callRow, questions: ask };
   },
 });
+
+export const callRefused = internalMutation({
+  args: { inboxId: v.id("inbox"), why: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { inboxId, why }) => {
+    const target = await agentTarget(ctx, inboxId);
+    if (!target) return "no such message";
+    await deliver(
+      ctx,
+      target.t,
+      {
+        kind: "none",
+        query: "call:refused",
+        headline: `We couldn't place that call: ${why}.`,
+        blocks: [["Your answer counts the same written down: reply with the number and FIXED, STILL BROKEN or NOT SURE, or just say it in your own words."]],
+        links: [],
+        footer: [],
+      },
+      [],
+    );
+    return why;
+  },
+});
+
+const callAnswers = v.array(v.object({ violationId: v.string(), answer: answerArg, words: v.string() }));
+const callTurns = v.array(v.object({ who: v.string(), text: v.string() }));
+
+/** A second reading that never came back is not waited for. */
+const READING_PATIENCE_MS = 150_000;
+
+/**
+ * The call is over, and CALL-E has said what it heard. If it heard answers,
+ * nothing is recorded yet: the transcript goes to GPT-6 Astra (convex/agent.ts,
+ * readCall), which reads it without being told what CALL-E made of it, and
+ * callRead below records what the two agree on. With no model to ask, CALL-E's
+ * reading stands alone, as a typed keyword does.
+ */
+export const callFinished = internalMutation({
+  args: {
+    callRow: v.id("calls"),
+    status: v.string(),
+    answers: callAnswers,
+    declined: v.boolean(),
+    reached: v.boolean(),
+    turns: callTurns,
+    why: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, a) => {
+    const row = await ctx.db.get(a.callRow);
+    if (!row || row.finishedAt !== undefined) return null;
+    const waiting = row.status === "reading";
+    if (waiting && Date.now() - (row.readingAt ?? 0) < READING_PATIENCE_MS) return null;
+    const secondReader =
+      !waiting && !a.declined && a.reached && a.answers.length > 0 && a.turns.some((t) => t.who === "you") && Boolean(process.env.OPENAI_API_KEY) && !paused("llm");
+    if (secondReader) {
+      await ctx.db.patch(a.callRow, { status: "reading", readingAt: Date.now(), turns: a.turns, heard: a.answers });
+      await ctx.scheduler.runAfter(0, internal.agent.readCall, { callRow: a.callRow });
+      return null;
+    }
+    const alone = settle(a.answers, null, a.turns);
+    await finishCall(ctx, row, { status: a.status, answers: alone.agreed, unsure: [], declined: a.declined, reached: a.reached, turns: a.turns, readBy: "CALL-E" });
+    return null;
+  },
+});
+
+/** GPT-6 Astra has read the call too. What both readers agree on is recorded; the rest is asked again in writing. */
+export const callRead = internalMutation({
+  args: { callRow: v.id("calls"), answers: callAnswers, unsure: v.array(v.string()), declined: v.boolean(), readBy: v.string(), cents: v.optional(v.number()) },
+  returns: v.null(),
+  handler: async (ctx, a) => {
+    const row = await ctx.db.get(a.callRow);
+    if (!row || row.finishedAt !== undefined) return null;
+    await finishCall(ctx, row, { status: "completed", answers: a.answers, unsure: a.unsure, declined: a.declined, reached: true, turns: row.turns ?? [], readBy: a.readBy, cents: a.cents });
+    return null;
+  },
+});
+
+/** What was said is recorded by the path a written answer takes, and they are told. */
+async function finishCall(
+  ctx: MutationCtx,
+  row: Doc<"calls">,
+  a: {
+    status: string;
+    answers: { violationId: string; answer: Answer; words: string }[];
+    unsure: string[];
+    declined: boolean;
+    reached: boolean;
+    turns: { who: string; text: string }[];
+    readBy: string;
+    cents?: number;
+  },
+): Promise<void> {
+  await ctx.db.patch(row._id, {
+    status: a.declined ? "declined" : !a.reached ? "not answered" : a.status,
+    finishedAt: Date.now(),
+    turns: a.turns,
+    answered: a.declined ? 0 : a.answers.length,
+    readBy: a.readBy,
+    ...(a.cents !== undefined ? { readCents: a.cents } : {}),
+    ...(a.unsure.length > 0 ? { unsure: a.unsure } : {}),
+  });
+  const target = await agentTarget(ctx, row.inboxId);
+  if (!target) return;
+  const say = async (headline: string, lines: string[]) =>
+    void (await deliver(ctx, target.t, { kind: "none", query: "call:ended", headline, blocks: [lines], links: [], footer: [] }, []));
+
+  if (a.declined) {
+    // The list a spam complaint goes on, and as final.
+    await ctx.db.insert("suppressions", { email: `tel:${row.phoneHash}`, reason: "declined_call", at: Date.now() });
+    await say("The person who answered said they hadn't asked for the call.", ["That number will not be rung again, and nothing was recorded."]);
+    return;
+  }
+  if (!a.reached) {
+    await say(`The call to the number ending ${row.tail} wasn't answered.`, ["Nothing was recorded. You can write CALL ME and the number again, or answer here in your own words."]);
+    return;
+  }
+  if (a.answers.length === 0 && a.unsure.length === 0) {
+    await say("The call went through, but we couldn't make out an answer about a repair.", ["Nothing was recorded. Answer here in your own words, or with the number and FIXED, STILL BROKEN or NOT SURE."]);
+    return;
+  }
+  const twoReaders = a.readBy !== "CALL-E";
+  for (const one of a.answers) {
+    if (!row.asked.includes(one.violationId)) continue;
+    await recordAnswer(ctx, { inboxId: row.inboxId, violationId: one.violationId, answer: one.answer, note: one.words || null }, { twoReaders });
+  }
+  const unsure = a.unsure.filter((id) => row.asked.includes(id));
+  if (unsure.length > 0) {
+    await say(`We weren't sure what you said on the call about ${unsure.map((id) => `#${id}`).join(" and ")}.`, [
+      "Two readers went over the call separately, CALL-E and GPT-6 Astra, and they did not read that answer the same way. So nothing was recorded for it.",
+      "Reply with the number and FIXED, STILL BROKEN or NOT SURE, or in your own words.",
+    ]);
+  }
+}
 
 export const agentAsk = internalMutation({
   args: { inboxId: v.id("inbox"), bbl: v.string() },

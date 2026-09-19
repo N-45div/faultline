@@ -39,6 +39,7 @@ const FIELDS = {
 
 type Sent = { url: string; body: { text?: string } };
 let sent: Sent[] = [];
+const calle: { placed: any[]; result: any } = { placed: [], result: null };
 let labelled: { url: string; add: string[]; remove: string[] }[] = [];
 
 beforeEach(() => {
@@ -51,9 +52,20 @@ beforeEach(() => {
   // The keyword path. The agent path has its own tests.
   vi.stubEnv("OPENAI_API_KEY", "");
   sent = [];
+  calle.placed = [];
+  calle.result = null;
   labelled = [];
   vi.stubGlobal("fetch", async (url: string | URL, init?: RequestInit) => {
     const body = init?.body ? JSON.parse(String(init.body)) : {};
+    // CALL-E, stood in for: a call is "placed" by being written down, and read
+    // back as whatever the test says happened on it.
+    if (String(url).includes("heycall-e.com")) {
+      if (init?.method === "POST") {
+        calle.placed.push(body);
+        return new Response(JSON.stringify({ id: "call_test_1", object: "call_task", status: "queued" }), { status: 201, headers: { "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify(calle.result), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     // Labelling a message is a PATCH to the same inbox; it is not a send, and
     // must not be mistaken for the reply a test is reading.
     if (Array.isArray(body.add_labels)) labelled.push({ url: String(url), add: body.add_labels, remove: body.remove_labels ?? [] });
@@ -480,5 +492,182 @@ test("by voice: the message says how it was heard, a reply is read only to its o
   for (let i = 0; i < 15; i++) expect((await t.mutation(internal.web.allowVoice, { session: SESSION, what: "hear" })).ok).toBe(true);
   expect((await t.mutation(internal.web.allowVoice, { session: SESSION, what: "hear" })).ok).toBe(false);
   expect((await t.mutation(internal.web.allowVoice, { session: SESSION, what: "speak" })).ok).toBe(true);
+});
+
+// ---------------------------------------------------------------- CALL ME
+const NUMBER = "+1 718 555 0142";
+const finished = (structured: unknown, turns: { speaker: string; text: string }[] = [{ speaker: "bot", text: "Is it fixed?" }, { speaker: "user", text: "No. Nobody came, it's the same." }]) => ({
+  id: "call_test_1",
+  status: "completed",
+  structured_result: structured,
+  recipients: [{ attempts: [{ transcript_turns: turns.map((t, i) => ({ offset_seconds: i * 4, ...t })) }] }],
+});
+
+test("CALL ME rings the number they wrote, and what they say on the call is recorded like a written answer", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  const told = await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  expect(told).toContain("Calling the number ending 0142 now.");
+  expect(told).toContain("automated call");
+
+  // What CALL-E was given: the number, the city's words made sayable, and the only answers it may return.
+  expect(calle.placed).toHaveLength(1);
+  const placed = calle.placed[0];
+  expect(placed.recipients[0]).toMatchObject({ phones: ["+17185550142"], region: "US" });
+  expect(placed.task).toContain("This is an automated call from Faultline");
+  expect(placed.task).toContain(`violation ${VIOLATION}`);
+  expect(placed.result_schema.properties.answers.items.properties.violation.enum).toEqual([VIOLATION]);
+  expect(placed.webhook_url).toBe("https://faultline.test/hooks/calle");
+  // The number is not in our tables: a hash, and four digits.
+  const row = await t.run((ctx) => ctx.db.query("calls").first());
+  expect(row).toMatchObject({ tail: "0142", status: "ringing", callId: "call_test_1", asked: [VIOLATION] });
+  expect(JSON.stringify(row)).not.toContain("7185550142");
+
+  // The call ends. One answer about the repair we asked about, one about a repair nobody asked about.
+  calle.result = finished({
+    reached: "yes",
+    asked_for_this_call: "yes",
+    answers: [
+      { violation: VIOLATION, answer: "still_broken", their_words: "nobody came, it is the same" },
+      { violation: "99999999", answer: "fixed", their_words: "made up" },
+    ],
+  });
+  const before = sent.length;
+  await t.action(internal.calls.reconcile, { callId: "call_test_1" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const receipt = sent.at(-1)?.body.text ?? "";
+  expect(sent.length).toBe(before + 1);
+  expect(receipt).toContain(`On the call you said still broken, about #${VIOLATION}.`);
+  expect(receipt).toContain('"nobody came, it is the same"');
+  const kept = await t.run((ctx) => ctx.db.query("attestations").collect());
+  expect(kept.filter((a) => a.answer === "still_broken")).toHaveLength(1);
+  expect(kept.some((a) => a.violationId === "99999999")).toBe(false);
+  expect(await t.run((ctx) => ctx.db.query("calls").first())).toMatchObject({ status: "completed", answered: 1 });
+
+  // Read back twice, recorded once.
+  await t.action(internal.calls.reconcile, { callId: "call_test_1" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sent.length).toBe(before + 1);
+});
+
+test("no number, nothing to ask, or a number that said no: no telephone rings", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  await seed(t);
+  // Before anything has been asked, there is nothing to ring about.
+  // (seed() has already taken <m0@test>; a second message with that id is a duplicate and gets no reply.)
+  expect(await receive(t, "<m-call0@test>", "CALL ME", `CALL ME ${NUMBER}`)).toContain("There is nothing to ask you about yet.");
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  expect(await receive(t, "<m2@test>", `Re: ${LABEL}`, "CALL ME")).toContain("Which number should we ring?");
+  expect(calle.placed).toHaveLength(0);
+
+  // They are rung; the person who answers says they never asked for it.
+  await receive(t, "<m3@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  expect(calle.placed).toHaveLength(1);
+  calle.result = finished({ reached: "yes", asked_for_this_call: "no", answers: [{ violation: VIOLATION, answer: "fixed", their_words: "" }] });
+  await t.action(internal.calls.reconcile, { callId: "call_test_1" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sent.at(-1)?.body.text ?? "").toContain("said they hadn't asked for the call");
+  // Nothing they said is recorded, and that number is never rung again.
+  expect((await t.run((ctx) => ctx.db.query("attestations").collect())).every((a) => a.answer === undefined)).toBe(true);
+  expect(await receive(t, "<m4@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`)).toContain("asked us not to call it");
+  expect(calle.placed).toHaveLength(1);
+});
+
+test("a quote is kept only if the transcript has them saying it", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  // The answer is theirs. The sentence is not: nobody on the call said it.
+  calle.result = finished({ reached: "yes", asked_for_this_call: "yes", answers: [{ violation: VIOLATION, answer: "still_broken", their_words: "the landlord is a criminal and should be jailed" }] });
+  await t.action(internal.calls.reconcile, { callId: "call_test_1" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const receipt = sent.at(-1)?.body.text ?? "";
+  expect(receipt).toContain(`On the call you said still broken, about #${VIOLATION}.`);
+  expect(receipt).not.toContain("criminal");
+  const kept = await t.run((ctx) => ctx.db.query("attestations").collect());
+  expect(kept.filter((a) => a.answer === "still_broken")).toHaveLength(1);
+  expect(JSON.stringify(kept)).not.toContain("criminal");
+  expect(await t.run((ctx) => ctx.db.query("calls").first())).toMatchObject({ status: "completed", readBy: "CALL-E" });
+});
+
+test("with a model to ask, a call is read twice, and only what both readers agree on is recorded", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  const callRow = (await t.run((ctx) => ctx.db.query("calls").first()))!._id;
+  const turns = [
+    { who: "call", text: "Is it fixed?" },
+    { who: "you", text: "No. Nobody came, it's the same." },
+  ];
+  const heard = [{ violationId: VIOLATION, answer: "still_broken" as const, words: "Nobody came, it's the same" }];
+
+  // CALL-E has reported. With a key, nothing is recorded yet: the call waits for its second reader.
+  vi.stubEnv("OPENAI_API_KEY", "sk-test");
+  const before = sent.length;
+  await t.mutation(internal.inbound.callFinished, { callRow, status: "completed", answers: heard, declined: false, reached: true, turns, why: "" });
+  expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "reading", heard, turns });
+  expect(sent.length).toBe(before);
+  expect((await t.run((ctx) => ctx.db.query("attestations").collect())).every((a) => a.answer === undefined)).toBe(true);
+  // What the second reader is handed says what each number is, and not what CALL-E made of the call.
+  const given = await t.query(internal.calls.forReading, { callRow });
+  expect(given?.questions[0]).toMatchObject({ violationId: VIOLATION });
+  // A webhook that arrives twice does not start a second reading, or finish the call early.
+  await t.mutation(internal.inbound.callFinished, { callRow, status: "completed", answers: heard, declined: false, reached: true, turns, why: "" });
+  expect(sent.length).toBe(before);
+
+  // GPT-6 Astra read it the same way: recorded once, and the receipt says two readers agreed.
+  // (The model is stood in for: callRead is what its reading ends in. The reading that was scheduled finds the call settled and does nothing.)
+  await t.mutation(internal.inbound.callRead, { callRow, answers: heard, unsure: [], declined: false, readBy: "CALL-E and GPT-6 Astra", cents: 0.9 });
+  vi.stubEnv("OPENAI_API_KEY", "");
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const receipt = sent.at(-1)?.body.text ?? "";
+  expect(sent.length).toBe(before + 1);
+  expect(receipt).toContain(`On the call you said still broken, about #${VIOLATION}.`);
+  expect(receipt).toContain("Two readers went over the call separately and read your answer the same way");
+  expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "completed", answered: 1, readBy: "CALL-E and GPT-6 Astra", readCents: 0.9 });
+  // Read back again after it is settled: nothing more is sent or recorded.
+  await t.mutation(internal.inbound.callRead, { callRow, answers: heard, unsure: [], declined: false, readBy: "CALL-E and GPT-6 Astra" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sent.length).toBe(before + 1);
+});
+
+test("two readers who disagree record nothing, and the person is asked again in writing", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  const callRow = (await t.run((ctx) => ctx.db.query("calls").first()))!._id;
+  await t.run((ctx) => ctx.db.patch(callRow, { status: "reading", readingAt: Date.now(), turns: [{ who: "you", text: "well, sort of" }] }));
+  await t.mutation(internal.inbound.callRead, { callRow, answers: [], unsure: [VIOLATION], declined: false, readBy: "CALL-E and GPT-6 Astra" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const told = sent.at(-1)?.body.text ?? "";
+  expect(told).toContain(`We weren't sure what you said on the call about #${VIOLATION}.`);
+  expect(told).toContain("nothing was recorded for it");
+  expect((await t.run((ctx) => ctx.db.query("attestations").collect())).every((a) => a.answer === undefined)).toBe(true);
+  expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "completed", answered: 0, unsure: [VIOLATION] });
+});
+
+test("a second reading that never comes back is not waited for", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  const callRow = (await t.run((ctx) => ctx.db.query("calls").first()))!._id;
+  const turns = [{ who: "you", text: "yes it is fixed now" }];
+  const heard = [{ violationId: VIOLATION, answer: "fixed" as const, words: "it is fixed now" }];
+  await t.run((ctx) => ctx.db.patch(callRow, { status: "reading", readingAt: Date.now() - 10 * 60_000, turns, heard }));
+  await t.mutation(internal.inbound.callFinished, { callRow, status: "completed", answers: heard, declined: false, reached: true, turns, why: "" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sent.at(-1)?.body.text ?? "").toContain(`On the call you said fixed, about #${VIOLATION}.`);
+  expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "completed", answered: 1, readBy: "CALL-E" });
 });
 

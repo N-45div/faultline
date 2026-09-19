@@ -66,6 +66,24 @@ http.route({
   }),
 });
 
+// CALL-E says a call has ended. Its webhooks are unsigned, so the body is
+// believed for one thing only, the id of a call to go and read back with our key.
+http.route({
+  path: "/hooks/calle",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    let id = "";
+    try {
+      const event: any = await request.json();
+      id = String(event?.data?.id ?? "");
+    } catch {
+      /* a body that is not JSON names no call */
+    }
+    if (/^[\w-]{3,80}$/.test(id)) await ctx.scheduler.runAfter(0, internal.calls.reconcile, { callId: id });
+    return new Response(null, { status: 204 });
+  }),
+});
+
 // The browser trial by voice: a recording in, one of our replies read out.
 http.route({ path: "/voice/hear", method: "POST", handler: hear });
 http.route({ path: "/voice/say", method: "GET", handler: say });
