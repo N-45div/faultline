@@ -97,9 +97,10 @@ export const usage = internalQuery({
 /** One model call that is not a letter extraction: the agent's runs. */
 /** One run of the inbox agent, if the day has room for it. */
 export const allowAgentRun = internalMutation({
-  args: {},
+  /** A browser trial spends its own runs, never the inbox's. */
+  args: { web: v.optional(v.boolean()) },
   returns: v.boolean(),
-  handler: async (ctx) => (await limits.limit(ctx, "agentRun")).ok,
+  handler: async (ctx, { web }) => (await limits.limit(ctx, web ? "webAgentRun" : "agentRun")).ok,
 });
 
 export const recordUsage = internalMutation({

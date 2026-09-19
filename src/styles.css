@@ -993,3 +993,143 @@ a {
   border: 1px solid var(--line);
   border-radius: 8px;
 }
+
+/* ---------- /try: the inbox, in the browser ---------- */
+.try .wide {
+  max-width: 62ch;
+}
+.try-thread {
+  margin: 22px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.try-empty {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin: 0;
+}
+.try-you {
+  align-self: flex-end;
+  max-width: 78%;
+  text-align: right;
+}
+.try-words {
+  display: inline-block;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 15px;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.try-read {
+  margin: 5px 2px 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.try-writing {
+  align-self: flex-start;
+  animation: try-pulse 1.2s ease-in-out infinite;
+}
+@keyframes try-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.try-ours {
+  align-self: flex-start;
+  max-width: 92%;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
+  animation: try-in 0.32s ease-out both;
+}
+@keyframes try-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.try-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding-bottom: 16px;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.try-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+.try-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.try-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.try-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.try-chip small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.try-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.try-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+.try-form input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.try-form button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.linklike {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .try-you,
+  .try-ours {
+    max-width: 100%;
+  }
+}

@@ -73,7 +73,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
       </p>
 
       <section className="tour-intro">
-        <p className="kicker">For judges · eight minutes · sign-in only for step 10</p>
+        <p className="kicker">For judges · eight minutes · no email and no sign-in needed</p>
         <h1 className="lede-title">The landlord told the city it's fixed. Faultline asks the person living with it.</h1>
         <p className="lede-sub">
           Ten public files, read on a schedule and kept whole because the agencies overwrite theirs, and one question
@@ -81,6 +81,17 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           OpenAI Agents SDK reads what people write back, and Firecrawl reads the one state page that needs a browser.
           Everything below is live: the numbers are Convex queries rendered as you look, and every button sends a real
           email.
+        </p>
+        <p className="tour-ctas">
+          <a className="cta primary" href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>
+            Do steps 1 to 3 in your browser, no email →
+          </a>
+        </p>
+        <p className="fine">
+          The browser trial is the same inbox without the mailbox: what you type goes through the handler an email
+          goes through, and the reply arrives on the page by itself from a live Convex query. It spends its own
+          rate-limit room, so it cannot take the inbox's, and what is said in it is never counted on a public page.
+          Sign-in exists for one thing only, following a filing from the web (step 10).
         </p>
       </section>
 
@@ -130,7 +141,14 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           asks them which repair they mean instead, so the model can pick the wrong tool but cannot put an answer on a
           repair nobody asked about.
         </p>
-        <p>Try it: when step 1's reply arrives, answer it in a sentence.</p>
+        <p>
+          Try it: when step 1's reply arrives, answer it in a sentence. Or{" "}
+          <a href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>
+            do it in your browser
+          </a>
+          , where each of your messages says underneath how it was read: by the keyword reader with no model, or by
+          GPT-6 Astra, with the tool it finished on and what the run cost.
+        </p>
         <p className="fine">
           Eleven tools with strict schemas, tool choice required, one call at a time, low reasoning effort, at most six
           turns, and free moderation first. Four of them are the components: send a link and Firecrawl reads the page,

@@ -3,6 +3,7 @@ import { internalAction, internalMutation, query, type MutationCtx } from "./_ge
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { askFrom, askLine, challengeDeadline, CITY_SAYS_FALSE, type Ask } from "../engine/hpd";
+import { isWeb } from "../engine/web";
 
 // The tenant's word beside the city's. The city's row says the owner
 // certified a repair; the person who lives with it says whether it happened.
@@ -46,7 +47,7 @@ export async function recordAsks(ctx: MutationCtx, email: string, subjectKey: st
     });
     if (a.description) fresh.push({ violationId: a.violationId, text: a.description });
   }
-  if (fresh.length > 0 && email.includes("@")) {
+  if (fresh.length > 0 && (email.includes("@") || isWeb(email))) {
     await ctx.scheduler.runAfter(0, internal.match.remember, { email, items: fresh.slice(0, 10) });
   }
   // Someone is now waiting on this building's record: whatever else we have
@@ -163,9 +164,13 @@ export const corroborated = query({
       .query("attestations")
       .withIndex("by_subject_said", (q) => q.eq("subjectKey", bbl).gt("saidAt", 0))
       .take(500);
-    const people = new Set(answered.map((r) => `${r.email}|${r.violationId}`));
+    // Anyone can open a browser trial and say anything in it. What is said
+    // there is kept on the trial's own page, and is never a tenant's word on a
+    // public one: not in this count, and not beside the city's stamp.
+    const tenants = answered.filter((r) => !isWeb(r.email));
+    const people = new Set(tenants.map((r) => `${r.email}|${r.violationId}`));
     const first = new Map<string, Doc<"attestations">>();
-    for (const r of answered) {
+    for (const r of tenants) {
       if (r.answer !== "still_broken" || !r.laterStatus || !CITY_SAYS_FALSE.has(r.laterStatus)) continue;
       if (r.saidAt === undefined || r.laterAt === undefined || r.saidAt >= r.laterAt) continue;
       const seen = first.get(r.violationId);
@@ -365,7 +370,7 @@ export const deliveries = query({
         headline: r.text.split("\n")[0].slice(0, 160),
         status:
           r.deliveryStatus ??
-          (m.inboxId === "photon" ? "texted" : r.outboundId ? "accepted" : Date.now() - r.createdAt > UNSENT_AFTER_MS ? "unsent" : "queued"),
+          (m.inboxId === "photon" ? "texted" : m.inboxId === "web" ? "shown" : r.outboundId ? "accepted" : Date.now() - r.createdAt > UNSENT_AFTER_MS ? "unsent" : "queued"),
         error: null,
       });
     }

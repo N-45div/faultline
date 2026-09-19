@@ -10,6 +10,7 @@ import type { Id } from "./_generated/dataModel";
 import { ownLines } from "../engine/hpd";
 import { cleanSubject } from "../engine/intent";
 import { AGENT_DAILY_CAP, AGENT_MODEL, costCents } from "./llm";
+import { isWeb } from "../engine/web";
 import { paused, providerFault } from "./guard";
 
 // The inbox agent. GPT-6 Astra, through the OpenAI Agents SDK, reads the mail
@@ -242,11 +243,10 @@ export const handleMessage = internalAction({
     if (!key) return void (await fallback("no key"));
     if (paused("llm")) return void (await fallback("NOTICE_PAUSE"));
     if (await ctx.runQuery(internal.breaker.open, { provider: "openai" })) return void (await fallback("openai breaker open"));
-    const room: boolean = await ctx.runMutation(internal.llm.allowAgentRun, {});
-    if (!room) return void (await fallback(`daily cap ${AGENT_DAILY_CAP} reached`));
-
     const who = await ctx.runQuery(internal.inbound.agentWho, { inboxId: a.inboxId });
     if (!who || who.replied) return null;
+    const room: boolean = await ctx.runMutation(internal.llm.allowAgentRun, { web: isWeb(who.email) });
+    if (!room) return void (await fallback(`daily cap ${AGENT_DAILY_CAP} reached`));
 
     const words = (ownLines(a.text) || a.text).slice(0, 4_000);
     try {
@@ -279,6 +279,9 @@ export const handleMessage = internalAction({
         costCents: cents,
       });
       await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: true });
+      // Kept on the message, so the person who wrote it can be shown which
+      // tool answered them and what reading their words cost.
+      if (state.acted) await ctx.runMutation(internal.inbound.agentRan, { inboxId: a.inboxId, tool: state.acted, cents });
       console.log(`[agent] ${AGENT_MODEL} acted=${state.acted ?? "none"} requests=${u.requests} in=${u.inputTokens} cached=${cached} out=${u.outputTokens} cost=${cents}c`);
       if (!state.acted) await fallback("the model chose no action");
     } catch (e) {

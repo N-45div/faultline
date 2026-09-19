@@ -17,6 +17,7 @@ const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const ARRIVED: Record<string, string> = {
   sent: "Sent, waiting for the delivery report",
   accepted: "Sent",
+  shown: "Shown in your browser",
   delivered: "Delivered to your inbox",
   bounced: "Bounced",
   complained: "Marked as spam",

@@ -192,6 +192,9 @@ export default defineSchema({
     matchedSubjectKey: v.optional(v.string()),
     bodyHash: v.string(),
     replied: v.boolean(),
+    /** When the agent read this message: the one tool it finished with, and what the run cost. */
+    agentTool: v.optional(v.string()),
+    agentCents: v.optional(v.number()),
   })
     .index("by_message_id", ["messageId"])
     .index("by_thread", ["threadId"])

@@ -8,6 +8,7 @@ import { looksLikeAddress } from "../engine/match";
 import { classifyInbound, emailAddressOf, stripHtml } from "../engine/intent";
 import { complianceLines, noMatchReceipt, receiptHtml, receiptSms, receiptText, type Receipt } from "../engine/receipt";
 import { handleOf, photonIdentity } from "../engine/photon";
+import { isWeb } from "../engine/web";
 import { buildReceipt, findBuildings, guessCompanyFromText, noticesFor, siteUrl, STATE_FILE } from "./lookup";
 import { askHeadline, askLine, fixedClaim, howToAnswer, HPD_PAGES, nextStepFor, pickAsks, type Answer } from "../engine/hpd";
 import { heldForBuilding, recordAsks, recordToken, recordUrl } from "./attest";
@@ -127,7 +128,9 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   // The message is stored above either way; we just don't send.
   // A text through Photon comes from a phone number, not an address; the
   // checks for mail robots do not apply to it.
-  const skip = String(m.inbox_id ?? "") === "photon" ? null : skipReason(from, String(process.env.AGENTMAIL_INBOX_ID ?? ""), m.headers);
+  const channel = String(m.inbox_id ?? "");
+  const byWeb = channel === "web";
+  const skip = channel === "photon" || byWeb ? null : skipReason(from, String(process.env.AGENTMAIL_INBOX_ID ?? ""), m.headers);
   if (skip) {
     console.log(`[inbound] stored, not answered: ${skip}`);
     return { intent: intent.kind, query, kind: "none", text: "", sent: false };
@@ -136,8 +139,9 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   // Politeness ceilings: per sender, and a global one for the inbox's
   // reputation. Unauthenticated mail is stored, never answered.
   if (!authenticated) return { intent: intent.kind, query, kind: "none", text: "", sent: false };
-  const mine = await limits.limit(ctx, "replyToSender", { key: from });
-  const ours = mine.ok ? await limits.limit(ctx, "replyAll") : mine;
+  // A browser trial paid at the door, from its own room (convex/web.ts).
+  const mine = byWeb ? { ok: true } : await limits.limit(ctx, "replyToSender", { key: from });
+  const ours = byWeb || !mine.ok ? mine : await limits.limit(ctx, "replyAll");
   if (!mine.ok || !ours.ok) {
     console.log(`[inbound] ceiling reached (${mine.ok ? "the inbox's day" : "this address's day"}), stored and not answered`);
     return { intent: intent.kind, query, kind: "none", text: "", sent: false };
@@ -187,7 +191,7 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   // chooses a tool; the tool replies with words this file already writes.
   if (process.env.OPENAI_API_KEY && !paused("llm")) {
     // A text is always a turn in a conversation, so it counts as a reply.
-    const replying = /^\s*(re|fwd|fw)\s*:/i.test(subject) || String(m.inbox_id ?? "") === "photon";
+    const replying = /^\s*(re|fwd|fw)\s*:/i.test(subject) || channel === "photon" || byWeb;
     const freeReply = replying && (intent.kind === "lookup" || intent.kind === "empty") && (await hasAsked(ctx, from));
     if (intent.kind === "letter" || freeReply) {
       await ctx.db.patch(inboxId, { intent: "agent" });
@@ -199,6 +203,13 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
       });
       return { intent: "agent", query, kind: "none", text: "", sent: false, pending: true };
     }
+  }
+
+  // Following, the evidence pack and the spreadsheet all end in a mailbox: a
+  // digest, an attachment. A browser trial has none, and says where they work.
+  if (byWeb && (intent.kind === "follow" || intent.kind === "pack" || intent.kind === "csv")) {
+    const delivered = await deliver(ctx, target, byEmailOnly(intent.kind), []);
+    return { intent: intent.kind, query, kind: "none", text: delivered.text, sent: delivered.sent };
   }
 
   let receipt: Receipt;
@@ -504,7 +515,9 @@ async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: s
   // On everything we send: who we are, why it arrived, and how to stop it.
   const postal = (process.env.NOTICE_POSTAL ?? "").trim();
   if (!postal) console.warn("[inbound] NOTICE_POSTAL is unset — outbound mail carries no postal address");
-  const compliance = receipt.query === "stop" ? [] : complianceLines(postal, "you are getting this because you wrote to this address.");
+  const byWeb = t.agentInboxId === "web";
+  // A postal address and STOP belong on mail. Nothing is mailed to a browser.
+  const compliance = receipt.query === "stop" || byWeb ? [] : complianceLines(postal, "you are getting this because you wrote to this address.");
   const withPreface: Receipt = {
     ...receipt,
     blocks: preface.length ? [preface, ...receipt.blocks] : receipt.blocks,
@@ -525,6 +538,13 @@ async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: s
     createdAt: Date.now(),
   });
   if (receipt.subjectKey) await ctx.db.patch(t.inboxId, { matchedSubjectKey: receipt.subjectKey });
+
+  if (byWeb) {
+    // The browser trial: the receipt row is the reply. The page holds a live
+    // query on this thread, so it appears there the moment this commits.
+    await ctx.db.patch(t.inboxId, { replied: true });
+    return { text, sent: true };
+  }
 
   if (byText) {
     // Photon: the same receipt, as a text, into the same conversation.
@@ -552,6 +572,22 @@ async function deliver(ctx: MutationCtx, t: Target, receipt: Receipt, preface: s
   }
   console.log(`[inbound] receipt stored, not sent (no inbox on this message) — "${receipt.query}"`);
   return { text, sent: false };
+}
+
+function byEmailOnly(what: "follow" | "pack" | "csv"): Receipt {
+  const thing = what === "follow" ? "Following a building or an employer" : what === "pack" ? "The evidence pack" : "The spreadsheet";
+  const how =
+    what === "follow"
+      ? "We write to you when its record changes, at most once a day, so it needs somewhere to write."
+      : "It arrives as a file attached to our reply, so it needs a mailbox to arrive in.";
+  return {
+    kind: "none",
+    query: `web:${what}`,
+    headline: `${thing} works by email.`,
+    blocks: [[how, `Send the same words to ${process.env.AGENTMAIL_INBOX_ID ?? "getnotice@agentmail.to"} and it works the same way, with nothing to sign up for.`]],
+    links: [],
+    footer: [],
+  };
 }
 
 function couldNotTell(): Receipt {
@@ -915,14 +951,23 @@ async function answerReceipt(
   const owner = fixedClaim(open.askedStatus) === "owner";
   const next: string[] =
     answer === "still_broken"
-      ? [nextStepFor(open.askedStatus), ...(owner ? ["If the city later stamps this certification FALSE or INVALID, we'll tell you in this thread."] : [])]
+      ? [
+          nextStepFor(open.askedStatus),
+          ...(owner
+            ? [
+                isWeb(from)
+                  ? "If the city later stamps this certification FALSE or INVALID, it shows on your trial page. By email, we write to you the day it happens."
+                  : "If the city later stamps this certification FALSE or INVALID, we'll tell you in this thread.",
+              ]
+            : []),
+        ]
       : answer === "fixed"
         ? ["Noted as fixed."]
         : ["Left open. Reply again when you know."];
   // Someone who says it isn't fixed, or isn't sure, has asked in effect to
   // hear what the city does next. They follow the building from here, are
   // told so in the same breath, and STOP ends it.
-  if (answer !== "fixed") {
+  if (answer !== "fixed" && !isWeb(from)) {
     const already = await ctx.db
       .query("subscriptions")
       .withIndex("by_email", (q) => q.eq("email", from).eq("subjectKey", open.subjectKey))
@@ -1121,6 +1166,10 @@ export const agentPageAllow = internalMutation({
   handler: async (ctx, { inboxId }) => {
     const row = await ctx.db.get(inboxId);
     if (!row) return null;
+    if (isWeb(row.fromAddress)) {
+      const room = await limits.limit(ctx, "webPage");
+      return room.ok ? { ok: true, why: "" } : { ok: false, why: "the browser trial has kept its pages for today; by email there is more room" };
+    }
     const mine = await limits.limit(ctx, "pageForSender", { key: row.fromAddress });
     if (!mine.ok) return { ok: false, why: "that is as many pages as we keep for one person in a day" };
     const all = await limits.limit(ctx, "pageAll");
@@ -1231,6 +1280,16 @@ export const agentOpenViolations = internalQuery({
   handler: async (ctx, { inboxId }) => {
     const row = await ctx.db.get(inboxId);
     return row ? await openViolationIds(ctx, row.fromAddress) : [];
+  },
+});
+
+/** Which tool the agent finished with, and what the run cost, kept on the message it read. */
+export const agentRan = internalMutation({
+  args: { inboxId: v.id("inbox"), tool: v.string(), cents: v.number() },
+  returns: v.null(),
+  handler: async (ctx, { inboxId, tool, cents }) => {
+    if (await ctx.db.get(inboxId)) await ctx.db.patch(inboxId, { agentTool: tool, agentCents: cents });
+    return null;
   },
 });
 
@@ -1373,6 +1432,10 @@ export const agentPack = internalMutation({
   handler: async (ctx, { inboxId, query }) => {
     const target = await agentTarget(ctx, inboxId);
     if (!target) return "no such message";
+    if (isWeb(target.row.fromAddress)) {
+      await deliver(ctx, target.t, byEmailOnly("pack"), []);
+      return "a browser trial has no mailbox for the file; told them it works by email";
+    }
     const receipt = await packReceiptFor(ctx, target.t, target.row.fromAddress, query.trim().slice(0, 120));
     await deliver(ctx, target.t, receipt, []);
     return "pack requested and replied";
@@ -1385,6 +1448,10 @@ export const agentCsv = internalMutation({
   handler: async (ctx, { inboxId, query }) => {
     const target = await agentTarget(ctx, inboxId);
     if (!target) return "no such message";
+    if (isWeb(target.row.fromAddress)) {
+      await deliver(ctx, target.t, byEmailOnly("csv"), []);
+      return "a browser trial has no mailbox for the file; told them it works by email";
+    }
     const made = await csvFor(ctx, query.trim().slice(0, 120));
     await deliver(ctx, target.t, made.receipt, [], made.attachment);
     return "spreadsheet sent";

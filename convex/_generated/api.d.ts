@@ -39,6 +39,7 @@ import type * as pages from "../pages.js";
 import type * as photon from "../photon.js";
 import type * as sources from "../sources.js";
 import type * as wall from "../wall.js";
+import type * as web from "../web.js";
 
 import type {
   ApiFromModules,
@@ -78,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   photon: typeof photon;
   sources: typeof sources;
   wall: typeof wall;
+  web: typeof web;
 }>;
 
 /**

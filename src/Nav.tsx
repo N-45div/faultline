@@ -14,6 +14,7 @@ const LINKS: [string, string][] = [
   ["/app", "Receipts"],
   ["/files", "Files"],
   ["/scorecard", "Scorecard"],
+  ["/try", "Try it"],
   ["/judge", "Tour"],
   ["/pricing", "Pricing"],
 ];

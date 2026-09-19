@@ -334,3 +334,85 @@ test("asking about a building we had stopped watching starts watching it again",
   // about it has to reach us.
   expect(target?.active).toBe(true);
 });
+
+// ---------------------------------------------------------------- the browser trial
+const SESSION = "a".repeat(32);
+let said = 0;
+async function type(t: T, text: string, session = SESSION) {
+  const out = await t.mutation(api.web.say, { session, id: (++said).toString(16).padStart(8, "0"), text });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  return out;
+}
+const lastShown = async (t: T, session = SESSION) => (await t.query(api.web.thread, { session })).filter((m) => m.who === "faultline").at(-1)?.text ?? "";
+
+test("the browser trial asks and answers through the same handler, and nothing is mailed", async () => {
+  const t = make();
+  await seed(t);
+  const before = sent.length;
+
+  expect(await type(t, `ASK ${LABEL}`)).toEqual({ ok: true, why: "" });
+  const asked = await lastShown(t);
+  expect(asked).toContain("They say it's fixed. Is it?");
+  expect(asked).toContain(`#${VIOLATION}`);
+  // A postal address and STOP belong on mail; nothing here is mail.
+  expect(asked).not.toContain("1 Test Street");
+  expect(asked).not.toContain("Reply STOP");
+
+  await type(t, `#${VIOLATION} STILL BROKEN`);
+  const kept = await lastShown(t);
+  expect(kept).toContain("Kept, dated: you said still broken");
+  expect(kept).toContain("it shows on your trial page");
+  expect(kept).not.toContain("You now follow this building");
+
+  // How each of their messages was read travels with the thread.
+  const mine = (await t.query(api.web.thread, { session: SESSION })).filter((m) => m.who === "you");
+  expect(mine.map((m) => m.read)).toEqual(["ask", "answer"]);
+  expect(mine.every((m) => m.answered)).toBe(true);
+
+  expect(sent.length).toBe(before);
+  expect(await t.run((ctx) => ctx.db.query("subscriptions").collect())).toHaveLength(0);
+});
+
+test("what is said in a browser trial is never a tenant's word on a public page", async () => {
+  const t = make();
+  await seed(t);
+  await type(t, `ASK ${LABEL}`);
+  await type(t, `#${VIOLATION} STILL BROKEN`);
+  const before = sent.length;
+
+  vi.setSystemTime(new Date("2026-09-21T12:00:00Z"));
+  await cityStamps(t, "FALSE CERTIFICATION", "2026-09-21");
+
+  // The city agreed, and the trial's own page will show it - but the public
+  // page counts tenants, and anyone can open a trial.
+  const pub = await t.query(api.attest.corroborated, { bbl: BBL });
+  expect(pub.kept).toBe(0);
+  expect(pub.rows).toHaveLength(0);
+  expect(sent.length).toBe(before);
+  const mine = await t.run((ctx) => ctx.db.query("attestations").collect());
+  expect(mine.some((a) => a.laterStatus === "FALSE CERTIFICATION")).toBe(true);
+});
+
+test("a browser trial says what needs a mailbox, and keeps to its own room", async () => {
+  const t = make();
+  await seed(t);
+  await type(t, `ASK ${LABEL}`);
+  await type(t, "FOLLOW");
+  expect(await lastShown(t)).toContain("works by email");
+  await type(t, `PACK ${LABEL}`);
+  expect(await lastShown(t)).toContain("The evidence pack works by email");
+
+  // A key that is not one opens nothing and stores nothing.
+  expect((await t.mutation(api.web.say, { session: "not-a-session", id: "00000001", text: "ASK" })).ok).toBe(false);
+  expect(await t.query(api.web.thread, { session: "not-a-session" })).toEqual([]);
+
+  // Twenty-five messages a day for one browser; the next is refused at the
+  // door, before anything is stored.
+  const other = "b".repeat(32);
+  for (let i = 0; i < 25; i++) expect((await type(t, "Spirit Airlines", other)).ok).toBe(true);
+  const stored = (await t.run((ctx) => ctx.db.query("inbox").collect())).length;
+  const refused = await type(t, "Spirit Airlines", other);
+  expect(refused.ok).toBe(false);
+  expect(refused.why).toContain("By email there is more room");
+  expect((await t.run((ctx) => ctx.db.query("inbox").collect())).length).toBe(stored);
+});

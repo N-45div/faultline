@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import Pricing, { INBOX, mailto } from "./Pricing";
-import AskCard, { SAMPLE_ASK } from "./AskCard";
+import AskCard from "./AskCard";
 
 // The front door. Everything numeric on this page is read live from the
 // records we hold, and the reply beside the headline is built from the city's
@@ -74,8 +74,15 @@ export default function Landing({ go }: { go: (p: string) => void }) {
               <a className="cta primary" href={mailto("ASK ")}>
                 Email ASK and your address
               </a>
-              <a className="cta" href={mailto(SAMPLE_ASK)}>
-                Try a real building
+              <a
+                className="cta"
+                href="/try"
+                onClick={(e) => {
+                  e.preventDefault();
+                  go("/try");
+                }}
+              >
+                Try it here, no email
               </a>
             </div>
             <p className="fine">

@@ -11,6 +11,7 @@ import Receipts from "./Receipts";
 import "./styles.css";
 import { Commit, Deleted, FileLog, FilesIndex } from "./Files";
 import Scorecard from "./Scorecard";
+import Try from "./Try";
 
 // Every string on these pages is read by a person who got a letter this month.
 // No engine nouns: nothing here is a source, a diff, a snapshot or a job.
@@ -53,8 +54,9 @@ export default function App() {
   const isFiles = path === "/files";
   const isDeleted = path === "/deleted";
   const isScorecard = path === "/scorecard";
+  const isTry = path === "/try";
   const recordMatch = /^\/r\/([^/]+)/.exec(path);
-  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms && !fileMatch && !commitMatch && !isFiles && !isDeleted && !isScorecard && !recordMatch;
+  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms && !fileMatch && !commitMatch && !isFiles && !isDeleted && !isScorecard && !isTry && !recordMatch;
   // The tab and the bookmark say where you are, not the repository's old name.
   useEffect(() => {
     const titles: [boolean, string][] = [
@@ -70,6 +72,7 @@ export default function App() {
       [isFiles, "The files · Faultline"],
       [isDeleted, "Gone from the files · Faultline"],
       [isScorecard, "Scorecard · Faultline"],
+      [isTry, "Try it · Faultline"],
       [Boolean(recordMatch), "Your record · Faultline"],
     ];
     document.title = titles.find(([on]) => on)?.[1] ?? "Faultline — the address that writes back";
@@ -92,6 +95,7 @@ export default function App() {
   else if (isFiles) body = <FilesIndex go={go} />;
   else if (isDeleted) body = <Deleted go={go} />;
   else if (isScorecard) body = <Scorecard go={go} />;
+  else if (isTry) body = <Try go={go} />;
   else if (recordMatch) body = <YourRecord token={safeDecode(recordMatch[1])} go={go} />;
   else body = <Landing go={go} />;
 
