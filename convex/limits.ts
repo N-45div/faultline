@@ -35,6 +35,11 @@ export const limits = new RateLimiter(components.rateLimiter, {
   webHear: { kind: "fixed window", rate: 120, period: DAY },
   webSpeakSender: { kind: "fixed window", rate: 25, period: DAY },
   webSpeak: { kind: "fixed window", rate: 150, period: DAY },
+  // A call rings a real telephone and spends real credit. One number is rung
+  // at most twice a day, one browser twice, and the whole trial twelve times.
+  callSender: { kind: "fixed window", rate: 2, period: DAY },
+  callNumber: { kind: "fixed window", rate: 2, period: DAY },
+  callAll: { kind: "fixed window", rate: 12, period: DAY },
   /** Runs of the inbox agent, which cost money. */
   agentRun: { kind: "fixed window", rate: AGENT_DAILY_CAP, period: DAY },
 });

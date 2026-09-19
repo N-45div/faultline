@@ -206,6 +206,11 @@ export default defineSchema({
     agentCents: v.optional(v.number()),
     /** When the message arrived as speech: the model that wrote the words down. The recording is not kept. */
     heardBy: v.optional(v.string()),
+    /**
+     * For an answer taken on a phone call: the line as it was recorded. A typed
+     * message is kept by the browser that typed it; nobody typed this one.
+     */
+    said: v.optional(v.string()),
   })
     .index("by_message_id", ["messageId"])
     .index("by_thread", ["threadId"])
@@ -244,6 +249,44 @@ export default defineSchema({
   })
     .index("by_email_violation", ["email", "violationId"])
     .vectorIndex("by_words", { vectorField: "embedding", dimensions: 1536, filterFields: ["email"] }),
+
+  /**
+   * A phone call someone asked for, placed by CALL-E. The number is
+   * not kept: a hash of it for the limits and the do-not-call list, and its
+   * last four digits so the person can see which phone is about to ring.
+   */
+  calls: defineTable({
+    /** The message that asked for the call; what the call records is answered in its thread. */
+    inboxId: v.id("inbox"),
+    identity: v.string(),
+    threadId: v.string(),
+    subjectKey: v.string(),
+    phoneHash: v.string(),
+    tail: v.string(),
+    /** The violations the call asks about; an answer about anything else is dropped. */
+    asked: v.array(v.string()),
+    status: v.string(),
+    createdAt: v.number(),
+    callId: v.optional(v.string()),
+    finishedAt: v.optional(v.number()),
+    answered: v.optional(v.number()),
+    /** What was said, both ways, as CALL-E transcribed it. Shown only in the thread that asked for the call. */
+    turns: v.optional(v.array(v.object({ who: v.string(), text: v.string() }))),
+    /** The repairs the call asked about, in the city's words: the second reader is told what each number is. */
+    questions: v.optional(v.array(v.object({ violationId: v.string(), description: v.string(), statusDate: v.string() }))),
+    /** What CALL-E heard, held while GPT-6 Astra reads the transcript a second time. */
+    heard: v.optional(
+      v.array(v.object({ violationId: v.string(), answer: v.union(v.literal("fixed"), v.literal("still_broken"), v.literal("not_sure")), words: v.string() })),
+    ),
+    readingAt: v.optional(v.number()),
+    /** Who read the call: "CALL-E", or "CALL-E and GPT-6 Astra" when both did. */
+    readBy: v.optional(v.string()),
+    readCents: v.optional(v.number()),
+    /** Repairs the two readers read differently: nothing recorded, asked again in writing. */
+    unsure: v.optional(v.array(v.string())),
+  })
+    .index("by_call", ["callId"])
+    .index("by_thread", ["threadId", "createdAt"]),
 
   receipts: defineTable({
     inboxId: v.optional(v.id("inbox")),
