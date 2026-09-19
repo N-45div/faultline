@@ -1236,3 +1236,101 @@ a {
     flex-basis: 100%;
   }
 }
+
+/* ---------- /try, by phone ---------- */
+.try-call {
+  margin: 0 0 14px;
+}
+.try-call-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.try-call-form > label {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.try-call-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.try-call-row input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+.try-call-row input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.try-call-form > label.try-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.try-consent input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.try-call-form .fine {
+  margin: 0;
+}
+.try-call-card {
+  align-self: stretch;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--card);
+  animation: try-in 0.32s ease-out both;
+}
+.try-call-head {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+.try-call-card.live .try-call-head {
+  animation: try-pulse 1.4s ease-in-out infinite;
+}
+.try-turns {
+  list-style: none;
+  margin: 10px 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.try-turns li {
+  display: grid;
+  grid-template-columns: 3.2em 1fr;
+  gap: 8px;
+}
+.try-turns b {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--muted);
+  padding-top: 1px;
+}
+.try-turns li.them span {
+  color: var(--ink);
+}
+.try-turns li.voice span {
+  color: var(--muted);
+}

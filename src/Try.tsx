@@ -53,6 +53,41 @@ function readBy(read?: string, tool?: string, cents?: number, heard?: string): s
   return heard ? `heard by ${heard} · ${by}` : by;
 }
 
+/** Where a call stands, in words. The row behind it is a live query, so these change by themselves. */
+function callStands(status?: string): string {
+  switch (status) {
+    case "placing":
+      return "placing the call…";
+    case "ringing":
+      return "ringing. Pick up, and answer in your own words";
+    case "on the call":
+      return "on the call…";
+    case "reading":
+      return "the call has ended · GPT-6 Astra is reading the transcript…";
+    case "completed":
+      return "ended";
+    case "declined":
+      return "the person who answered hadn't asked for it · that number is never rung again";
+    case "not answered":
+      return "not answered";
+    default:
+      return "could not be placed";
+  }
+}
+
+/** Who read a finished call, in the words the tour uses. */
+function callReadBy(readBy?: string, cents?: number, unsure?: string[]): string {
+  if (!readBy) return "placed by CALL-E";
+  const two = readBy !== "CALL-E";
+  return [
+    "placed and heard by CALL-E",
+    two ? `read again by GPT-6 Astra → report_call${cents !== undefined ? ` · ${cents.toFixed(2)}¢` : ""}` : "no second reader was available",
+    two ? (unsure && unsure.length > 0 ? "the two readers differed, so that answer was not recorded" : "recorded only where the two agree") : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /** What this browser records in, and the extension the transcriber knows it by. */
 function recordingFormat(): { mime: string; ext: string } | null {
   if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) return null;
@@ -129,11 +164,17 @@ export default function Try({ go }: { go: (p: string) => void }) {
   const recorder = useRef<MediaRecorder | null>(null);
   const player = useRef<HTMLAudioElement | null>(null);
   const [speaking, setSpeaking] = useState<string | null>(null);
+  const [calling, setCalling] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [mineToRing, setMineToRing] = useState(false);
 
   const messages = thread ?? [];
   const ours = messages.filter((m) => m.who === "faultline");
   const waiting = messages.some((m) => m.who === "you" && !m.answered);
   const lastReply = ours.at(-1)?.text ?? "";
+  // A call needs something to ask about, and one call at a time is plenty.
+  const beenAsked = ours.some((m) => /Are they\?|Is it\?/.test(m.text));
+  const onTheLine = messages.some((m) => m.who === "call" && ["placing", "ringing", "on the call", "reading"].includes(m.status ?? ""));
 
   useEffect(() => {
     if (messages.length > 0) end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -161,13 +202,13 @@ export default function Try({ go }: { go: (p: string) => void }) {
     ];
   }, [messages.length, lastReply]);
 
-  async function send(text: string) {
+  async function send(text: string, shown?: string) {
     const words = text.trim();
     if (!words || busy) return;
     setBusy(true);
     setRefused("");
     const id = hex(6);
-    keep(id, words);
+    keep(id, shown ?? words);
     try {
       const out = await say({ session, id, text: words });
       if (!out.ok) setRefused(out.why);
@@ -226,6 +267,18 @@ export default function Try({ go }: { go: (p: string) => void }) {
     setTimeout(() => rec.state === "recording" && rec.stop(), LONGEST_MS);
   }
 
+  // Ring me. The same door again: CALL ME and the number is a message like any
+  // other. This browser keeps the last four digits of it, as our tables do.
+  async function ring() {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) return setRefused("Write the number with its country code, like +1 718 555 0142. US and Indian numbers can be rung.");
+    if (!mineToRing) return setRefused("Tick the box first: we only ring a phone whose owner asked for the call.");
+    await send(`CALL ME ${phone.trim()}`, `CALL ME · the number ending ${digits.slice(-4)}`);
+    setCalling(false);
+    setPhone("");
+    setMineToRing(false);
+  }
+
   // Hear it. Our reply, as the tool wrote it, read aloud as it arrives.
   function listen(replyId: string) {
     player.current?.pause();
@@ -270,7 +323,24 @@ export default function Try({ go }: { go: (p: string) => void }) {
           </p>
         )}
         {messages.map((m) =>
-          m.who === "you" ? (
+          m.who === "call" ? (
+            <div key={`c${m.id}`} className={`try-call-card${["completed", "declined", "not answered"].includes(m.status ?? "") ? "" : " live"}`}>
+              <p className="try-call-head">
+                <span aria-hidden="true">📞</span> Call to the number ending {m.tail} · {callStands(m.status)}
+              </p>
+              {m.turns && m.turns.length > 0 && (
+                <ol className="try-turns">
+                  {m.turns.map((t, i) => (
+                    <li key={i} className={t.who === "you" ? "them" : "voice"}>
+                      <b>{t.who === "you" ? "You" : "Call"}</b>
+                      <span>{t.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {m.status !== "placing" && m.status !== "ringing" && m.status !== "on the call" && <p className="try-read">{m.status === "reading" ? "placed and heard by CALL-E · nothing is recorded until a second reader agrees" : callReadBy(m.readBy, m.cents, m.unsure)}</p>}
+            </div>
+          ) : m.who === "you" ? (
             <div key={`y${m.id}`} className="try-you">
               <p className="try-words">{mine[m.id] ?? "(what you wrote, from another browser)"}</p>
               <p className="try-read">{m.answered ? readBy(m.read, m.tool, m.cents, m.heard) : m.read === "agent" ? "GPT-6 Astra is reading it…" : "reading…"}</p>
@@ -304,6 +374,46 @@ export default function Try({ go }: { go: (p: string) => void }) {
               <small>{n.note}</small>
             </button>
           ))}
+        </div>
+      )}
+
+      {beenAsked && !onTheLine && (
+        <div className="try-call">
+          {!calling ? (
+            <button type="button" className="try-chip" onClick={() => setCalling(true)} disabled={busy || waiting}>
+              <span>📞 Or have it ring you, and answer out loud</span>
+              <small>a real phone call, placed by CALL-E · GPT-6 Astra reads the transcript before anything is recorded</small>
+            </button>
+          ) : (
+            <form
+              className="try-call-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void ring();
+              }}
+            >
+              <label htmlFor="try-phone">Your phone number, with its country code (US or India)</label>
+              <div className="try-call-row">
+                <input id="try-phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={24} placeholder="+1 718 555 0142" />
+                <button className="cta primary" type="submit" disabled={busy}>
+                  Call me
+                </button>
+                <button type="button" className="linklike" onClick={() => setCalling(false)}>
+                  Cancel
+                </button>
+              </div>
+              <label className="try-consent">
+                <input type="checkbox" checked={mineToRing} onChange={(e) => setMineToRing(e.target.checked)} />
+                <span>This is my own phone, and I am asking for one automated call to it, now.</span>
+              </label>
+              <p className="fine">
+                The call says at once that it is automated and that you asked for it, then asks about the repairs above, one at
+                a time. When you hang up, two readers go over it separately, CALL-E and GPT-6 Astra, and an answer is recorded
+                only where they agree. Your number goes to CALL-E to place the call; our own tables keep a hash of it and its
+                last four digits. One number is rung at most twice a day.
+              </p>
+            </form>
+          )}
         </div>
       )}
 
