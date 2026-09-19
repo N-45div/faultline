@@ -125,16 +125,37 @@ export const log = query({
       | { kind: "quiet"; count: number; from: number; to: number; hash: string };
     const commits: Entry[] = [];
     let shown = 0;
+    // Reads since 19 September carry their own tally and cost nothing to list.
+    // Older ones are counted from their change rows, within a budget: past it,
+    // an old commit is listed as one ("changes recorded", counts on its own
+    // page) rather than counted, so opening a log is never megabytes.
+    let budget = 450;
     for (const snap of snaps) {
       if (shown >= want) break;
-      const ch = snap.httpStatus === 304 ? [] : await ctx.db.query("changes").withIndex("by_snapshot", (q) => q.eq("snapshotId", snap._id)).take(201);
       let added = 0;
       let changed = 0;
       let removed = 0;
-      for (const c of ch.slice(0, 200)) {
-        if (c.kind === "added") added++;
-        else if (c.kind === "changed") changed++;
-        else removed++;
+      let more = false;
+      if (snap.added !== undefined || snap.changed !== undefined || snap.removed !== undefined) {
+        added = snap.added ?? 0;
+        changed = snap.changed ?? 0;
+        removed = snap.removed ?? 0;
+      } else if (snap.httpStatus !== 304) {
+        const ch = await ctx.db.query("changes").withIndex("by_snapshot", (q) => q.eq("snapshotId", snap._id)).take(budget > 0 ? 201 : 1);
+        if (budget > 0) {
+          budget -= Math.max(1, ch.length);
+          for (const c of ch.slice(0, 200)) {
+            if (c.kind === "added") added++;
+            else if (c.kind === "changed") changed++;
+            else removed++;
+          }
+          more = ch.length > 200;
+        } else if (ch.length > 0) {
+          // Known to be a commit; not counted here.
+          shown++;
+          commits.push({ kind: "commit", id: String(snap._id), hash: shortHash(snap.bodySha256), at: snap.capturedAt, status: snap.httpStatus, rows: snap.rowCount, added: 0, changed: 0, removed: 0, more: true });
+          continue;
+        }
       }
       if (added + changed + removed === 0) {
         const last = commits.at(-1);
@@ -146,7 +167,7 @@ export const log = query({
         continue;
       }
       shown++;
-      commits.push({ kind: "commit", id: String(snap._id), hash: shortHash(snap.bodySha256), at: snap.capturedAt, status: snap.httpStatus, rows: snap.rowCount, added, changed, removed, more: ch.length > 200 });
+      commits.push({ kind: "commit", id: String(snap._id), hash: shortHash(snap.bodySha256), at: snap.capturedAt, status: snap.httpStatus, rows: snap.rowCount, added, changed, removed, more });
     }
     const latestUrl = snaps.find((x) => x.requestUrl)?.requestUrl ?? "";
     return {
@@ -197,7 +218,7 @@ export const commit = query({
     const snap = await ctx.db.get(snapId);
     if (!snap) return null;
     const src = await ctx.db.get(snap.sourceId);
-    const ch = await ctx.db.query("changes").withIndex("by_snapshot", (q) => q.eq("snapshotId", snapId)).take(301);
+    const ch = await ctx.db.query("changes").withIndex("by_snapshot", (q) => q.eq("snapshotId", snapId)).take(101);
     const order = { removed: 0, changed: 1, added: 2 };
     return {
       slug: src?.slug ?? "",
@@ -218,7 +239,7 @@ export const commit = query({
           }
         : null,
       changes: ch
-        .slice(0, 300)
+        .slice(0, 100)
         .sort((a, b) => order[a.kind] - order[b.kind] || a.identityKey.localeCompare(b.identityKey))
         .map((c) => ({
           id: String(c._id),
@@ -232,7 +253,7 @@ export const commit = query({
           sentence: c.sentence,
           at: c.detectedAt,
         })),
-      more: ch.length > 300,
+      more: ch.length > 100,
     };
   },
 });

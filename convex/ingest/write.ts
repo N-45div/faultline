@@ -383,6 +383,18 @@ export const commitBatch = internalMutation({
         removedCount: (source.removedCount ?? 0) + tally.removed,
       });
 
+    // The commit's own tally, on its snapshot: every change written for it,
+    // emitted or not, because that is what the commit log shows. A commit
+    // arrives in slices, so this adds to what the earlier slices left.
+    if (args.changes.length > 0) {
+      const snap = await ctx.db.get(args.snapshotId);
+      if (snap) {
+        const n = { added: snap.added ?? 0, changed: snap.changed ?? 0, removed: snap.removed ?? 0 };
+        for (const c of args.changes) n[c.kind]++;
+        await ctx.db.patch(args.snapshotId, n);
+      }
+    }
+
     const changeIds: Id<"changes">[] = [];
     for (const c of args.changes) {
       changeIds.push(

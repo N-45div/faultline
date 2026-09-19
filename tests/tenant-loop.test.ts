@@ -432,3 +432,26 @@ test("the landing's reply card is one row, and ASK about that building answers f
   });
   expect(await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK")).toContain(`#${VIOLATION}`);
 });
+
+test("a commit keeps its own tally, and the file's log reads it instead of the change rows", async () => {
+  const t = make();
+  await seed(t);
+  const { sourceId, snapshotId } = await t.run(async (ctx) => {
+    const src = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
+    const snap = await ctx.db.insert("snapshots", { sourceId: src!._id, capturedAt: Date.now(), requestUrl: "https://city.test/file", httpStatus: 200, bodySha256: "1".repeat(64), rowCount: 3, degraded: false });
+    return { sourceId: src!._id, snapshotId: snap };
+  });
+  const change = (kind: "added" | "changed" | "removed", id: string) => ({ identityKey: `${BBL}/${id}`, subjectKey: BBL, kind, changed: ["currentstatus"], after: { ...FIELDS, violationid: id }, sentence: `A violation at ${LABEL} moved.` });
+  // A commit arrives in slices; the tally adds up across them.
+  await t.mutation(internal.ingest.write.commitBatch, { sourceId, snapshotId, capturedAt: Date.now(), observations: [], changes: [change("added", "1"), change("changed", "2")], sourceUrl: "https://city.test/file" });
+  await t.mutation(internal.ingest.write.commitBatch, { sourceId, snapshotId, capturedAt: Date.now(), observations: [], changes: [change("changed", "3")], sourceUrl: "https://city.test/file" });
+  expect(await t.run((ctx) => ctx.db.get(snapshotId))).toMatchObject({ added: 1, changed: 2, removed: 0 });
+
+  // The rows behind it could be gone; the log still says what the commit did.
+  await t.run(async (ctx) => {
+    for (const c of await ctx.db.query("changes").collect()) await ctx.db.delete(c._id);
+  });
+  const log = await t.query(api.files.log, { slug: "nyc-hpd" });
+  const first = log?.commits.find((c) => c.kind === "commit");
+  expect(first).toMatchObject({ added: 1, changed: 2, removed: 0, more: false });
+});

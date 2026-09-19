@@ -119,7 +119,8 @@ export function FileLog({ slug, go }: { slug: string; go: (p: string) => void })
                   {c.added > 0 && <span className="add">+{n(c.added)}</span>}
                   {c.changed > 0 && <span className="mod">~{n(c.changed)}</span>}
                   {c.removed > 0 && <span className="del">−{n(c.removed)}</span>}
-                  {c.more && <span className="muted">+</span>}
+                  {c.more && c.added + c.changed + c.removed > 0 && <span className="muted">+</span>}
+                  {c.more && c.added + c.changed + c.removed === 0 && <span className="muted">changes recorded</span>}
                   <span> view diff →</span>
                 </a>
               </li>
@@ -237,7 +238,7 @@ export function Commit({ id, go }: { id: string; go: (p: string) => void }) {
             );
           })}
         </ul>
-        {c.more && <p className="fine">Showing the first 300 changes of this commit.</p>}
+        {c.more && <p className="fine">Showing the first 100 changes of this commit.</p>}
       </section>
     </>
   );

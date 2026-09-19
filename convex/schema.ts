@@ -87,6 +87,15 @@ export default defineSchema({
     bodySha256: v.string(),
     bodyStorageId: v.optional(v.id("_storage")),
     rowCount: v.number(),
+    /**
+     * What this read changed, counted as it was written. The commit log used to
+     * learn these by reading up to 201 change rows for every commit it showed -
+     * nine megabytes to open the housing file's log once. Absent on reads from
+     * before 19 September.
+     */
+    added: v.optional(v.number()),
+    changed: v.optional(v.number()),
+    removed: v.optional(v.number()),
     degraded: v.boolean(),
     pinnedUntil: v.optional(v.number()),
     /** The page as Firecrawl captured it, kept with a read that changed something. */
