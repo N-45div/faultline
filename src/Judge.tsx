@@ -436,8 +436,8 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         </p>
         <p className="fine">
           The build log is in the repository as hackathon.md, one entry per commit, corrections included.{" "}
-          <a href="https://github.com/N-45div/faultline" target="_blank" rel="noreferrer">
-            github.com/N-45div/faultline →
+          <a href="https://gitlab.com/ndivij2004/faultline" target="_blank" rel="noreferrer">
+            gitlab.com/ndivij2004/faultline →
           </a>
         </p>
       </section>

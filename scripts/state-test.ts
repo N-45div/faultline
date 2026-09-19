@@ -8,7 +8,7 @@ import { warnNoticeGap } from "../engine/rules";
 // Reads each new state's real file and asserts on what actually comes back.
 //   npx tsx scripts/state-test.ts
 
-const UA = "Notice/0.1 (+https://github.com/N-45div/notice; keeps dated copies of public filings)";
+const UA = "Faultline/0.1 (+https://clear-dogfish-72.convex.site; keeps dated copies of public filings)";
 const iso = /^\d{4}-\d{2}-\d{2}$/;
 let failures = 0;
 const ok = (label: string, cond: boolean, detail = "") => {

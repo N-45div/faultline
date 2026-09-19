@@ -7,7 +7,7 @@
 - **Try it without email or sign-in:** https://clear-dogfish-72.convex.site/try
 - **Tour for judges:** https://clear-dogfish-72.convex.site/judge
 - **Demo video:** https://www.youtube.com/watch?v=oZGHuZrlAnQ
-- **Repo:** https://github.com/N-45div/faultline
+- **Repo:** https://gitlab.com/ndivij2004/faultline (moved from GitHub on 20 Sep 2026 with its whole history, every commit and date as it was)
 - **Frontend:** Convex static hosting (convex.site)
 - **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held)
 - **Components (4):** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex, @convex-dev/rate-limiter
