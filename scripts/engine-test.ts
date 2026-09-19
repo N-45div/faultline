@@ -232,6 +232,7 @@ console.log("\n== tenant loop");
   const qs = [{ violationId: "19041834", description: "§ 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE VINYL FLOOR TILES IN THE KITCHEN LOCAT…", statusDate: "2026-09-17" }];
   const task = callTask(qs, "getnotice@agentmail.to");
   check(task.includes("This is an automated call from Faultline") && task.includes("If you did not ask for this call"), "call: it says at once that it is automated and was asked for");
+  check(!task.includes("say so now") && task.includes("Do not wait for a reply to that opening") && task.includes("Be patient with silence") && task.includes("Do not end the call because of one silence"), "call: the opening asks nothing and runs into the first repair, and one silence does not end the call (the first real call ended on exactly that)");
   check(task.includes("the broken or defective vinyl floor tiles in the kitchen") && !/§|LOCAT|…/.test(task), "call: the city's words, made sayable");
   check(task.includes("on September 17") && task.includes("violation 19041834"), "call: the claim's date, and the number the answer comes back under");
   check(/Never state a fact that is not written above/.test(task) && /Never ask for a name/.test(task), "call: the voice is told to add nothing and to ask for no personal detail");

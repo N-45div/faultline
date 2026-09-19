@@ -55,10 +55,14 @@ export function callTask(questions: CallQuestion[], inbox: string): string {
   return [
     "You are placing one short automated phone call for Faultline, a free service that keeps a New York City tenant's own word beside the city's housing record. The person you are calling asked for this call a moment ago on Faultline's website, by typing this phone number themselves.",
     "",
-    'Say this first, exactly: "Hello. This is an automated call from Faultline. You asked for it on our website a moment ago, and it takes about a minute. If you did not ask for this call, say so now and we will not call this number again."',
-    "If they say they did not ask for it, or ask not to be called, apologise in one sentence, tell them this number will not be called again, and end the call.",
+    // The first real call ended in silence: the opening finished on "say so now", the person who HAD asked
+    // for the call had nothing to say to that, and the voice took ten seconds of quiet for nobody being there.
+    // So the opening asks nothing. It runs straight into the first repair, and the voice is told to be patient.
+    'Say this first, exactly: "Hello. This is an automated call from Faultline. You asked for it on our website a moment ago, and it takes about a minute. If you did not ask for this call, tell me at any time and we will not call this number again. Here is the first question."',
+    "Do not wait for a reply to that opening: go straight on to the first repair. If at any point they say they did not ask for the call, or ask not to be called, apologise in one sentence, tell them this number will not be called again, and end the call.",
     "",
-    `Then ask about each of the ${questions.length === 1 ? "repair" : `${questions.length} repairs`} below, one at a time, in this order. Let them answer in their own words. If an answer is unclear, ask once more, then move on.`,
+    `Ask about each of the ${questions.length === 1 ? "repair" : `${questions.length} repairs`} below, one at a time, in this order. After each question, stop and give them time: people think before they answer, and some are reading the record while you speak. Let them answer in their own words. If an answer is unclear, ask once more, then move on.`,
+    'Be patient with silence. If they say nothing for several seconds after a question, say "Are you still there? Take your time." and ask that question once more. Do not end the call because of one silence. Only if nobody has spoken at all after you have asked the first question twice, say "We could not hear you. You can answer on the page instead. Goodbye." and end the call.',
     repairs,
     "",
     'When you have asked about every repair, say exactly: "Thank you. Your answers are kept, dated, beside the city\'s record, and they are on the page you called from. Goodbye." Then end the call.',
