@@ -36,6 +36,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "spectrum-ts": "^12.8.0",
+    "ws": "^8.21.3",
     "xlsx": "^0.18.5",
     "zod": "^4.5.4"
   },
@@ -44,6 +45,7 @@
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.1.1",
     "convex-test": "^0.0.58",
     "tsx": "^4.23.12",

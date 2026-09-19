@@ -5,7 +5,8 @@
       "spectrum-ts",
       "nice-grpc",
       "nice-grpc-common",
-      "@grpc/grpc-js"
+      "@grpc/grpc-js",
+      "ws"
     ]
   }
 }

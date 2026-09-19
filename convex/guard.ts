@@ -10,9 +10,9 @@
 // A paused email is queued, not dropped; a paused read is skipped and picked
 // up at the next tick; a paused model call answers "we didn't look".
 
-export type Pausable = "mail" | "ingest" | "llm" | "web" | "calls";
+export type Pausable = "mail" | "ingest" | "llm" | "web" | "calls" | "live";
 
-const PAUSABLE = new Set(["all", "mail", "ingest", "llm", "web", "calls"]);
+const PAUSABLE = new Set(["all", "mail", "ingest", "llm", "web", "calls", "live"]);
 
 export function pausedSet(): Set<string> {
   const asked = (process.env.NOTICE_PAUSE ?? "").toLowerCase().split(/[,\s]+/).filter(Boolean);

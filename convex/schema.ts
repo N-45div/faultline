@@ -288,6 +288,20 @@ export default defineSchema({
     .index("by_call", ["callId"])
     .index("by_thread", ["threadId", "createdAt"]),
 
+  /**
+   * A conversation with gpt-live-1 on /try: when it began, when it ended and at
+   * how many seconds, and who ended it. Nothing that was said is here; what was
+   * said went through the door a typed message uses, and is kept as one is.
+   */
+  liveSessions: defineTable({
+    session: v.string(),
+    liveId: v.string(),
+    createdAt: v.number(),
+    endedAt: v.optional(v.number()),
+    seconds: v.optional(v.number()),
+    endedBy: v.optional(v.string()),
+  }).index("by_session", ["session", "createdAt"]),
+
   receipts: defineTable({
     inboxId: v.optional(v.id("inbox")),
     threadId: v.optional(v.string()),

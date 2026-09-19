@@ -35,6 +35,10 @@ export const limits = new RateLimiter(components.rateLimiter, {
   webHear: { kind: "fixed window", rate: 120, period: DAY },
   webSpeakSender: { kind: "fixed window", rate: 25, period: DAY },
   webSpeak: { kind: "fixed window", rate: 150, period: DAY },
+  // A conversation with gpt-live-1 is billed by the second for as long as it
+  // is open, and the server ends each one at two and a half minutes.
+  webLiveSender: { kind: "fixed window", rate: 3, period: DAY },
+  webLive: { kind: "fixed window", rate: 25, period: DAY },
   // A call rings a real telephone and spends real credit. One number is rung
   // at most twice a day, one browser twice, and the whole trial twelve times.
   callSender: { kind: "fixed window", rate: 2, period: DAY },
