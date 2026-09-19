@@ -1133,3 +1133,8 @@ a {
     max-width: 100%;
   }
 }
+
+/* A two-word link is still one link. */
+.links a {
+  white-space: nowrap;
+}
