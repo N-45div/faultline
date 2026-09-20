@@ -15,6 +15,7 @@ import { canTalk, useLive } from "./useLive";
 
 const KEY = "faultline.try.session";
 const MINE = "faultline.try.mine";
+const GUIDE = "faultline.try.guide";
 
 const hex = (bytes: number) => Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -190,6 +191,48 @@ export default function Try({ go }: { go: (p: string) => void }) {
   // A call needs something to ask about, and one call at a time is plenty.
   const beenAsked = ours.some((m) => /Are they\?|Is it\?/.test(m.text));
   const onTheLine = messages.some((m) => m.who === "call" && ["placing", "ringing", "on the call", "reading"].includes(m.status ?? ""));
+
+  // A guide for a first visit. It is not a script: it reads what this thread has
+  // actually done and says the next thing worth doing, so it can never be ahead
+  // of the page or stuck behind it. Hidden for good once dismissed.
+  const [guideOff, setGuideOff] = useState(() => {
+    try {
+      return localStorage.getItem(GUIDE) === "off";
+    } catch {
+      return false;
+    }
+  });
+  const hideGuide = () => {
+    setGuideOff(true);
+    try {
+      localStorage.setItem(GUIDE, "off");
+    } catch {
+      /* hidden for this visit only */
+    }
+  };
+  const answeredOnce = ours.some((m) => stampOf(m.text) !== null);
+  const guide: { step: 1 | 2 | 3; head: string; body: string } = answeredOnce
+    ? {
+        step: 3,
+        head: "That is the whole loop.",
+        body: "Look under your message: it says how it was heard, who read it, which tool finished, and what the run cost. The stamp is what was recorded. Next, try a company name, or FIND an owner.",
+      }
+    : onTheLine
+      ? { step: 2, head: "Your phone is about to ring.", body: "Pick up and answer in your own words. When you hang up, the transcript lands here and two readers go over it before anything is recorded." }
+      : beenAsked
+        ? {
+            step: 2,
+            head: "Now answer it, any way you like.",
+            body: "Tap a suggestion, type a sentence, press Say it, press Talk to it for a live voice, or have it ring your phone. A number and a word needs no model; a sentence goes to GPT-6 Astra, which may only pick a tool.",
+          }
+        : {
+            step: 1,
+            head: messages.length === 0 ? "Start here: press the first button." : "Ask about a building first.",
+            body:
+              messages.length === 0
+                ? "It asks about a real Brooklyn building. The reply is the city's own file: each repair the owner says is done, and the day the city will close it on the owner's word."
+                : "Type ASK and a New York City address, like ASK 155 Linden Boulevard, Brooklyn. The reply lists each repair the owner says is done.",
+          };
 
   useEffect(() => {
     if (messages.length > 0) end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -405,10 +448,23 @@ export default function Try({ go }: { go: (p: string) => void }) {
         <div ref={end} />
       </div>
 
+      {!guideOff && live.state === "idle" && (
+        <div className="try-guide" role="note">
+          <span className="try-guide-step">Step {guide.step} of 3</span>
+          <div>
+            <p className="try-guide-head">{guide.head}</p>
+            <p className="try-guide-body">{guide.body}</p>
+          </div>
+          <button type="button" className="linklike" onClick={hideGuide}>
+            {guide.step === 3 ? "Got it" : "Hide the guide"}
+          </button>
+        </div>
+      )}
+
       {next.length > 0 && (
         <div className="try-next">
-          {next.map((n) => (
-            <button key={n.label} className="try-chip" disabled={busy || waiting} onClick={() => void send(n.send)} title={n.note}>
+          {next.map((n, i) => (
+            <button key={n.label} className={`try-chip${!guideOff && i === 0 && (guide.step === 1 || (guide.step === 2 && !onTheLine)) ? " guide-pulse" : ""}`} disabled={busy || waiting} onClick={() => void send(n.send)} title={n.note}>
               <span>{n.label}</span>
               <small>{n.note}</small>
             </button>
