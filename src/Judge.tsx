@@ -73,7 +73,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
       </p>
 
       <section className="tour-intro">
-        <p className="kicker">For judges · eight minutes · no email and no sign-in needed</p>
+        <p className="kicker">For judges · ninety seconds, or eight minutes · no email and no sign-in needed</p>
         <h1 className="lede-title">The landlord told the city it's fixed. Faultline asks the person living with it.</h1>
         <p className="lede-sub">
           Ten public files, read on a schedule and kept whole because the agencies overwrite theirs, and one question
@@ -82,6 +82,27 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           Everything below is live: the numbers are Convex queries rendered as you look, and every button sends a real
           email.
         </p>
+        <div className="ninety">
+          <p className="ninety-h">If you have ninety seconds</p>
+          <ol>
+            <li>
+              Open{" "}
+              <a href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>
+                /try
+              </a>{" "}
+              and press the first button. A real Brooklyn building answers from the city's file, with no model.
+            </li>
+            <li>
+              Press <strong>Or have it ring you</strong> and write your own number (US or India). Your phone rings in
+              about thirty seconds, and a voice asks you the same questions.
+            </li>
+            <li>
+              Hang up and watch the page: the transcript arrives, GPT-6 Astra reads it without seeing what CALL-E made of
+              it, and only what the two agree on is recorded. Or press <strong>Talk to it</strong> and do the same by
+              live voice with gpt-live-1.
+            </li>
+          </ol>
+        </div>
         <p className="tour-ctas">
           <a className="cta primary" href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>
             Do steps 1 to 3 in your browser, no email →

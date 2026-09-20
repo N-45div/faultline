@@ -88,6 +88,14 @@ export default function Landing({ go }: { go: (p: string) => void }) {
                 Email ASK and your address
               </a>
             </div>
+            <p className="doors">
+              <strong>Or don't type at all.</strong> On the same page you can say your answer, talk it through with a
+              live voice, or{" "}
+              <a href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>
+                have it ring your phone
+              </a>
+              : a real call asks you, and two readers check what you said before anything is recorded.
+            </p>
             <p className="fine">
               Free, to {INBOX}. Nothing to install, nothing to sign up for. Your answers stay private to you.
             </p>
