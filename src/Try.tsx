@@ -127,6 +127,17 @@ export function neighbourSentence(reply: string): string {
   return `Nobody has been to look at the ${words.join(" ")}. It looks the same as it did before.`;
 }
 
+/**
+ * What a receipt records, as a stamp on it. Read from the tool's own first
+ * line ("Kept, dated: you said still broken on ..."), so the stamp can only
+ * ever say what was recorded.
+ */
+function stampOf(reply: string): { word: string; kind: "broken" | "fixed" | "unsure" } | null {
+  const said = /^Kept, dated: you said (still broken|fixed|not sure) on /.exec(reply)?.[1];
+  if (!said) return null;
+  return said === "still broken" ? { word: "STILL BROKEN", kind: "broken" } : said === "fixed" ? { word: "FIXED", kind: "fixed" } : { word: "NOT SURE", kind: "unsure" };
+}
+
 /** Our replies are plain text, as the email is. Links in them should open. */
 function Linked({ text }: { text: string }) {
   const parts = text.split(/(https?:\/\/[^\s)]+)/g);
@@ -379,6 +390,12 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 </button>
               </div>
               <div className="mail-body try-text">
+                {stampOf(m.text) && (
+                  <span className={`try-stamp ${stampOf(m.text)!.kind}`} aria-hidden="true">
+                    {stampOf(m.text)!.word}
+                    <small>kept · dated</small>
+                  </span>
+                )}
                 <Linked text={m.text} />
               </div>
             </div>
