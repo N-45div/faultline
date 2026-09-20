@@ -1648,6 +1648,30 @@ Both failed calls are on the table as what they were - "not answered", nothing
 recorded - and the number was not put on the do-not-call list, because hanging
 up is not saying you never asked.
 
+### 2026-09-21 - ea6ad93
+A judge with ninety seconds should not have to find the best thing here. The
+landing said nothing about voice or the telephone: both were two clicks and one
+question deep. Its first screen now says you can say it, talk it through, or
+have your phone rung, and the tour opens with "If you have ninety seconds":
+press the first button, have it ring you, watch two readers agree.
+
+### 2026-09-21 - d1ddb2a
+The product's own drama, drawn. Every repair on the landing card carries HPD's
+70 days as a clock ("day 5 of 70 - 65 days until the city closes it on the
+owner's word"), from challengeDeadline()'s own arithmetic. On /try an answer is
+stamped onto its receipt - STILL BROKEN, FIXED, NOT SURE, "kept, dated" - and
+the stamp is parsed from the first line the tool wrote, so it can only say what
+was recorded. No cartoon tenants: the person this is for has a leaking ceiling.
+No new query and no new row.
+
+### 2026-09-21 - edac3ae
+A guide for a first visit to /try. It is not a script: it reads what the thread
+has done and says the next thing worth doing, so it cannot run ahead of the
+page or get stuck behind it, and the button it means pulses. Walked on
+production from a clean browser: step 1, the first button; step 2, answer any
+way you like; step 3, what is under your message; "Got it", and it stays gone
+after a reload.
+
 ## About
 
 When a landlord in New York City tells the housing agency a repair is done, the
