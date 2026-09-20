@@ -6,7 +6,7 @@ Faultline asks the person living with it, keeps their answer dated beside the ci
 
 It is an inbox. There is nothing to install and no account to make. **No email handy? [Try it in your browser](https://clear-dogfish-72.convex.site/try)**: the same handler, the same agent, the reply arriving live, with no sign-in.
 
-**Live:** https://clear-dogfish-72.convex.site · **Try it, no email:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://www.youtube.com/watch?v=oZGHuZrlAnQ) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), one entry per commit
+**Live:** https://clear-dogfish-72.convex.site · **Try it, no email:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://youtu.be/Xa8uKOZP-Y4) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), one entry per commit
 
 Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 

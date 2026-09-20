@@ -6,7 +6,7 @@
 - **Live app:** https://clear-dogfish-72.convex.site
 - **Try it without email or sign-in:** https://clear-dogfish-72.convex.site/try
 - **Tour for judges:** https://clear-dogfish-72.convex.site/judge
-- **Demo video:** https://www.youtube.com/watch?v=oZGHuZrlAnQ
+- **Demo video:** https://youtu.be/Xa8uKOZP-Y4
 - **Repo:** https://gitlab.com/ndivij2004/faultline (moved from GitHub on 20 Sep 2026 with its whole history, every commit and date as it was)
 - **Frontend:** Convex static hosting (convex.site)
 - **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held)
@@ -19,7 +19,7 @@
 - **Photon:** the same inbox by text, behind a signed webhook
 - **CALL-E:** the same questions on a real telephone: one API call carrying the script the tools wrote and a strict result schema, an unsigned webhook believed for nothing but a call id, the call read back with our own key, and the transcript read a second time by GPT-6 Astra before anything is recorded
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-20
+- **Last updated:** 2026-09-21
 
 ## Log
 
