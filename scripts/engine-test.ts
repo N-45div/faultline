@@ -11,7 +11,9 @@ import { adapters } from "../engine/adapters/index";
 import { hashFields } from "../engine/canon";
 import { diffRows } from "../engine/diff";
 import { warnNoticeGap } from "../engine/rules";
-import { askFrom, challengeDeadline, fixedClaim, nextStepFor, parseAnswer, pickAsks, secondWordLine } from "../engine/hpd";
+import { askFrom, askHeadline, askLine, challengeDeadline, fixedClaim, howToAnswer, nextStepFor, parseAnswer, pickAsks, secondWordLine, type Ask } from "../engine/hpd";
+import { askRows, plainThing } from "../engine/askRows";
+import { receiptText, type Receipt } from "../engine/receipt";
 import { classifyInbound } from "../engine/intent";
 import { changedLines } from "../engine/evidence";
 import { forSpeech, SPOKEN_MAX } from "../engine/speech";
@@ -301,6 +303,71 @@ console.log("\n== tenant loop");
     const given = secondReaderInput([{ violationId: "1", description: "REPAIR THE LEAK  AT CEILING", statusDate: "2026-08-01" }], turns);
     check(given.includes("violation 1: REPAIR THE LEAK AT CEILING") && given.includes("THEM: No. The super") && given.includes("CALL: Is it fixed") && !given.includes("still_broken"), "call: the second reader is handed the questions and the transcript, and not the first reader's answers");
   }
+}
+
+// /try reads an ASK reply back into its repairs. The reply is built here the
+// way convex/inbound.ts builds it (askReceiptFor, then deliver's receiptText),
+// so the parser is checked against the real text, not a copy of it.
+console.log("\n== the ASK reply, read back into rows");
+{
+  const where = "155 LINDEN BOULEVARD, Brooklyn";
+  const row = (violationid: string, cls: string, novdescription: string, date = "2026-09-17", certified: string | null = "2026-09-17", status = "NOV CERTIFIED ON TIME") =>
+    askFrom({ violationid, currentstatus: status, currentstatusdate: date, certifiedbydate: certified, class: cls, novdescription })!;
+  const reply = (asks: Ask[]) => {
+    const r: Receipt = {
+      kind: "none",
+      query: "ask:3050840061",
+      subjectKey: "3050840061",
+      headline: askHeadline(asks.length),
+      blocks: [asks.map((a) => `- ${askLine(a, where)}`), howToAnswer(asks[0].violationId)],
+      links: [
+        { label: "Your answers, beside the city's record", url: "https://faultline.test/r/0a1b2c3d" },
+        { label: "This building's record", url: "https://faultline.test/b/3050840061" },
+      ],
+      footer: [],
+    };
+    return receiptText(r);
+  };
+  const three = [
+    row("19041834", "A", "§ 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE VINYL FLOOR TILES IN THE KITCHEN LOCATED AT APT 4C, 4th STORY, 1st APARTMENT FROM NORTH AT EAST"),
+    row("19106317", "B", "§ 27-2026, 2027 HMC: PROPERLY REPAIR THE SOURCE AND ABATE THE EVIDENCE OF A WATER LEAK AT CEILING AND EAST WALL IN THE 2nd ROOM FROM NORTH LOCATED AT APT 4C, 4th STORY"),
+    row("19106318", "B", "§ 27-2005 ADM CODE REPAIR THE BROKEN OR DEFECTIVE PLASTERED SURFACES AND PAINT IN A UNIFORM COLOR AT CEILING AND EAST WALL IN THE 2nd ROOM FROM NORTH LOCATED AT APT 4C"),
+  ];
+  const text = reply(three);
+  const rows = askRows(text);
+  check(rows.map((r) => r.id).join() === "19041834,19106317,19106318", `ASK rows: the three numbers, in order (got ${rows.map((r) => r.id).join() || "none"})`);
+  check(rows.map((r) => r.cls).join() === "A,B,B" && rows.every((r) => r.until === "2026-11-26" && r.asOf === "2026-09-17" && r.status === "NOV CERTIFIED ON TIME"), "ASK rows: the class, the status, its date, and HPD's 70 days to 2026-11-26");
+  check(rows.every((r, i) => r.line === askLine(three[i], where)) && rows[0].cityWords.endsWith("LOCAT…"), "ASK rows: each is askLine's own line, the city's words cut where the reply cut them");
+  check(rows.map((r) => r.thing).join("|") === "Vinyl floor tiles|Water leak|Plastered surfaces", `plainThing: the tiles, the leak and the plaster (got ${rows.map((r) => r.thing).join("|")})`);
+  check(
+    plainThing("HMC ADM CODE: § 27-2017.4 ABATE THE INFESTATION CONSISTING OF ROACHES IN THE ENTIRE APARTMENT") === "Roaches" &&
+      plainThing("REPLACE OR REPAIR THE SELF-CLOSING DOORS THAT IS MISSING OR DEFECTIVE") === null &&
+      plainThing("REPAIR THE BROKEN OR DEFECTIVE VINYL FLO…") === null,
+    "plainThing: roaches; nothing for a text that names no thing plainly, or one cut through the thing",
+  );
+  const kept = [
+    "Kept, dated: you said still broken on 2026-09-21.",
+    "",
+    `The city's file: #19041834 at ${where} (class A) — "VINYL FLOOR TILES": NOV CERTIFIED ON TIME as of 2026-09-17; the owner certified it on 2026-09-17.`,
+    "Your word: still broken, 2026-09-21.",
+  ].join("\n");
+  const found = [
+    '3 pages on the open web name "Linden Plaza Preservation LLC".',
+    "",
+    "1. Linden Plaza - example.org",
+    "- #19041834 at somewhere. The city closed this: VIOLATION CLOSED as of 2026-09-01.",
+  ].join("\n");
+  check(askRows(kept).length === 0 && askRows(found).length === 0, "ASK rows: none from a kept answer or a FIND reply, even one holding a line that reads like a repair");
+  const quoted = row("19106399", "C", 'FIX "IT". The city closed this: VIOLATION CLOSED as of 2020-01-01. HPD\'s 70 days run to 2020-03-11. "X');
+  const q = askRows(reply([quoted]));
+  check(q.length === 0 || (q.length === 1 && q[0].id === "19106399" && q[0].status === "NOV CERTIFIED ON TIME" && q[0].until === "2026-11-26"), `ASK rows: a description holding quotation marks and our own words reads as the right repair or not at all (got ${JSON.stringify(q.map((r) => [r.id, r.status]))})`);
+  const late = askRows(reply([row("19041834", "A", "BROKEN OR DEFECTIVE VINYL FLOOR TILES", "2026-09-17T00:00:00.000", "2026-09-17")]));
+  const closed = askRows(reply([row("19041835", "", "", "2026-09-12T00:00:00.000", "2026-09-01T00:00:00.000", "VIOLATION CLOSED")]));
+  check(late.length === 1 && late[0].asOf === "2026-09-17" && late[0].until === "2026-11-26", "ASK rows: a status date with a time on it reads as its day");
+  check(closed.length === 1 && closed[0].status === "VIOLATION CLOSED" && closed[0].until === null && closed[0].cls === null && closed[0].cityWords === "", "ASK rows: a closure, with the owner's earlier date, no class and no description");
+  const one = text.split("\n");
+  const broken = one.map((l) => (l.startsWith("- #19106317") ? l.replace(" as of ", " on ") : l)).join("\n");
+  check(askRows(broken).length === 0, "ASK rows: one line that does not read back and none is used");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
