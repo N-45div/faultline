@@ -15,9 +15,13 @@ export const SAMPLE_ASK = "ASK 155 Linden Boulevard, Brooklyn";
  * challengeDeadline): the day the owner certified, and the day the violation
  * closes on the owner's word if nobody goes back to look.
  */
-function Clock({ ask, today }: { ask: Ask; today: string }) {
+export function Clock({ ask, today }: { ask: Ask; today: string }) {
   const until = challengeDeadline(ask);
-  if (!until) return null;
+  return until ? <ClockUntil until={until} today={today} /> : null;
+}
+
+/** The same bar, from the last of the 70 days as a reply already states it. */
+export function ClockUntil({ until, today }: { until: string; today: string }) {
   const left = Math.max(0, Math.round((Date.parse(`${until}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000));
   const day = Math.min(70, Math.max(0, 70 - left));
   return (

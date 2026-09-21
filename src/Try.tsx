@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { INBOX, mailto } from "./Pricing";
-import { SAMPLE_ASK } from "./AskCard";
+import { ClockUntil, SAMPLE_ASK } from "./AskCard";
 import { canTalk, useLive } from "./useLive";
+import { askRows, type AskRow } from "../engine/askRows";
 
 // The inbox, without the email. What is typed here goes through the handler an
 // email goes through - the same keyword reader, the same agent, the same tools
@@ -141,14 +142,70 @@ function stampOf(reply: string): { word: string; kind: "broken" | "fixed" | "uns
   return said === "still broken" ? { word: "STILL BROKEN", kind: "broken" } : said === "fixed" ? { word: "FIXED", kind: "fixed" } : { word: "NOT SURE", kind: "unsure" };
 }
 
-/** Our replies are plain text, as the email is. Links in them should open. */
+/** Which repair a kept answer is about, from the receipt's own line for it. */
+function answeredId(reply: string): string | null {
+  return stampOf(reply) ? (/^The city's file: #(\d{5,10}) at /m.exec(reply)?.[1] ?? null) : null;
+}
+
+/**
+ * An ASK reply without its headline, its repair lines, which the page draws as
+ * rows, and the line on typing an answer, which the rows' buttons do: what
+ * becomes of an answer, and the links.
+ */
+function restOf(reply: string): string {
+  return reply
+    .split("\n")
+    .slice(1)
+    .filter((l) => !l.startsWith("- #") && !l.startsWith("Reply with the number and one of FIXED"))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** The three answers, as the button says them and as the keyword reader reads them. */
+const ANSWERS = [
+  ["still_broken", "Still broken", "STILL BROKEN"],
+  ["fixed", "Fixed", "FIXED"],
+  ["not_sure", "Not sure", "NOT SURE"],
+] as const;
+
+/**
+ * A kept page's receipt, read from its own lines (agentPageKept in
+ * convex/inbound.ts): the checksum, the copy we hold, the picture of it, and
+ * the page as it is today. Null for any other reply, or one missing a line.
+ */
+function keptOf(reply: string): { shot: string | null; served: string; today: string; sha: string } | null {
+  if (!/^Kept(?:: | the page at )/.test(reply)) return null;
+  const link = (label: string) => new RegExp(`^${label}: (https?://\\S+)$`, "m").exec(reply)?.[1] ?? null;
+  const sha = / · SHA-256 ([0-9a-f]{16})…$/m.exec(reply)?.[1];
+  const served = link("The page as it was served");
+  const today = link("The page today");
+  if (!sha || !served || !today) return null;
+  return { shot: link("The page as it looked"), served, today, sha };
+}
+
+/** A reply to FIND (the first word that it is looking, what names them, nothing, or why not), or the page it kept. */
+function lookedUp(reply: string): boolean {
+  return /^(?:Looking for ".*" now\.|\d+ pages? on the open web names? "|Nothing on the open web names "|We couldn't look that up: |Kept(?:: | the page at ))/.test(reply);
+}
+
+/**
+ * A link to a person's record, where their answers sit beside the city's. Read
+ * only from our own line for it (the ASK and answer receipts in
+ * convex/inbound.ts), with the whole 40-character token, so a page some reply
+ * merely names, like a forum's /r/..., is never taken for it.
+ */
+const RECORD_LINK = /^Your answers, beside the city's record: (https?:\/\/\S+\/r\/[a-f0-9]{40})\r?$/gm;
+const recordIn = (reply: string): string | undefined => [...reply.matchAll(RECORD_LINK)].at(-1)?.[1];
+
+/** Our replies are plain text, as the email is. Links in them should open. A record opens beside the thread. */
 function Linked({ text }: { text: string }) {
   const parts = text.split(/(https?:\/\/[^\s)]+)/g);
   return (
     <>
       {parts.map((p, i) =>
         /^https?:\/\//.test(p) ? (
-          <a key={i} href={p} target={p.includes(location.host) ? undefined : "_blank"} rel="noreferrer">
+          <a key={i} href={p} target={p.includes("/r/") || !p.includes(location.host) ? "_blank" : undefined} rel="noreferrer">
             {p.length > 64 ? `${p.slice(0, 61)}…` : p}
           </a>
         ) : (
@@ -213,11 +270,15 @@ export default function Try({ go }: { go: (p: string) => void }) {
     }
   };
   const answeredOnce = ours.some((m) => stampOf(m.text) !== null);
+  // The newest link to their record in anything we replied. The record page
+  // holds a live query on it, so an answer given here shows there by itself.
+  const rec = ours.map((m) => recordIn(m.text)).filter((u): u is string => Boolean(u)).at(-1) ?? null;
+  const foundOnce = ours.some((m) => lookedUp(m.text));
   const guide: { step: 1 | 2 | 3; head: string; body: string } = answeredOnce
     ? {
         step: 3,
         head: "That is the whole loop.",
-        body: "Look under your message: how it was heard, who read it, which tool finished, and what it cost. The stamp is what was recorded. Next: who owns this building, or the same thing from your own email.",
+        body: "Under your message: how it was heard, who read it, which tool finished, and what it cost. The stamp is what was recorded. Next: open your record beside this page and answer another repair, ask who owns the building, or do it from your own email.",
       }
     : onTheLine
       ? { step: 2, head: "Your phone is about to ring.", body: "Pick up and answer in your own words. When you hang up, the transcript lands here and two readers go over it before anything is recorded." }
@@ -225,7 +286,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
         ? {
             step: 2,
             head: "Now answer it, any way you like.",
-            body: "Tap a suggestion, type a sentence, press Say it, press Talk to it for a live voice, or have it ring your phone. A number and a word needs no model; a sentence goes to GPT-6 Astra, which may only pick a tool.",
+            body: "Tap Still broken on a repair (read with no model), or press the suggested sentence: GPT-6 Astra reads your own words and may only pick a tool. Or talk to it, or have it ring your phone.",
           }
         : {
             step: 1,
@@ -236,9 +297,29 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 : "Type ASK and a New York City address, like ASK 155 Linden Boulevard, Brooklyn. The reply lists each repair the owner says is done.",
           };
 
+  // The thread follows its newest message. And the moment the record card
+  // first appears - drawn below the guide, under the end of the thread - the
+  // page lets the stamp land, then brings the card up to the bottom of the
+  // screen, with as much of the stamped reply above it as fits. A thread that
+  // already had the card when the page opened is not moved for it.
+  const card = useRef<HTMLDivElement>(null);
+  const cardSeen = useRef<boolean | null>(null);
+  const cardTimer = useRef<number | undefined>(undefined);
+  const hasCard = answeredOnce && rec !== null;
+  useEffect(() => () => window.clearTimeout(cardTimer.current), []);
   useEffect(() => {
+    if (thread === undefined) return;
+    const appeared = hasCard && cardSeen.current === false;
+    cardSeen.current = hasCard;
     if (messages.length > 0) end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [messages.length, waiting]);
+    if (appeared) cardTimer.current = window.setTimeout(() => card.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 900);
+  }, [messages.length, waiting, hasCard, thread === undefined]);
+
+  /** Back up to the repairs, to answer the next one. */
+  const toRows = () => {
+    const lists = document.querySelectorAll<HTMLElement>(".try-thread .try-rows");
+    lists[lists.length - 1]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // What to try next follows from what the thread last said, so a person with
   // ninety seconds is never looking at an empty box.
@@ -247,20 +328,23 @@ export default function Try({ go }: { go: (p: string) => void }) {
     const asked = /Are they\?|Is it\?/.test(lastReply) ? /#(\d{5,10})/.exec(lastReply)?.[1] : undefined;
     if (asked) {
       const sentence = neighbourSentence(lastReply);
+      // Drawn as rows, the reply already has a button for a number and a word.
+      const drawn = askRows(lastReply).length > 0;
       return [
         { label: sentence, send: sentence, note: "your own words: GPT-6 Astra reads it, and may only pick a tool" },
-        { label: `#${asked} NOT SURE`, send: `#${asked} NOT SURE`, note: "a number and a word: read with no model at all" },
+        ...(drawn ? [] : [{ label: `#${asked} NOT SURE`, send: `#${asked} NOT SURE`, note: "a number and a word: read with no model at all" }]),
       ];
     }
     if (/Which repair do you mean\?/.test(lastReply)) {
       const id = /#(\d{5,10})/.exec(lastReply)?.[1];
       return id ? [{ label: `#${id} STILL BROKEN`, send: `#${id} STILL BROKEN`, note: "it asked rather than guessed; say which" }] : [];
     }
+    // The owner is looked up once a thread; after that the page it kept is right there.
     return [
-      { label: "Who owns this building? FIND Linden Plaza Preservation LLC", send: "FIND Linden Plaza Preservation LLC", note: "Firecrawl searches the open web for the owner and holds the first page as served" },
+      ...(foundOnce ? [] : [{ label: "Who owns this building? FIND Linden Plaza Preservation LLC", send: "FIND Linden Plaza Preservation LLC", note: "Firecrawl searches the open web for the owner and holds the first page as served" }]),
       { label: "Now from your own email: ASK 155 Linden Boulevard, Brooklyn", send: "", href: mailto(SAMPLE_ASK), note: `opens your mail app, to ${INBOX} · AgentMail brings it in, and the reply lands in your inbox in seconds` },
     ];
-  }, [messages.length, lastReply]);
+  }, [messages.length, lastReply, foundOnce]);
 
   async function send(text: string, shown?: string) {
     const words = text.trim();
@@ -368,6 +452,91 @@ export default function Try({ go }: { go: (p: string) => void }) {
     void audio.play().catch(() => setSpeaking(null));
   }
 
+  // An ASK reply, drawn as the tenant's list: each repair, the city's words for
+  // it, HPD's clock, and the three answers as buttons. The buttons send the line
+  // a person would type, so the keyword reader takes it with no model. A kept
+  // answer later in the thread puts its word on the repair it names.
+  const today = new Date().toISOString().slice(0, 10);
+  const locked = busy || waiting || onTheLine || live.state !== "idle";
+  const saidAfter = (id: string, at: number) => {
+    let said: ReturnType<typeof stampOf> = null;
+    for (const n of messages.slice(at + 1)) if (n.who === "faultline" && answeredId(n.text) === id) said = stampOf(n.text);
+    return said;
+  };
+  function askList(rows: AskRow[], at: number) {
+    return (
+      <div className="try-rows">
+        {rows.map((r) => {
+          const said = saidAfter(r.id, at);
+          const what = r.thing ? ` (${r.thing.toLowerCase()})` : "";
+          return (
+            <div key={r.id} className="try-row" data-id={r.id}>
+              <p className="try-row-head">
+                {r.thing ? (
+                  <>
+                    <strong>{r.thing}</strong> · #{r.id}
+                  </>
+                ) : (
+                  <strong>Repair #{r.id}</strong>
+                )}
+                {r.cls ? ` · class ${r.cls}` : ""}
+                {said && (
+                  <>
+                    {" · "}
+                    <span className={`try-row-said ${said.kind}`}>you said {said.word}</span>
+                  </>
+                )}
+              </p>
+              <p className="try-row-city">
+                The city's file: {r.cityWords ? `"${r.cityWords}" · ` : ""}
+                {r.status} as of {r.asOf}
+              </p>
+              {r.until && <ClockUntil until={r.until} today={today} />}
+              <div className="try-row-answer">
+                {ANSWERS.map(([answer, label, word]) => (
+                  <button key={answer} type="button" data-answer={answer} aria-pressed={said?.word === word} disabled={locked} onClick={() => void send(`#${r.id} ${word}`, `${label} · #${r.id}${what}`)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  /** One of our replies: as rows when it is an ASK reply that reads back exactly, otherwise as the text it is. */
+  function replyBody(text: string, at: number) {
+    const rows = askRows(text);
+    if (rows.length === 0) {
+      const kept = keptOf(text);
+      if (!kept?.shot) return <Linked text={text} />;
+      // The headline first, then the picture; the copy we hold and the page
+      // today are the reply's own lines below it, so the caption does not
+      // repeat them.
+      const [headline, ...rest] = text.split("\n");
+      return (
+        <>
+          <Linked text={headline} />
+          <figure className="try-evidence">
+            <a href={kept.shot} target="_blank" rel="noreferrer">
+              <img src={kept.shot} loading="lazy" alt="The page as Firecrawl saw it" />
+            </a>
+            <figcaption>Read by Firecrawl, pictured whole, kept as it was served · SHA-256 {kept.sha}…</figcaption>
+          </figure>
+          <Linked text={rest.join("\n").trim()} />
+        </>
+      );
+    }
+    return (
+      <>
+        <strong>{text.split("\n")[0]}</strong>
+        {askList(rows, at)}
+        <Linked text={restOf(text)} />
+      </>
+    );
+  }
+
   return (
     <div className="try">
       <a
@@ -400,7 +569,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
             ). Press the first button to see what the owner has certified since.
           </p>
         )}
-        {messages.map((m) =>
+        {messages.map((m, at) =>
           m.who === "live" ? (
             <p key={`l${m.id}`} className="try-read try-live-done">
               🎧 A conversation with gpt-live-1 · {m.seconds ?? 0} seconds · {(m.cents ?? 0).toFixed(2)}¢ · ended by {m.status || "the page"}
@@ -445,7 +614,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
                     <small>kept · dated</small>
                   </span>
                 )}
-                <Linked text={m.text} />
+                {replyBody(m.text, at)}
               </div>
             </div>
           ),
@@ -464,6 +633,30 @@ export default function Try({ go }: { go: (p: string) => void }) {
           <button type="button" className="linklike" onClick={hideGuide}>
             {guide.step === 3 ? "Got it" : "Hide the guide"}
           </button>
+        </div>
+      )}
+
+      {hasCard && (
+        <div className="try-record" ref={card}>
+          <p>
+            <strong>Your record is live.</strong> Open it<span className="try-beside"> beside this page</span>, then{" "}
+            <button type="button" className="linklike" onClick={toRows}>
+              answer another repair ↑
+            </button>{" "}
+            here: it changes by itself, no reload.
+          </p>
+          <a
+            className="cta"
+            href={rec}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => {
+              const w = window.open(rec, "faultline-record", "popup,width=760,height=960");
+              if (w) e.preventDefault();
+            }}
+          >
+            Open your record<span className="try-beside"> beside this</span> →
+          </a>
         </div>
       )}
 

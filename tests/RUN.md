@@ -1,6 +1,6 @@
 # Test run
 
-Every automated check, run on 2026-09-21 14:39 UTC at commit `a27cc1f`, with the output as it came. Re-run any line from the repo root.
+Every automated check, run on 2026-09-21 16:44 UTC at commit `c54ba1d`, with the output as it came. Re-run any line from the repo root.
 
 ```
 $ npm run typecheck
@@ -14,7 +14,7 @@ $ npm test   # convex-test, against an in-memory Convex
       Tests  43 passed (43)
 
 $ npm run test:engine
-149 checks ok
+160 checks ok
 all checks passed
 
 $ npx tsx scripts/receipt-test.ts
