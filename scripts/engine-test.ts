@@ -345,6 +345,8 @@ console.log("\n== the ASK reply, read back into rows");
       plainThing("REPAIR THE BROKEN OR DEFECTIVE VINYL FLO…") === null,
     "plainThing: roaches; nothing for a text that names no thing plainly, or one cut through the thing",
   );
+  const plexi = askRows(reply([row("19178388", "C", "§ 27-2005 ADM CODE & 309 M/D LAW ABATE THE NUISANCE CONSISTING OF PLEXIGLASS INSTALLED AT BUILDING ENTRANCE DOOR AT 1ST STORY")]));
+  check(plexi.length === 1 && plexi[0].thing === "Plexiglass", `plainThing: the plexiglass, not "plexiglass installed", which reads as the work done (got ${plexi[0]?.thing})`);
   const kept = [
     "Kept, dated: you said still broken on 2026-09-21.",
     "",

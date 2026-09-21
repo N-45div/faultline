@@ -89,8 +89,10 @@ export function askRows(reply: string): AskRow[] {
 }
 
 // Where the name of the thing stops in HPD's text: at where it is, at what is
-// to be done to it next, or at the end of a clause.
-const END = "(?= AT | IN | ON | AND PAINT| AND MAINTAIN|[,.;:]|$)";
+// to be done to it next, at a word for its state ("PLEXIGLASS INSTALLED AT",
+// "DEVICE MISSING IN"), which would read as the work done, or at the end of a
+// clause.
+const END = "(?= AT | IN | ON | AND PAINT| AND MAINTAIN| (?:INSTALLED|MISSING|PRESENT)(?![A-Z])|[,.;:]|$)";
 const THINGS = [
   `EVIDENCE OF (?:AN? )?([A-Z /-]+?)${END}`,
   `BROKEN OR DEFECTIVE ([A-Z /-]+?)${END}`,
