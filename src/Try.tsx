@@ -147,12 +147,16 @@ function answeredId(reply: string): string | null {
   return stampOf(reply) ? (/^The city's file: #(\d{5,10}) at /m.exec(reply)?.[1] ?? null) : null;
 }
 
-/** An ASK reply without its headline and its repair lines, which the page draws as rows: how to answer, and the links. */
+/**
+ * An ASK reply without its headline, its repair lines, which the page draws as
+ * rows, and the line on typing an answer, which the rows' buttons do: what
+ * becomes of an answer, and the links.
+ */
 function restOf(reply: string): string {
   return reply
     .split("\n")
     .slice(1)
-    .filter((l) => !l.startsWith("- #"))
+    .filter((l) => !l.startsWith("- #") && !l.startsWith("Reply with the number and one of FIXED"))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -324,9 +328,11 @@ export default function Try({ go }: { go: (p: string) => void }) {
     const asked = /Are they\?|Is it\?/.test(lastReply) ? /#(\d{5,10})/.exec(lastReply)?.[1] : undefined;
     if (asked) {
       const sentence = neighbourSentence(lastReply);
+      // Drawn as rows, the reply already has a button for a number and a word.
+      const drawn = askRows(lastReply).length > 0;
       return [
         { label: sentence, send: sentence, note: "your own words: GPT-6 Astra reads it, and may only pick a tool" },
-        { label: `#${asked} NOT SURE`, send: `#${asked} NOT SURE`, note: "a number and a word: read with no model at all" },
+        ...(drawn ? [] : [{ label: `#${asked} NOT SURE`, send: `#${asked} NOT SURE`, note: "a number and a word: read with no model at all" }]),
       ];
     }
     if (/Which repair do you mean\?/.test(lastReply)) {
