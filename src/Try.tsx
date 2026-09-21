@@ -510,26 +510,21 @@ export default function Try({ go }: { go: (p: string) => void }) {
     const rows = askRows(text);
     if (rows.length === 0) {
       const kept = keptOf(text);
+      if (!kept?.shot) return <Linked text={text} />;
+      // The headline first, then the picture; the copy we hold and the page
+      // today are the reply's own lines below it, so the caption does not
+      // repeat them.
+      const [headline, ...rest] = text.split("\n");
       return (
         <>
-          {kept?.shot && (
-            <figure className="try-evidence">
-              <a href={kept.shot} target="_blank" rel="noreferrer">
-                <img src={kept.shot} loading="lazy" alt="The page as Firecrawl saw it" />
-              </a>
-              <figcaption>
-                Read by Firecrawl, pictured whole, kept as it was served · SHA-256 {kept.sha}… ·{" "}
-                <a href={kept.served} target="_blank" rel="noreferrer">
-                  the copy we hold
-                </a>{" "}
-                ·{" "}
-                <a href={kept.today} target="_blank" rel="noreferrer">
-                  the page today
-                </a>
-              </figcaption>
-            </figure>
-          )}
-          <Linked text={text} />
+          <Linked text={headline} />
+          <figure className="try-evidence">
+            <a href={kept.shot} target="_blank" rel="noreferrer">
+              <img src={kept.shot} loading="lazy" alt="The page as Firecrawl saw it" />
+            </a>
+            <figcaption>Read by Firecrawl, pictured whole, kept as it was served · SHA-256 {kept.sha}…</figcaption>
+          </figure>
+          <Linked text={rest.join("\n").trim()} />
         </>
       );
     }

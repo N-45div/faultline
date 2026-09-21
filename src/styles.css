@@ -1743,7 +1743,7 @@ a.try-chip {
 
 /* ---------- /try: the page Firecrawl kept, pictured in the thread ---------- */
 .try-evidence {
-  margin: 0 0 12px;
+  margin: 12px 0;
   white-space: normal;
 }
 .try-evidence img {
