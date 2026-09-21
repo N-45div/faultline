@@ -488,7 +488,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
               {r.until && <ClockUntil until={r.until} today={today} />}
               <div className="try-row-answer">
                 {ANSWERS.map(([answer, label, word]) => (
-                  <button key={answer} type="button" data-answer={answer} disabled={locked} onClick={() => void send(`#${r.id} ${word}`, `${label} · #${r.id}${what}`)}>
+                  <button key={answer} type="button" data-answer={answer} aria-pressed={said?.word === word} disabled={locked} onClick={() => void send(`#${r.id} ${word}`, `${label} · #${r.id}${what}`)}>
                     {label}
                   </button>
                 ))}
