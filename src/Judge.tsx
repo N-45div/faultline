@@ -257,6 +257,8 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         </p>
       </section>
 
+      <details className="tour-more">
+        <summary>Also underneath: the same engine on state layoff files (six more steps)</summary>
       <section className="tour-step">
         <span className="num">6</span>
         <h2 className="h2">Send a company name. Two dates and one statute, never a verdict.</h2>
@@ -436,6 +438,8 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           </a>
         </p>
       </section>
+
+      </details>
 
       <section className="tour-step">
         <span className="num">12</span>

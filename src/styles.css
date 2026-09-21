@@ -1606,3 +1606,22 @@ a {
     animation: none;
   }
 }
+
+/* ---------- a link that looks like a chip; the tour's folded steps ---------- */
+a.try-chip {
+  text-decoration: none;
+}
+.tour-more {
+  margin: 8px 0 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.tour-more > summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--muted);
+  padding: 6px 0;
+}
+.tour-more[open] > summary {
+  margin-bottom: 12px;
+}
