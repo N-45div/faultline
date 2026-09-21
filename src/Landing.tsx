@@ -69,9 +69,10 @@ export default function Landing({ go }: { go: (p: string) => void }) {
             <h1 className="lede-title">Your landlord told the city it's fixed. Is it?</h1>
             <p className="lede-sub">
               Email ASK and your New York City address. We send back each repair the owner certified there, in the
-              city's words, with the day HPD's 70 days run out. Answer in your own words. Your answer is kept, dated,
-              beside the city's record, and if the city later stamps the owner's certification FALSE or INVALID, you
-              are told, with both dates.
+              city's words, with the day HPD's 70 days run out. If it isn't fixed, the reply tells you how to make the
+              city send an inspector back before then. Answer in your own words. Your answer is kept, dated, beside the
+              city's record, and if the city later stamps the owner's certification FALSE or INVALID, you are told, with
+              both dates.
             </p>
             <div className="lede-ctas">
               <a
@@ -98,11 +99,6 @@ export default function Landing({ go }: { go: (p: string) => void }) {
             </p>
             <p className="fine">
               Free, to {INBOX}. Nothing to install, nothing to sign up for. Your answers stay private to you.
-            </p>
-            <p className="fine">
-              Got a layoff notice? Email <a href={mailto("Spirit Airlines")}>a company name</a> and get back what it
-              filed with the state, including every version the state has since overwritten.{" "}
-              <a href="/files" onClick={(e) => { e.preventDefault(); go("/files"); }}>See the commit logs →</a>
             </p>
           </div>
 
@@ -178,6 +174,12 @@ export default function Landing({ go }: { go: (p: string) => void }) {
         <section className="band">
           <div className="container">
             <p className="kicker">The changelog of government · since {log.since}</p>
+            <p className="fine">
+              Underneath the tenant's question: ten government files that overwrite themselves, every version kept. Got a
+              layoff notice? Email <a href={mailto("Spirit Airlines")}>a company name</a> and get back what it filed with
+              the state, including every version the state has since overwritten.{" "}
+              <a href="/files" onClick={(e) => { e.preventDefault(); go("/files"); }}>See the commit logs →</a>
+            </p>
             <div className="proof">
               <div>
                 <p className="big">{log.deleted.toLocaleString()}</p>
