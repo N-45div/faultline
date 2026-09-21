@@ -44,8 +44,8 @@ anyone who lives there can answer. Every push runs the checks on GitLab's runner
 - **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: twelve strict tools, tool choice required, a cost ledger in cents; and the second reader of every phone call, through one strict tool); gpt-live-1 over WebRTC with client delegation (talk to it in the browser: the voice hands every request to the same door as typing, the page ends each conversation at 2:30, and the server ends it by 2:40 whatever the page does); gpt-4o-mini-transcribe and gpt-4o-mini-tts (say your answer, hear ours, and the recording is never kept); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
 - **Firecrawl:** the Convex component: scrape with waits for a state page this deployment cannot reach, change tracking in git-diff mode kept beside our own diff, full-page screenshots, and search (FIND)
 - **AgentMail:** the inbox; the component's verified webhook and event store; delivery events that are acted on (a bounce or complaint stops the mail); labels on every message; attachments in and out
-- **Photon:** the same inbox by text, behind a signed webhook
-- **CALL-E:** the same questions on a real telephone: one API call carrying the script the tools wrote and a strict result schema, an unsigned webhook believed for nothing but a call id, the call read back with our own key, and the transcript read a second time by GPT-6 Astra before anything is recorded
+- **Photon** (not a hackathon sponsor): the same inbox by text, behind a signed webhook
+- **CALL-E** (not a hackathon sponsor): the same questions on a real telephone: one API call carrying the script the tools wrote and a strict result schema, an unsigned webhook believed for nothing but a call id, the call read back with our own key, and the transcript read a second time by GPT-6 Astra before anything is recorded
 - **Started:** 2026-08-29T18:42:23Z
 - **Last updated:** 2026-09-21 (night)
 
