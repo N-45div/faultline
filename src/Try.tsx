@@ -165,14 +165,17 @@ const ANSWERS = [
   ["not_sure", "Not sure", "NOT SURE"],
 ] as const;
 
-/** Our replies are plain text, as the email is. Links in them should open. */
+/** A link to a person's record, where their answers sit beside the city's. */
+const RECORD_LINK = /https?:\/\/[^\s)]+\/r\/[a-f0-9]+/g;
+
+/** Our replies are plain text, as the email is. Links in them should open. A record opens beside the thread. */
 function Linked({ text }: { text: string }) {
   const parts = text.split(/(https?:\/\/[^\s)]+)/g);
   return (
     <>
       {parts.map((p, i) =>
         /^https?:\/\//.test(p) ? (
-          <a key={i} href={p} target={p.includes(location.host) ? undefined : "_blank"} rel="noreferrer">
+          <a key={i} href={p} target={p.includes("/r/") || !p.includes(location.host) ? "_blank" : undefined} rel="noreferrer">
             {p.length > 64 ? `${p.slice(0, 61)}…` : p}
           </a>
         ) : (
@@ -237,11 +240,14 @@ export default function Try({ go }: { go: (p: string) => void }) {
     }
   };
   const answeredOnce = ours.some((m) => stampOf(m.text) !== null);
+  // The newest link to their record in anything we replied. The record page
+  // holds a live query on it, so an answer given here shows there by itself.
+  const rec = ours.map((m) => m.text.match(RECORD_LINK)?.at(-1)).filter((u): u is string => Boolean(u)).at(-1) ?? null;
   const guide: { step: 1 | 2 | 3; head: string; body: string } = answeredOnce
     ? {
         step: 3,
         head: "That is the whole loop.",
-        body: "Look under your message: how it was heard, who read it, which tool finished, and what it cost. The stamp is what was recorded. Next: who owns this building, or the same thing from your own email.",
+        body: "Under your message: how it was heard, who read it, which tool finished, and what it cost. The stamp is what was recorded. Next: open your record beside this page and answer another repair, ask who owns the building, or do it from your own email.",
       }
     : onTheLine
       ? { step: 2, head: "Your phone is about to ring.", body: "Pick up and answer in your own words. When you hang up, the transcript lands here and two readers go over it before anything is recorded." }
@@ -548,6 +554,27 @@ export default function Try({ go }: { go: (p: string) => void }) {
           <button type="button" className="linklike" onClick={hideGuide}>
             {guide.step === 3 ? "Got it" : "Hide the guide"}
           </button>
+        </div>
+      )}
+
+      {answeredOnce && rec && (
+        <div className="try-record">
+          <p>
+            <strong>Your record is live.</strong> Open it beside this page, then answer another repair here: it changes by
+            itself, no reload.
+          </p>
+          <a
+            className="cta"
+            href={rec}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => {
+              const w = window.open(rec, "faultline-record", "popup,width=760,height=960");
+              if (w) e.preventDefault();
+            }}
+          >
+            Open your record beside this →
+          </a>
         </div>
       )}
 
