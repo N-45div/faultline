@@ -5,7 +5,8 @@ the city closes the violation after 70 days unless someone challenges it through
 Faultline shows the tenant each repair their landlord certified and the day its 70 days run out, tells them how to
 challenge it, takes their answer in their own words (typed, spoken, or on a real phone call), keeps it dated beside the
 city's record, and tells them if the city later stamps that certification FALSE. Try it with no sign-in at
-https://clear-dogfish-72.convex.site/try: press the first button, then the suggested sentence. Or email
+https://clear-dogfish-72.convex.site/try: press the first button, then Still broken on a repair, or the suggested
+sentence (GPT-6 Astra reads that one). Or email
 `ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.to from your own address and answer the reply in a
 sentence. Nothing on either path is simulated: the sample building's repairs come from a copy of the city's file refreshed
 every day, and the email, the phone call and every model run are real. Demo: https://youtu.be/Xa8uKOZP-Y4 (the real phone call
@@ -46,7 +47,7 @@ anyone who lives there can answer. Every push runs the checks on GitLab's runner
 - **Photon:** the same inbox by text, behind a signed webhook
 - **CALL-E:** the same questions on a real telephone: one API call carrying the script the tools wrote and a strict result schema, an unsigned webhook believed for nothing but a call id, the call read back with our own key, and the transcript read a second time by GPT-6 Astra before anything is recorded
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-21 (evening)
+- **Last updated:** 2026-09-21 (night)
 
 ## Log
 
@@ -1720,6 +1721,61 @@ were not true, now corrected. The server does not end a live conversation at
 And this log does not have one entry per commit: it has a dated entry for each
 step, with the corrections included. tests/RUN.md is every suite run once, with
 its output: 360 checks, all passing.
+
+### 2026-09-21 - 0d75dd3 · 7510c59 · 1f62964 · d770e13 · c3797c4 · e2075ba · bb6b09e · 98b6261 · c59bb5c
+The tenant's path, second pass, and the numbers behind it. The nav starts with
+Try it and the tour, and the email button asks about the sample building instead
+of an airline. The empty /try page tells what happened at 155 Linden Boulevard
+this summer: the owner certified that the roaches in two compactor closets were
+gone, and the city stamped both certifications FALSE, on 18 and 29 August; the
+page links the city's own rows. After an answer, the next suggestions are who
+owns the building (Firecrawl) and the same ASK from your own email. The tour
+folds its six layoff-file steps under the tenant's. The landing's tab title was
+being reset after load to the old tagline; it is the tenant's question now.
+
+`npm run right-now` recomputes who this is for from NYC Open Data alone, with
+every query kept in its output (data/right-now-2026-09-21.json). On 21
+September: 14,027 certifications inside their 70 days, in 4,826 buildings
+holding 221,411 apartments; 10,663 of them (76%) are not inside any one
+apartment, so anyone who lives in the building can answer. The same run counts
+2,494 certified LATE, which is where the last known issue above comes from.
+
+Every push now runs the checks on GitLab's shared runners (.gitlab-ci.yml):
+typecheck, the convex-test suite, the engine, receipt and wall checks and the
+copy lint must pass. The two suites that read live state pages run in a second
+job that is allowed to fail, because a state's site can be down.
+
+### 2026-09-21 - 156891a · 361378d · ce5ddd8 · 8096901 · 094c253 · 40bbf28
+/try now draws the reply as what it is: a list of repairs. engine/askRows.ts
+reads the ASK reply back into rows. It is the inverse of askLine in
+convex/inbound.ts, and all or nothing: if one line does not read back exactly,
+the page shows the plain text as before. Each row has a plain name (Upper
+cabinet, Plastered surfaces, Plexiglass), the class, the city's own words,
+HPD's 70-day clock, and three buttons: Still broken, Fixed, Not sure. A tap
+sends the words a tenant would type ("Still broken · #19112933"), so it goes
+through the same door and the keyword reader, and gets the same stamp. The
+backend did not change; this shipped as a site upload.
+
+After the first answer, "Your record is live" appears, with a link that opens
+the private record page beside the thread. Answer another row and the record
+page changes by itself: it is a Convex query, and the review measured 0.4 s. A
+page Firecrawl kept is now pictured under its headline.
+
+Two reviews ran before it shipped, one of the code and one in a browser against
+production. They found two things to fix first. The record link was taken from
+any address with /r/ in it, so a Reddit link in a FIND reply could take over
+the button; it is now read only from our own line, and only as a whole token.
+And the record card landed below the screen; the page now lets the stamp land,
+then brings the card up. Eight smaller fixes followed. One more thing was wrong
+everywhere: the clock said "67 days until the city closes it". The city can
+close a certified repair after day 70; it does not have to on that day. It says
+"can" now.
+
+Checks: 160 engine (11 new, for askRows), 371 in all, in tests/RUN.md. After
+the upload the judges' first ninety seconds were walked once on production and
+passed every step: the landing's clocks 1.4 s after load, the reply in 1.4 s
+with three rows, the stamp 0.9 s after Still broken, and no sideways scroll on a
+390-pixel phone.
 
 ## About
 
