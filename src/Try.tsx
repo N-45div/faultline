@@ -297,22 +297,22 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 : "Type ASK and a New York City address, like ASK 155 Linden Boulevard, Brooklyn. The reply lists each repair the owner says is done.",
           };
 
-  // The thread follows its newest message. The one exception: the first time
-  // the record card appears on this visit, it is drawn below the guide, under
-  // the end of the thread, so that once the page goes to the card instead. A
-  // thread that already had the card when the page opened is not moved for it.
+  // The thread follows its newest message. And the moment the record card
+  // first appears - drawn below the guide, under the end of the thread - the
+  // page lets the stamp land, then brings the card up to the bottom of the
+  // screen, with as much of the stamped reply above it as fits. A thread that
+  // already had the card when the page opened is not moved for it.
   const card = useRef<HTMLDivElement>(null);
   const cardSeen = useRef<boolean | null>(null);
+  const cardTimer = useRef<number | undefined>(undefined);
   const hasCard = answeredOnce && rec !== null;
+  useEffect(() => () => window.clearTimeout(cardTimer.current), []);
   useEffect(() => {
     if (thread === undefined) return;
-    if (cardSeen.current === null) cardSeen.current = hasCard;
-    else if (hasCard && !cardSeen.current) {
-      cardSeen.current = true;
-      card.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
+    const appeared = hasCard && cardSeen.current === false;
+    cardSeen.current = hasCard;
     if (messages.length > 0) end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (appeared) cardTimer.current = window.setTimeout(() => card.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 900);
   }, [messages.length, waiting, hasCard, thread === undefined]);
 
   /** Back up to the repairs, to answer the next one. */

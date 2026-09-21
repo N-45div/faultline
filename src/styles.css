@@ -1723,6 +1723,8 @@ a.try-chip {
   border-radius: 10px;
   background: var(--card);
   animation: try-in 0.32s ease-out both;
+  /* brought up to the bottom of the screen when it first appears */
+  scroll-margin-bottom: 20px;
 }
 .try-record p {
   flex: 1 1 280px;
