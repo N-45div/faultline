@@ -73,7 +73,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
       </p>
 
       <section className="tour-intro">
-        <p className="kicker">For judges · ninety seconds, or eight minutes · no email and no sign-in needed</p>
+        <p className="kicker">For judges · ninety seconds, or eight minutes · no sign-in needed</p>
         <h1 className="lede-title">The landlord told the city it's fixed. Faultline asks the person living with it.</h1>
         <p className="lede-sub">
           Ten public files, read on a schedule and kept whole because the agencies overwrite theirs, and one question
@@ -110,7 +110,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         </div>
         <p className="tour-ctas">
           <a className="cta primary" href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>
-            Try it in your browser, no email →
+            Try it in your browser, no sign-in →
           </a>
         </p>
         <p className="fine">

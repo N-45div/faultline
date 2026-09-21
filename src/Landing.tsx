@@ -81,7 +81,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
                   go("/try");
                 }}
               >
-                Try it here, no email
+                Try it here, no sign-in
               </a>
               <a className="cta" href={mailto("ASK ")}>
                 Email ASK and your address
