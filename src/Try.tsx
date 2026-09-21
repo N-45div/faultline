@@ -153,10 +153,25 @@ function answeredId(reply: string): string | null {
  * becomes of an answer, and the links.
  */
 function restOf(reply: string): string {
+  return shown(
+    reply
+      .split("\n")
+      .slice(1)
+      .filter((l) => !l.startsWith("- #") && !l.startsWith("Reply with the number and one of FIXED"))
+      .join("\n"),
+  );
+}
+
+/**
+ * A reply as the page shows it: without the email's closing line about
+ * sending a company name, which is for the inbox, not for a tenant on this
+ * page (Listen drops it too, engine/speech.ts). Only what is shown changes;
+ * the stamp, the rows and a kept page are read from the reply as sent.
+ */
+function shown(reply: string): string {
   return reply
     .split("\n")
-    .slice(1)
-    .filter((l) => !l.startsWith("- #") && !l.startsWith("Reply with the number and one of FIXED"))
+    .filter((l) => !/^Reply with another company name/i.test(l))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -510,7 +525,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
     const rows = askRows(text);
     if (rows.length === 0) {
       const kept = keptOf(text);
-      if (!kept?.shot) return <Linked text={text} />;
+      if (!kept?.shot) return <Linked text={shown(text)} />;
       // The headline first, then the picture; the copy we hold and the page
       // today are the reply's own lines below it, so the caption does not
       // repeat them.
@@ -524,7 +539,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
             </a>
             <figcaption>Read by Firecrawl, pictured whole, kept as it was served · SHA-256 {kept.sha}…</figcaption>
           </figure>
-          <Linked text={rest.join("\n").trim()} />
+          <Linked text={shown(rest.join("\n"))} />
         </>
       );
     }
