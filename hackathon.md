@@ -1778,7 +1778,7 @@ with three rows, the stamp 0.9 s after Still broken, and no sideways scroll on a
 390-pixel phone.
 
 ### 2026-09-21 - the log's own hashes
-Sixteen headings from 3 to 6 September named commits that are not in the
+Sixteen headings from 3 to 12 September named commits that are not in the
 public history. Each of those commits had its own hash written into its
 heading afterwards, and writing a commit's hash into that commit changes the
 hash, so the headings named each commit as it was before its heading was
