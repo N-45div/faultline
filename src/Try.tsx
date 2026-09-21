@@ -180,9 +180,9 @@ function keptOf(reply: string): { shot: string | null; served: string; today: st
   return { shot: link("The page as it looked"), served, today, sha };
 }
 
-/** A reply to FIND (what names them, nothing, or why not), or the page it kept. */
+/** A reply to FIND (the first word that it is looking, what names them, nothing, or why not), or the page it kept. */
 function lookedUp(reply: string): boolean {
-  return /^(?:\d+ pages? on the open web names? "|Nothing on the open web names "|We couldn't look that up: |Kept(?:: | the page at ))/.test(reply);
+  return /^(?:Looking for ".*" now\.|\d+ pages? on the open web names? "|Nothing on the open web names "|We couldn't look that up: |Kept(?:: | the page at ))/.test(reply);
 }
 
 /**
