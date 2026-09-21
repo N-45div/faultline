@@ -306,7 +306,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
         <div className="container foot-row">
           <span>Faultline · {INBOX}</span>
           <span className="muted">
-            Built on Convex, AgentMail, OpenAI, Firecrawl and Photon. Reply STOP to any email to stop.{" "}
+            Built on Convex, AgentMail, OpenAI and Firecrawl. Reply STOP to any email to stop.{" "}
             <a href="/privacy" onClick={(e) => { e.preventDefault(); go("/privacy"); }}>Privacy</a> ·{" "}
             <a href="/terms" onClick={(e) => { e.preventDefault(); go("/terms"); }}>Terms</a>
           </span>
