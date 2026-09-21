@@ -639,7 +639,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
       {hasCard && (
         <div className="try-record" ref={card}>
           <p>
-            <strong>Your record is live.</strong> Open it beside this page, then{" "}
+            <strong>Your record is live.</strong> Open it<span className="try-beside"> beside this page</span>, then{" "}
             <button type="button" className="linklike" onClick={toRows}>
               answer another repair ↑
             </button>{" "}
@@ -655,7 +655,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
               if (w) e.preventDefault();
             }}
           >
-            Open your record beside this →
+            Open your record<span className="try-beside"> beside this</span> →
           </a>
         </div>
       )}

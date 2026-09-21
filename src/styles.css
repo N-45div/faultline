@@ -1735,6 +1735,12 @@ a.try-chip {
   font-size: 14px;
   white-space: nowrap;
 }
+/* on a phone the record opens in a new tab, not beside the thread */
+@media (max-width: 560px) {
+  .try-beside {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .try-record {
     animation: none;
