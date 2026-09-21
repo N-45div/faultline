@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:engine": "tsx scripts/engine-test.ts",
     "deploy": "npx @convex-dev/static-hosting deploy",
-    "typecheck:tests": "tsc -p tests/tsconfig.json --noEmit"
+    "typecheck:tests": "tsc -p tests/tsconfig.json --noEmit",
+    "right-now": "node scripts/right-now.mjs"
   },
   "keywords": [],
   "author": "",
