@@ -328,7 +328,7 @@ FOLLOW line on the nothing-filed receipt instead of two. All three are pure
 engine functions with fixture tests (`engine/receipt.ts`,
 `scripts/receipt-test.ts`).
 
-### 2026-09-03 - fe30c6d
+### 2026-09-03 - e7637a4
 Found while checking the aggregation line on production: "Martin's" — eleven
 Virginia filings — came back as nothing filed. The full-text index splits an
 apostrophe into "martin" and "s"; our query joined it to "martins", so the
@@ -337,7 +337,7 @@ tokenises them, plus the stem of a possessive typed without its apostrophe
 ("McDonalds" finds McDonald's Corporation). Recall only — ranking still scores
 the raw query against the raw label (`engine/match.ts`, `convex/lookup.ts`).
 
-### 2026-09-03 - b884261
+### 2026-09-03 - 9510873
 Three items from the 2 September review. The corroboration search costs
 money and its action is public, so it now buys only for a filing we hold —
 the employer and notice date exactly as a state's file has them; a stranger
@@ -358,7 +358,7 @@ same app, no second build; a miss falls back to the plain page. Convex
 features: HTTP actions above the static catch-all, running the same public
 queries the page uses (`convex/http.ts`).
 
-### 2026-09-03 - 16af582
+### 2026-09-03 - de985c2
 Pulled forward from 7 September, because a demo that dies during judging
 week is the only failure that counts. A kill switch: one deployment
 variable, `NOTICE_PAUSE=mail|ingest|llm|all`, read at the top of every path
@@ -379,7 +379,7 @@ per execution as the switch (`convex/guard.ts`, `convex/breaker.ts`,
 `convex/packs.ts`, `convex/crons.ts`, `src/Judge.tsx`,
 `scripts/copy-lint.ts`).
 
-### 2026-09-03 - 600a688
+### 2026-09-03 - 0000375
 The eighth file, and the most revealing one. New Jersey publishes its whole
 WARN archive as a single spreadsheet, one sheet per year back to 2004,
 overwritten in place — 2,367 filings. It also publishes no notice date. Every
@@ -402,7 +402,7 @@ and nobody is no longer ingested as an employer. Brought up on production
 through the same shadow-mode gate as the other seven: two cycles, second one
 zero changes, then promoted. Eight files, 8,026 rows.
 
-### 2026-09-03 - 9380681
+### 2026-09-03 - cd96ba4
 A pass back over everything shipped today, hunting the receipt's own honesty
 first. One real bug: the exception line matched a state's recorded reason on
 the first word of each statutory exception, so Colorado's free text — "natural
@@ -417,7 +417,7 @@ longer listed as a significant field, because it is part of the row's
 identity and could never have emitted a change from there (`engine/receipt.ts`,
 `convex/breaker.ts`, `convex/follows.ts`, `engine/adapters/njWarn.ts`).
 
-### 2026-09-03 - 183db33
+### 2026-09-03 - d181ab9
 Six independent adversarial reviews — money and abuse, receipt correctness,
 concurrency, the web app, honesty of every claim, operational fitness — each
 required to trace a finding to a concrete failing input. Two of them
@@ -467,7 +467,7 @@ only fires where the state publishes an actual street address, not a
 workforce region; and the employer page remounts per employer, so one
 company's public statement can never appear under another's filing.
 
-### 2026-09-03 - e0c1ec1
+### 2026-09-03 - f7d0792
 The rest of what the six reviews found, verified one at a time.
 
 A 13-worker filing was being scored against the statute — "Maryland's
@@ -504,7 +504,7 @@ Not fixed, and why: making `FIRECRAWL_API_KEY` optional breaks the build —
 the component itself requires it — so the right fix is removing a component
 nothing uses, which is not a thing to do during judging week.
 
-### 2026-09-03 - 45663ed
+### 2026-09-03 - e64e55e
 The last of the money findings. The daily search cap was read in an action and
 written ten seconds later, once the call returned — so any number of
 concurrent callers all read zero and all spent. A slot is now claimed in a
@@ -514,7 +514,7 @@ letter-reading budget: a burst of public search calls could take the thing
 people actually email us for offline for a day (`convex/corroborateData.ts`,
 `convex/corroborate.ts`, `convex/llm.ts`).
 
-### 2026-09-03 - 39e1d39
+### 2026-09-03 - febe37b
 The last correctness finding from the six reviews, and the one that had the
 worst failure mode. Maryland writes start dates as ranges and sometimes
 writes them backwards — "03/31/2026 - 06/30/2025" — and measuring to the
@@ -540,7 +540,7 @@ deferred rows stored its etag anyway, so the next cycle asked "has it
 changed?", got a 304, and left the deferred rows waiting for the state's next
 edit.
 
-### 2026-09-03 - a3f7c2b
+### 2026-09-03 - 2f6762c
 The last security finding. Signing up takes any address and does not verify
 it, so anyone could enter someone else's, follow a busy building from the
 web, and have us mail a stranger every day — from our own sending inbox, with
@@ -562,7 +562,7 @@ stored row, follow and subject, so changing it would orphan the lot; recorded
 and left alone (`convex/schema.ts`, `convex/follows.ts`, `convex/digest.ts`,
 `convex/inbound.ts`, `src/FollowButton.tsx`).
 
-### 2026-09-03 - f1950c3
+### 2026-09-03 - 88e6a48
 The ninth file, and the plainest case yet for why versions are the product.
 The Health Department's restaurant inspection file says its own limits out
 loud: it holds violations "up to three years prior to the most recent
@@ -597,7 +597,7 @@ it will not carry the claim, so it is not being built on one.
 
 Nine files, 13,560 rows.
 
-### 2026-09-04 - d5f0d8f
+### 2026-09-04 - f94f614
 Pulled forward from 14–16 September, because it is the thing the ten outreach
 targets would actually ask for. Email "CSV Spirit Airlines" and a file comes
 back in the thread; on the web, every employer page has "Download every
@@ -622,7 +622,7 @@ Jersey's "as written" column carrying Excel's serial for a date cell — 46144
 and only text cells (ranges, lists) are kept verbatim (`engine/export.ts`,
 `convex/lookup.ts`, `convex/inbound.ts`, `convex/http.ts`, `src/Employer.tsx`).
 
-### 2026-09-04 - 0a0f411
+### 2026-09-04 - 6250343
 At 14:21 Convex disabled both deployments: the free plan's monthly limits
 were exhausted, and the live site returned 500 to anyone who opened it. My
 doing, over three days. The housing file was re-reading about 1,800 rows
@@ -647,7 +647,7 @@ Also today, before the outage: New Jersey's ordinals now follow the filing
 cannot fabricate an amendment; and the Firecrawl transport is wired through
 the component — the probe was the call that hit the disabled deployment.
 
-### 2026-09-06 - 070128f
+### 2026-09-06 - 93e7fa2
 The first team's deployments were disabled on 4 September for exhausting the
 free plan's database I/O. Before the old production went dark I exported its
 full database — 17 MB, 79,267 documents — and today it was imported into a
@@ -671,7 +671,7 @@ a new host with no change to the app (`siteUrl()` reads the deployment's own
 `CONVEX_SITE_URL`). What needs Divij: the AgentMail webhook URL and the
 Google OAuth redirect URI both name the old host.
 
-### 2026-09-06 - d9b82dd
+### 2026-09-06 - 7905123
 The first team died of database I/O, so the new one was made unable to die
 the same way, on any metric, with judges and crawlers hitting it.
 
@@ -691,7 +691,7 @@ What the counters say the deployment holds: 18,913 current rows across nine
 files. What the guards say it can cost: at most 270 reads a day across all
 sources, each reading hashes rather than rows.
 
-### 2026-09-12 - fb4d89e
+### 2026-09-12 - 942a75c
 The tenth file, and the one the amendment chain was modelled on. Wisconsin
 publishes what no other state does: every notice has a number (2026082401),
 every row links to the PDF with `?version=N`, and a second table each month
@@ -1776,6 +1776,14 @@ the upload the judges' first ninety seconds were walked once on production and
 passed every step: the landing's clocks 1.4 s after load, the reply in 1.4 s
 with three rows, the stamp 0.9 s after Still broken, and no sideways scroll on a
 390-pixel phone.
+
+### 2026-09-21 - the log's own hashes
+Sixteen headings from 3 to 6 September named commits that are not in the
+public history. Each of those commits had its own hash written into its
+heading afterwards, and writing a commit's hash into that commit changes the
+hash, so the headings named each commit as it was before its heading was
+filled in. The content is the same apart from that one line. The headings now
+name the commits as the history holds them; every hash in a heading is on main.
 
 ## About
 
