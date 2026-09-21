@@ -2,6 +2,8 @@
 
 [![checks](https://gitlab.com/ndivij2004/faultline/badges/main/pipeline.svg)](https://gitlab.com/ndivij2004/faultline/-/pipelines) Every push runs the checks on a clean machine ([.gitlab-ci.yml](.gitlab-ci.yml)); the last full run is in [tests/RUN.md](tests/RUN.md).
 
+**Why GitLab:** this repository was on GitHub until 20 September 2026, when my GitHub account was flagged and its public pages stopped loading. I moved it here the same day with its whole history: every commit and its date are as they were, back to the first on 29 August.
+
 ### Your landlord told the city the repair is done. Is it?
 
 Faultline asks the person living with it, keeps their answer dated beside the city's own record, and tells them the day that record agrees. It also keeps every government file the government overwrites — layoff notices, housing violations, restaurant inspections — so yesterday's version still exists when someone needs it.
