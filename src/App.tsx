@@ -75,7 +75,7 @@ export default function App() {
       [isTry, "Try it · Faultline"],
       [Boolean(recordMatch), "Your record · Faultline"],
     ];
-    document.title = titles.find(([on]) => on)?.[1] ?? "Faultline — the address that writes back";
+    document.title = titles.find(([on]) => on)?.[1] ?? "Faultline: did your NYC landlord really fix it?";
   }, [path]);
 
   let body;
