@@ -185,8 +185,14 @@ function lookedUp(reply: string): boolean {
   return /^(?:\d+ pages? on the open web names? "|Nothing on the open web names "|We couldn't look that up: |Kept(?:: | the page at ))/.test(reply);
 }
 
-/** A link to a person's record, where their answers sit beside the city's. */
-const RECORD_LINK = /https?:\/\/[^\s)]+\/r\/[a-f0-9]+/g;
+/**
+ * A link to a person's record, where their answers sit beside the city's. Read
+ * only from our own line for it (the ASK and answer receipts in
+ * convex/inbound.ts), with the whole 40-character token, so a page some reply
+ * merely names, like a forum's /r/..., is never taken for it.
+ */
+const RECORD_LINK = /^Your answers, beside the city's record: (https?:\/\/\S+\/r\/[a-f0-9]{40})\r?$/gm;
+const recordIn = (reply: string): string | undefined => [...reply.matchAll(RECORD_LINK)].at(-1)?.[1];
 
 /** Our replies are plain text, as the email is. Links in them should open. A record opens beside the thread. */
 function Linked({ text }: { text: string }) {
@@ -262,7 +268,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
   const answeredOnce = ours.some((m) => stampOf(m.text) !== null);
   // The newest link to their record in anything we replied. The record page
   // holds a live query on it, so an answer given here shows there by itself.
-  const rec = ours.map((m) => m.text.match(RECORD_LINK)?.at(-1)).filter((u): u is string => Boolean(u)).at(-1) ?? null;
+  const rec = ours.map((m) => recordIn(m.text)).filter((u): u is string => Boolean(u)).at(-1) ?? null;
   const foundOnce = ours.some((m) => lookedUp(m.text));
   const guide: { step: 1 | 2 | 3; head: string; body: string } = answeredOnce
     ? {
