@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { INBOX, mailto } from "./Pricing";
-import { SAMPLE_ASK } from "./AskCard";
+import { ClockUntil, SAMPLE_ASK } from "./AskCard";
 import { canTalk, useLive } from "./useLive";
+import { askRows, type AskRow } from "../engine/askRows";
 
 // The inbox, without the email. What is typed here goes through the handler an
 // email goes through - the same keyword reader, the same agent, the same tools
@@ -141,6 +142,29 @@ function stampOf(reply: string): { word: string; kind: "broken" | "fixed" | "uns
   return said === "still broken" ? { word: "STILL BROKEN", kind: "broken" } : said === "fixed" ? { word: "FIXED", kind: "fixed" } : { word: "NOT SURE", kind: "unsure" };
 }
 
+/** Which repair a kept answer is about, from the receipt's own line for it. */
+function answeredId(reply: string): string | null {
+  return stampOf(reply) ? (/^The city's file: #(\d{5,10}) at /m.exec(reply)?.[1] ?? null) : null;
+}
+
+/** An ASK reply without its headline and its repair lines, which the page draws as rows: how to answer, and the links. */
+function restOf(reply: string): string {
+  return reply
+    .split("\n")
+    .slice(1)
+    .filter((l) => !l.startsWith("- #"))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** The three answers, as the button says them and as the keyword reader reads them. */
+const ANSWERS = [
+  ["still_broken", "Still broken", "STILL BROKEN"],
+  ["fixed", "Fixed", "FIXED"],
+  ["not_sure", "Not sure", "NOT SURE"],
+] as const;
+
 /** Our replies are plain text, as the email is. Links in them should open. */
 function Linked({ text }: { text: string }) {
   const parts = text.split(/(https?:\/\/[^\s)]+)/g);
@@ -225,7 +249,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
         ? {
             step: 2,
             head: "Now answer it, any way you like.",
-            body: "Tap a suggestion, type a sentence, press Say it, press Talk to it for a live voice, or have it ring your phone. A number and a word needs no model; a sentence goes to GPT-6 Astra, which may only pick a tool.",
+            body: "Tap Still broken on a repair (read with no model), or press the suggested sentence: GPT-6 Astra reads your own words and may only pick a tool. Or talk to it, or have it ring your phone.",
           }
         : {
             step: 1,
@@ -368,6 +392,66 @@ export default function Try({ go }: { go: (p: string) => void }) {
     void audio.play().catch(() => setSpeaking(null));
   }
 
+  // An ASK reply, drawn as the tenant's list: each repair, the city's words for
+  // it, HPD's clock, and the three answers as buttons. The buttons send the line
+  // a person would type, so the keyword reader takes it with no model. A kept
+  // answer later in the thread puts its word on the repair it names.
+  const today = new Date().toISOString().slice(0, 10);
+  const locked = busy || waiting || onTheLine || live.state !== "idle";
+  const saidAfter = (id: string, at: number) => {
+    let said: ReturnType<typeof stampOf> = null;
+    for (const n of messages.slice(at + 1)) if (n.who === "faultline" && answeredId(n.text) === id) said = stampOf(n.text);
+    return said;
+  };
+  function askList(rows: AskRow[], at: number) {
+    return (
+      <div className="try-rows">
+        {rows.map((r) => {
+          const said = saidAfter(r.id, at);
+          const what = r.thing ? ` (${r.thing.toLowerCase()})` : "";
+          return (
+            <div key={r.id} className="try-row" data-id={r.id}>
+              <p className="try-row-head">
+                <strong>{r.thing ?? `Repair #${r.id}`}</strong> · #{r.id}
+                {r.cls ? ` · class ${r.cls}` : ""}
+                {said && (
+                  <>
+                    {" · "}
+                    <span className={`try-row-said ${said.kind}`}>you said {said.word}</span>
+                  </>
+                )}
+              </p>
+              <p className="try-row-city">
+                The city's file: {r.cityWords ? `"${r.cityWords}" · ` : ""}
+                {r.status} as of {r.asOf}
+              </p>
+              {r.until && <ClockUntil until={r.until} today={today} />}
+              <div className="try-row-answer">
+                {ANSWERS.map(([answer, label, word]) => (
+                  <button key={answer} type="button" data-answer={answer} disabled={locked} onClick={() => void send(`#${r.id} ${word}`, `${label} · #${r.id}${what}`)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  /** One of our replies: as rows when it is an ASK reply that reads back exactly, otherwise as the text it is. */
+  function replyBody(text: string, at: number) {
+    const rows = askRows(text);
+    if (rows.length === 0) return <Linked text={text} />;
+    return (
+      <>
+        <strong>{text.split("\n")[0]}</strong>
+        {askList(rows, at)}
+        <Linked text={restOf(text)} />
+      </>
+    );
+  }
+
   return (
     <div className="try">
       <a
@@ -400,7 +484,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
             ). Press the first button to see what the owner has certified since.
           </p>
         )}
-        {messages.map((m) =>
+        {messages.map((m, at) =>
           m.who === "live" ? (
             <p key={`l${m.id}`} className="try-read try-live-done">
               🎧 A conversation with gpt-live-1 · {m.seconds ?? 0} seconds · {(m.cents ?? 0).toFixed(2)}¢ · ended by {m.status || "the page"}
@@ -445,7 +529,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
                     <small>kept · dated</small>
                   </span>
                 )}
-                <Linked text={m.text} />
+                {replyBody(m.text, at)}
               </div>
             </div>
           ),

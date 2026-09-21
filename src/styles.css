@@ -1625,3 +1625,68 @@ a.try-chip {
 .tour-more[open] > summary {
   margin-bottom: 12px;
 }
+
+/* ---------- /try: an ASK reply as the tenant's list ---------- */
+.try-rows {
+  white-space: normal;
+  display: grid;
+  gap: 12px;
+  margin: 10px 0 14px;
+}
+.try-row {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--bg);
+}
+.try-row-head {
+  margin: 0 0 4px;
+}
+.try-row-city {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.try-row-answer {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.try-row-answer button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.try-row-answer button[data-answer="still_broken"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.try-row-answer button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.try-row-answer button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.try-row-said {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.try-row-said.broken {
+  color: var(--accent);
+}
+.try-row-said.fixed {
+  color: #1f6b3a;
+}
+.try-row-said.unsure {
+  color: var(--muted);
+}
