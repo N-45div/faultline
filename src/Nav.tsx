@@ -4,6 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
 import { INBOX, mailto } from "./Pricing";
 import { toSlug } from "./Receipts";
+import { SAMPLE_ASK } from "./AskCard";
 
 // The bar. Three zones, the way people expect them: where you are (left),
 // what you can look up (middle), who you are and how to reach us (right).
@@ -11,11 +12,11 @@ import { toSlug } from "./Receipts";
 // address copies itself because that is what people actually want from it.
 
 const LINKS: [string, string][] = [
+  ["/try", "Try it"],
+  ["/judge", "Tour"],
   ["/app", "Receipts"],
   ["/files", "Files"],
   ["/scorecard", "Scorecard"],
-  ["/try", "Try it"],
-  ["/judge", "Tour"],
   ["/pricing", "Pricing"],
 ];
 
@@ -109,7 +110,7 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="A company, or a NYC address"
+              placeholder="Your NYC address, or a company"
               aria-label="Look up a company or a New York City address"
             />
           </form>
@@ -120,7 +121,7 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
             <span className="addr">{INBOX}</span>
             <span className="hint">{copied ? "Copied" : "copy"}</span>
           </button>
-          <a className="cta primary small" href={mailto("Spirit Airlines")}>
+          <a className="cta primary small" href={mailto(SAMPLE_ASK)}>
             Email us
           </a>
 
@@ -180,14 +181,14 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
       {open && (
         <div id="mobile-menu" className="sheet container">
           <form className="barsearch" role="search" onSubmit={search}>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="A company, or a NYC address" aria-label="Look up" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Your NYC address, or a company" aria-label="Look up" />
           </form>
           {LINKS.map(([to, label]) => (
             <a key={to} href={to} onClick={(e) => nav(to, e)} aria-current={current(to) ? "page" : undefined}>
               {label}
             </a>
           ))}
-          <a className="cta primary" href={mailto("Spirit Airlines")}>
+          <a className="cta primary" href={mailto(SAMPLE_ASK)}>
             Email {INBOX}
           </a>
           <Unauthenticated>
