@@ -106,7 +106,7 @@ export default function YourRecord({ token, go }: { token: string; go: (p: strin
                   )}
                   {answers.length === 0 && (
                     <p className="said muted">
-                      No answer yet. Reply to the email with #{asked.violationId} and FIXED, STILL BROKEN or NOT SURE.
+                      No answer yet. Answer with #{asked.violationId} and FIXED, STILL BROKEN or NOT SURE, on the page you asked from or by email.
                     </p>
                   )}
                   {answers.map((a) => (
