@@ -93,8 +93,9 @@ export default function Judge({ go }: { go: (p: string) => void }) {
               and press the first button. A real Brooklyn building answers from the city's file, with no model.
             </li>
             <li>
-              Press the suggested sentence, or answer in your own words. GPT-6 Astra may only pick a tool; the answer is
-              stamped STILL BROKEN, dated, and under it the page says which tool finished and what the run cost.
+              Tap <strong>Still broken</strong> on a repair (read with no model), or answer in your own words: GPT-6
+              Astra may only pick a tool. The answer is stamped and dated; open your record beside it and it changes by
+              itself, with no reload. Under your message the page says which tool finished and what the run cost.
             </li>
             <li>
               Or do it from your own email: send <strong>ASK 155 Linden Boulevard, Brooklyn</strong> to{" "}
