@@ -35,7 +35,7 @@ Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 | `PACK` | A PDF evidence pack: every version we hold, each with its hash and capture time |
 | `CSV` | Every filing as a spreadsheet for a lawyer. No limitations column, on purpose |
 | `KEEP https://…` | That page read through Firecrawl and held as it was served, with a picture of it and a SHA-256 |
-| `FIND Linden Plaza Preservation LLC` | Every page on the open web that names them, and the first one held the same way |
+| `FIND Linden Plaza Preservation LLC` | Up to five pages on the open web that name them, and the first one held the same way |
 | `CALL ME +1 718 555 0142` | Your phone rings and the same questions are put to you by voice. The call is read twice, and only what both readers agree on is recorded |
 
 A reply that is not one of those words goes to the inbox agent, which must finish by calling one of twelve tools. It never writes a sentence you read.
