@@ -5,6 +5,7 @@
   --line: #e4e0d8;
   --accent: #b3261e;
   --card: #ffffff;
+  --ok: #1f6b3a;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -15,6 +16,7 @@
     --line: #2b2b2b;
     --accent: #ff6b5e;
     --card: #1b1b1b;
+    --ok: #6fcf8f;
   }
 }
 * {
@@ -1511,7 +1513,7 @@ a {
   color: var(--accent);
 }
 .try-stamp.fixed {
-  color: #1f6b3a;
+  color: var(--ok);
 }
 .try-stamp.unsure {
   color: var(--muted);
@@ -1687,7 +1689,7 @@ a.try-chip {
   color: var(--accent);
 }
 .try-row-said.fixed {
-  color: #1f6b3a;
+  color: var(--ok);
 }
 .try-row-said.unsure {
   color: var(--muted);
