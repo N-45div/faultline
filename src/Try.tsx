@@ -16,6 +16,8 @@ import { canTalk, useLive } from "./useLive";
 const KEY = "faultline.try.session";
 const MINE = "faultline.try.mine";
 const GUIDE = "faultline.try.guide";
+/** The two certifications at the sample building that the city stamped FALSE this summer, as the city's own API serves them. */
+const ROACH_ROWS = "https://data.cityofnewyork.us/resource/wvxf-dwi5.json?$select=violationid,currentstatus,currentstatusdate,novdescription&$where=violationid%20in('19105968','19114310')";
 
 const hex = (bytes: number) => Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -215,7 +217,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
     ? {
         step: 3,
         head: "That is the whole loop.",
-        body: "Look under your message: it says how it was heard, who read it, which tool finished, and what the run cost. The stamp is what was recorded. Next, try a company name, or FIND an owner.",
+        body: "Look under your message: how it was heard, who read it, which tool finished, and what it cost. The stamp is what was recorded. Next: who owns this building, or the same thing from your own email.",
       }
     : onTheLine
       ? { step: 2, head: "Your phone is about to ring.", body: "Pick up and answer in your own words. When you hang up, the transcript lands here and two readers go over it before anything is recorded." }
@@ -240,7 +242,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
 
   // What to try next follows from what the thread last said, so a person with
   // ninety seconds is never looking at an empty box.
-  const next = useMemo((): { label: string; send: string; note: string }[] => {
+  const next = useMemo((): { label: string; send: string; note: string; href?: string }[] => {
     if (messages.length === 0) return [{ label: SAMPLE_ASK, send: SAMPLE_ASK, note: "a real Brooklyn building, from the city's file as it reads right now" }];
     const asked = /Are they\?|Is it\?/.test(lastReply) ? /#(\d{5,10})/.exec(lastReply)?.[1] : undefined;
     if (asked) {
@@ -256,7 +258,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
     }
     return [
       { label: "Who owns this building? FIND Linden Plaza Preservation LLC", send: "FIND Linden Plaza Preservation LLC", note: "Firecrawl searches the open web for the owner and holds the first page as served" },
-      { label: "Spirit Airlines", send: "Spirit Airlines", note: "also underneath: a company name, and what it filed with the state" },
+      { label: "Now from your own email: ASK 155 Linden Boulevard, Brooklyn", send: "", href: mailto(SAMPLE_ASK), note: `opens your mail app, to ${INBOX} · AgentMail brings it in, and the reply lands in your inbox in seconds` },
     ];
   }, [messages.length, lastReply]);
 
@@ -378,20 +380,24 @@ export default function Try({ go }: { go: (p: string) => void }) {
       >
         ← Faultline
       </a>
-      <p className="kicker">For New York City tenants · no email · no sign-in</p>
+      <p className="kicker">For New York City tenants · no sign-in · or email your address</p>
       <h1 className="h2">Your landlord says it's fixed. Is it?</h1>
       <p className="fine wide">
         Press the first button to ask about a real Brooklyn building, then answer in your own words. If a repair isn't
         done, the reply tells you how to make the city send an inspector back before its 70 days run out. What you type
         goes through exactly what an email to {INBOX} goes through, and the reply arrives by itself from a live Convex
-        query. Nothing here is emailed, and what you say stays on your own trial page.
+        query. What you type here isn't emailed; it stays on your own trial page.
       </p>
 
       <div className="try-thread" aria-live="polite">
         {messages.length === 0 && (
           <p className="fine try-empty">
-            Start with a real building. The city's file says its owner has certified repairs there; the reply lists each
-            one still inside its 70 days.
+            A real building: 155 Linden Boulevard, Brooklyn. This summer its owner told the city the roaches in two
+            compactor closets were gone, and the city stamped both certifications FALSE (
+            <a href={ROACH_ROWS} target="_blank" rel="noreferrer">
+              the city's own rows →
+            </a>
+            ). Press the first button to see what the owner has certified since.
           </p>
         )}
         {messages.map((m) =>
@@ -463,12 +469,19 @@ export default function Try({ go }: { go: (p: string) => void }) {
 
       {next.length > 0 && (
         <div className="try-next">
-          {next.map((n, i) => (
-            <button key={n.label} className={`try-chip${!guideOff && i === 0 && (guide.step === 1 || (guide.step === 2 && !onTheLine)) ? " guide-pulse" : ""}`} disabled={busy || waiting} onClick={() => void send(n.send)} title={n.note}>
-              <span>{n.label}</span>
-              <small>{n.note}</small>
-            </button>
-          ))}
+          {next.map((n, i) =>
+            n.href ? (
+              <a key={n.label} className="try-chip" href={n.href} title={n.note}>
+                <span>{n.label}</span>
+                <small>{n.note}</small>
+              </a>
+            ) : (
+              <button key={n.label} className={`try-chip${!guideOff && i === 0 && (guide.step === 1 || (guide.step === 2 && !onTheLine)) ? " guide-pulse" : ""}`} disabled={busy || waiting} onClick={() => void send(n.send)} title={n.note}>
+                <span>{n.label}</span>
+                <small>{n.note}</small>
+              </button>
+            ),
+          )}
         </div>
       )}
 
