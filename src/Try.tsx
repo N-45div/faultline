@@ -165,6 +165,26 @@ const ANSWERS = [
   ["not_sure", "Not sure", "NOT SURE"],
 ] as const;
 
+/**
+ * A kept page's receipt, read from its own lines (agentPageKept in
+ * convex/inbound.ts): the checksum, the copy we hold, the picture of it, and
+ * the page as it is today. Null for any other reply, or one missing a line.
+ */
+function keptOf(reply: string): { shot: string | null; served: string; today: string; sha: string } | null {
+  if (!/^Kept(?:: | the page at )/.test(reply)) return null;
+  const link = (label: string) => new RegExp(`^${label}: (https?://\\S+)$`, "m").exec(reply)?.[1] ?? null;
+  const sha = / · SHA-256 ([0-9a-f]{16})…$/m.exec(reply)?.[1];
+  const served = link("The page as it was served");
+  const today = link("The page today");
+  if (!sha || !served || !today) return null;
+  return { shot: link("The page as it looked"), served, today, sha };
+}
+
+/** A reply to FIND (what names them, nothing, or why not), or the page it kept. */
+function lookedUp(reply: string): boolean {
+  return /^(?:\d+ pages? on the open web names? "|Nothing on the open web names "|We couldn't look that up: |Kept(?:: | the page at ))/.test(reply);
+}
+
 /** A link to a person's record, where their answers sit beside the city's. */
 const RECORD_LINK = /https?:\/\/[^\s)]+\/r\/[a-f0-9]+/g;
 
@@ -243,6 +263,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
   // The newest link to their record in anything we replied. The record page
   // holds a live query on it, so an answer given here shows there by itself.
   const rec = ours.map((m) => m.text.match(RECORD_LINK)?.at(-1)).filter((u): u is string => Boolean(u)).at(-1) ?? null;
+  const foundOnce = ours.some((m) => lookedUp(m.text));
   const guide: { step: 1 | 2 | 3; head: string; body: string } = answeredOnce
     ? {
         step: 3,
@@ -286,11 +307,12 @@ export default function Try({ go }: { go: (p: string) => void }) {
       const id = /#(\d{5,10})/.exec(lastReply)?.[1];
       return id ? [{ label: `#${id} STILL BROKEN`, send: `#${id} STILL BROKEN`, note: "it asked rather than guessed; say which" }] : [];
     }
+    // The owner is looked up once a thread; after that the page it kept is right there.
     return [
-      { label: "Who owns this building? FIND Linden Plaza Preservation LLC", send: "FIND Linden Plaza Preservation LLC", note: "Firecrawl searches the open web for the owner and holds the first page as served" },
+      ...(foundOnce ? [] : [{ label: "Who owns this building? FIND Linden Plaza Preservation LLC", send: "FIND Linden Plaza Preservation LLC", note: "Firecrawl searches the open web for the owner and holds the first page as served" }]),
       { label: "Now from your own email: ASK 155 Linden Boulevard, Brooklyn", send: "", href: mailto(SAMPLE_ASK), note: `opens your mail app, to ${INBOX} · AgentMail brings it in, and the reply lands in your inbox in seconds` },
     ];
-  }, [messages.length, lastReply]);
+  }, [messages.length, lastReply, foundOnce]);
 
   async function send(text: string, shown?: string) {
     const words = text.trim();
@@ -448,7 +470,31 @@ export default function Try({ go }: { go: (p: string) => void }) {
   /** One of our replies: as rows when it is an ASK reply that reads back exactly, otherwise as the text it is. */
   function replyBody(text: string, at: number) {
     const rows = askRows(text);
-    if (rows.length === 0) return <Linked text={text} />;
+    if (rows.length === 0) {
+      const kept = keptOf(text);
+      return (
+        <>
+          {kept?.shot && (
+            <figure className="try-evidence">
+              <a href={kept.shot} target="_blank" rel="noreferrer">
+                <img src={kept.shot} loading="lazy" alt="The page as Firecrawl saw it" />
+              </a>
+              <figcaption>
+                Read by Firecrawl, pictured whole, kept as it was served · SHA-256 {kept.sha}… ·{" "}
+                <a href={kept.served} target="_blank" rel="noreferrer">
+                  the copy we hold
+                </a>{" "}
+                ·{" "}
+                <a href={kept.today} target="_blank" rel="noreferrer">
+                  the page today
+                </a>
+              </figcaption>
+            </figure>
+          )}
+          <Linked text={text} />
+        </>
+      );
+    }
     return (
       <>
         <strong>{text.split("\n")[0]}</strong>

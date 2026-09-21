@@ -1721,3 +1721,24 @@ a.try-chip {
     animation: none;
   }
 }
+
+/* ---------- /try: the page Firecrawl kept, pictured in the thread ---------- */
+.try-evidence {
+  margin: 0 0 12px;
+  white-space: normal;
+}
+.try-evidence img {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  object-position: top;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.try-evidence figcaption {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
