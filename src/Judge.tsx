@@ -200,7 +200,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           person's own message: the model can pick the wrong tool, but it cannot ring a number nobody wrote. One number
           is rung at most twice a day, and our tables keep a hash of it and its last four digits. Four of them are the components: send a link and Firecrawl reads the page,
           which is kept as it was served with a picture of it and a checksum; name an owner or an employer and Firecrawl
-          looks over the open web, lists every page that names them, and holds the first one the same way; ask for proof
+          looks over the open web, lists up to five pages that name them, and holds the first one the same way; ask for proof
           and the evidence pack or the filings spreadsheet arrives attached to the thread. You can have the first two
           without writing to the agent at all: email KEEP and a link, or FIND and a name, and the receipt comes back
           with the checksum of the copy we hold. Each run's tokens are priced into a ledger — about two and a half cents a
