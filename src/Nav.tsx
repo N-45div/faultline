@@ -14,10 +14,7 @@ import { SAMPLE_ASK } from "./AskCard";
 const LINKS: [string, string][] = [
   ["/try", "Try it"],
   ["/judge", "Tour"],
-  ["/app", "Receipts"],
   ["/files", "Files"],
-  ["/scorecard", "Scorecard"],
-  ["/pricing", "Pricing"],
 ];
 
 export default function Nav({ path, go }: { path: string; go: (p: string) => void }) {
@@ -94,7 +91,7 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
       <div className="container bar">
         <a className="brand" href="/" onClick={(e) => nav("/", e)} aria-label="Faultline, home">
           <span className="wordmark">Faultline</span>
-          <span className="tagline">the address that writes back</span>
+          <span className="tagline">for New York City tenants</span>
         </a>
 
         <nav className="links" aria-label="Main">
@@ -110,8 +107,8 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Your NYC address, or a company"
-              aria-label="Look up a company or a New York City address"
+              placeholder="Your NYC address"
+              aria-label="Look up a New York City address"
             />
           </form>
         )}
@@ -181,7 +178,7 @@ export default function Nav({ path, go }: { path: string; go: (p: string) => voi
       {open && (
         <div id="mobile-menu" className="sheet container">
           <form className="barsearch" role="search" onSubmit={search}>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Your NYC address, or a company" aria-label="Look up" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Your NYC address" aria-label="Look up a New York City address" />
           </form>
           {LINKS.map(([to, label]) => (
             <a key={to} href={to} onClick={(e) => nav(to, e)} aria-current={current(to) ? "page" : undefined}>
