@@ -293,9 +293,29 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 : "Type ASK and a New York City address, like ASK 155 Linden Boulevard, Brooklyn. The reply lists each repair the owner says is done.",
           };
 
+  // The thread follows its newest message. The one exception: the first time
+  // the record card appears on this visit, it is drawn below the guide, under
+  // the end of the thread, so that once the page goes to the card instead. A
+  // thread that already had the card when the page opened is not moved for it.
+  const card = useRef<HTMLDivElement>(null);
+  const cardSeen = useRef<boolean | null>(null);
+  const hasCard = answeredOnce && rec !== null;
   useEffect(() => {
+    if (thread === undefined) return;
+    if (cardSeen.current === null) cardSeen.current = hasCard;
+    else if (hasCard && !cardSeen.current) {
+      cardSeen.current = true;
+      card.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     if (messages.length > 0) end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [messages.length, waiting]);
+  }, [messages.length, waiting, hasCard, thread === undefined]);
+
+  /** Back up to the repairs, to answer the next one. */
+  const toRows = () => {
+    const lists = document.querySelectorAll<HTMLElement>(".try-thread .try-rows");
+    lists[lists.length - 1]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // What to try next follows from what the thread last said, so a person with
   // ninety seconds is never looking at an empty box.
@@ -609,11 +629,14 @@ export default function Try({ go }: { go: (p: string) => void }) {
         </div>
       )}
 
-      {answeredOnce && rec && (
-        <div className="try-record">
+      {hasCard && (
+        <div className="try-record" ref={card}>
           <p>
-            <strong>Your record is live.</strong> Open it beside this page, then answer another repair here: it changes by
-            itself, no reload.
+            <strong>Your record is live.</strong> Open it beside this page, then{" "}
+            <button type="button" className="linklike" onClick={toRows}>
+              answer another repair ↑
+            </button>{" "}
+            here: it changes by itself, no reload.
           </p>
           <a
             className="cta"

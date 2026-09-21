@@ -1632,6 +1632,8 @@ a.try-chip {
   display: grid;
   gap: 12px;
   margin: 10px 0 14px;
+  /* "answer another repair" scrolls back to here; clear the sticky bar */
+  scroll-margin-top: 84px;
 }
 .try-row {
   border: 1px solid var(--line);
