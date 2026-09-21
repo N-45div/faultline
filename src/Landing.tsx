@@ -68,7 +68,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
           <div>
             <h1 className="lede-title">Your landlord told the city it's fixed. Is it?</h1>
             <p className="lede-sub">
-              See each repair your landlord told the city is done, when the city will close it on their word, and how to
+              See each repair your landlord told the city is done, when the city can close it on their word, and how to
               get an inspector sent back if it isn't. Answer in your own words; your answer is kept, dated, beside the
               city's record.
             </p>

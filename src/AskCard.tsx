@@ -31,7 +31,7 @@ export function ClockUntil({ until, today }: { until: string; today: string }) {
         <span className="clock70-now" style={{ left: `${(day / 70) * 100}%` }} />
       </div>
       <p className="clock70-label">
-        <strong>day {day} of 70</strong> · {left} {left === 1 ? "day" : "days"} until the city closes it on the owner's word
+        <strong>day {day} of 70</strong> · {left} {left === 1 ? "day" : "days"} until the city can close it on the owner's word
       </p>
     </div>
   );

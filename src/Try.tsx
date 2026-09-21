@@ -293,7 +293,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
             head: messages.length === 0 ? "Start here: press the first button." : "Ask about a building first.",
             body:
               messages.length === 0
-                ? "It asks about a real Brooklyn building. The reply is the city's own file: each repair the owner says is done, and the day the city will close it on the owner's word."
+                ? "It asks about a real Brooklyn building. The reply is the city's own file: each repair the owner says is done, and when the city can close it on the owner's word."
                 : "Type ASK and a New York City address, like ASK 155 Linden Boulevard, Brooklyn. The reply lists each repair the owner says is done.",
           };
 
