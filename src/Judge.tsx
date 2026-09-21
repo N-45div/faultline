@@ -93,19 +93,24 @@ export default function Judge({ go }: { go: (p: string) => void }) {
               and press the first button. A real Brooklyn building answers from the city's file, with no model.
             </li>
             <li>
-              Press <strong>Or have it ring you</strong> and write your own number (US or India). Your phone rings in
-              about thirty seconds, and a voice asks you the same questions.
+              Press the suggested sentence, or answer in your own words. GPT-6 Astra may only pick a tool; the answer is
+              stamped STILL BROKEN, dated, and under it the page says which tool finished and what the run cost.
             </li>
             <li>
-              Hang up and watch the page: the transcript arrives, GPT-6 Astra reads it without seeing what CALL-E made of
-              it, and only what the two agree on is recorded. Or press <strong>Talk to it</strong> and do the same by
-              live voice with gpt-live-1.
+              Or do it from your own email: send <strong>ASK 155 Linden Boulevard, Brooklyn</strong> to{" "}
+              <a href={mailto("ASK 155 Linden Boulevard, Brooklyn")}>getnotice@agentmail.to</a>. AgentMail brings the
+              reply back into the same thread in seconds. Answer it in a sentence.
+            </li>
+            <li>
+              Two more minutes? Press <strong>Or have it ring you</strong> and write your own number (US or India). When
+              you hang up, GPT-6 Astra reads the transcript without seeing what CALL-E made of it, and only what the two
+              agree on is recorded. Or press <strong>Talk to it</strong> and do the same by live voice with gpt-live-1.
             </li>
           </ol>
         </div>
         <p className="tour-ctas">
           <a className="cta primary" href="/try" onClick={(e) => { e.preventDefault(); go("/try"); }}>
-            Do steps 1 to 3 in your browser, no email →
+            Try it in your browser, no email →
           </a>
         </p>
         <p className="fine">
@@ -178,7 +183,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           your words to the same door as typing, so the keyword reader, GPT-6 Astra and the tools decide and write the
           reply, and that reply is handed back for the voice to say. A conversation is the one place a model may rephrase
           what you hear, so the page says what is true: the written reply is the record, and the voice is not. The
-          server ends every conversation at two and a half minutes.
+          page ends every conversation at 2:30, and the server ends it by 2:40 whatever the page does.
         </p>
         <p>
           Or have it ring you. Once it has asked you about a repair, the same page offers a real phone call: write your
@@ -456,7 +461,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           numbers registered to the project, so judges use email.
         </p>
         <p className="fine">
-          The build log is in the repository as hackathon.md, one entry per commit, corrections included.{" "}
+          The build log is in the repository as hackathon.md, dated entries with the corrections included.{" "}
           <a href="https://gitlab.com/ndivij2004/faultline" target="_blank" rel="noreferrer">
             gitlab.com/ndivij2004/faultline →
           </a>
