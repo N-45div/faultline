@@ -255,8 +255,8 @@ export default function Try({ go }: { go: (p: string) => void }) {
       return id ? [{ label: `#${id} STILL BROKEN`, send: `#${id} STILL BROKEN`, note: "it asked rather than guessed; say which" }] : [];
     }
     return [
-      { label: "Spirit Airlines", send: "Spirit Airlines", note: "a company name: what it filed with the state, every version kept" },
-      { label: "FIND Linden Plaza Preservation LLC", send: "FIND Linden Plaza Preservation LLC", note: "Firecrawl searches the open web and holds the first page as served" },
+      { label: "Who owns this building? FIND Linden Plaza Preservation LLC", send: "FIND Linden Plaza Preservation LLC", note: "Firecrawl searches the open web for the owner and holds the first page as served" },
+      { label: "Spirit Airlines", send: "Spirit Airlines", note: "also underneath: a company name, and what it filed with the state" },
     ];
   }, [messages.length, lastReply]);
 
@@ -378,13 +378,13 @@ export default function Try({ go }: { go: (p: string) => void }) {
       >
         ← Faultline
       </a>
-      <p className="kicker">Try it here · no email · no sign-in</p>
-      <h1 className="h2">The inbox, in your browser.</h1>
+      <p className="kicker">For New York City tenants · no email · no sign-in</p>
+      <h1 className="h2">Your landlord says it's fixed. Is it?</h1>
       <p className="fine wide">
-        What you type goes through the handler an email goes through: the same keyword reader, the same GPT-6 Astra agent, the
-        same tools writing the reply. The reply arrives below by itself, because this page holds a live Convex query on
-        your thread. Nothing here is emailed, and what you say here stays on your own trial page: it is never counted
-        on a public one.
+        Press the first button to ask about a real Brooklyn building, then answer in your own words. If a repair isn't
+        done, the reply tells you how to make the city send an inspector back before its 70 days run out. What you type
+        goes through exactly what an email to {INBOX} goes through, and the reply arrives by itself from a live Convex
+        query. Nothing here is emailed, and what you say stays on your own trial page.
       </p>
 
       <div className="try-thread" aria-live="polite">
@@ -546,6 +546,12 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 only where they agree. Your number goes to CALL-E to place the call; our own tables keep a hash of it and its
                 last four digits. One number is rung at most twice a day.
               </p>
+              <p className="fine">
+                Can't take a call right now?{" "}
+                <a href="https://youtu.be/Xa8uKOZP-Y4?t=84" target="_blank" rel="noreferrer">
+                  Hear the first real one, recorded on 20 September →
+                </a>
+              </p>
             </form>
           )}
         </div>
@@ -562,7 +568,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           maxLength={600}
-          placeholder={messages.length === 0 ? "ASK and a New York City address, or a company name" : "Answer in your own words, or ask about another address"}
+          placeholder={messages.length === 0 ? "ASK and a New York City address, like ASK 155 Linden Boulevard, Brooklyn" : "Answer in your own words, or ask about another address"}
           aria-label="Your message"
         />
         {format && (
