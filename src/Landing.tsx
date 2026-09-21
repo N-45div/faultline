@@ -68,11 +68,9 @@ export default function Landing({ go }: { go: (p: string) => void }) {
           <div>
             <h1 className="lede-title">Your landlord told the city it's fixed. Is it?</h1>
             <p className="lede-sub">
-              Email ASK and your New York City address. We send back each repair the owner certified there, in the
-              city's words, with the day HPD's 70 days run out. If it isn't fixed, the reply tells you how to make the
-              city send an inspector back before then. Answer in your own words. Your answer is kept, dated, beside the
-              city's record, and if the city later stamps the owner's certification FALSE or INVALID, you are told, with
-              both dates.
+              See each repair your landlord told the city is done, the day the city closes it on their word, and how to
+              get an inspector sent back if it isn't. Answer in your own words; your answer is kept, dated, beside the
+              city's record.
             </p>
             <div className="lede-ctas">
               <a
