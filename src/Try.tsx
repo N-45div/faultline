@@ -567,10 +567,9 @@ export default function Try({ go }: { go: (p: string) => void }) {
       <p className="kicker">For New York City tenants · no sign-in · or email your address</p>
       <h1 className="h2">Your landlord says it's fixed. Is it?</h1>
       <p className="fine wide">
-        Press the first button to ask about a real Brooklyn building, then answer in your own words. If a repair isn't
-        done, the reply tells you how to make the city send an inspector back before its 70 days run out. What you type
-        goes through exactly what an email to {INBOX} goes through, and the reply arrives by itself from a live Convex
-        query. What you type here isn't emailed; it stays on your own trial page.
+        Press the first button to ask about a real Brooklyn building. Tap <strong>Still broken</strong> on anything
+        that isn't fixed: it's kept, dated, beside the city's record, and the reply tells you how to get an inspector
+        sent back before its 70 days run out.
       </p>
 
       <div className="try-thread" aria-live="polite">
@@ -634,7 +633,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
             </div>
           ),
         )}
-        {waiting && ours.length > 0 && <p className="try-read try-writing">Faultline is writing…</p>}
+        {waiting && <p className="try-read try-writing">Faultline is writing…</p>}
         <div ref={end} />
       </div>
 
@@ -818,7 +817,9 @@ export default function Try({ go }: { go: (p: string) => void }) {
       {refused && <p className="fine error">{refused}</p>}
 
       <p className="fine wide">
-        By email it is the same, plus what needs a mailbox: following a building, the evidence pack as a PDF, the
+        What you type here goes through exactly what an email to {INBOX} goes through, and the reply arrives by
+        itself from a live Convex query; it isn't emailed, and it stays on your own trial page. By email it is the
+        same, plus what needs a mailbox: following a building, the evidence pack as a PDF, the
         filings as a spreadsheet, and a photo of the repair. <a href={mailto(SAMPLE_ASK)}>Email {INBOX} →</a>{" "}
         {messages.length > 0 && (
           <button className="linklike" onClick={fresh}>
