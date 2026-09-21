@@ -1,0 +1,30 @@
+# Every push runs the checks on a clean machine.
+# The suites that read nothing but this repository must pass. The two that read
+# live state government files run too, and are allowed to fail when a state's
+# site is down or turns away a cloud runner.
+default:
+  image: node:22
+  cache:
+    key:
+      files: [package-lock.json]
+    paths: [.npm/]
+  before_script:
+    - npm ci --cache .npm --prefer-offline --no-audit --no-fund
+
+checks:
+  stage: test
+  script:
+    - npm run typecheck
+    - npm run typecheck:tests
+    - npm test
+    - npm run test:engine
+    - npx tsx scripts/receipt-test.ts
+    - npx tsx scripts/wall-test.ts
+    - npm run lint:copy
+
+live-state-files:
+  stage: test
+  allow_failure: true
+  script:
+    - npx tsx scripts/state-test.ts
+    - npx tsx scripts/md-test.ts
