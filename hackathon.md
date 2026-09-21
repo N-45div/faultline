@@ -7,15 +7,25 @@ challenge it, takes their answer in their own words (typed, spoken, or on a real
 city's record, and tells them if the city later stamps that certification FALSE. Try it with no sign-in at
 https://clear-dogfish-72.convex.site/try: press the first button, then the suggested sentence. Or email
 `ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.to from your own address and answer the reply in a
-sentence. Nothing on either path is seeded or simulated. Demo: https://youtu.be/Xa8uKOZP-Y4 (the real phone call
+sentence. Nothing on either path is simulated: the sample building's repairs come from a copy of the city's file refreshed
+every day, and the email, the phone call and every model run are real. Demo: https://youtu.be/Xa8uKOZP-Y4 (the real phone call
 starts at 1:25). Every check, run: [tests/RUN.md](tests/RUN.md). The certification counts on the landing are computed
-live by `convex/wall.ts` (housingPulse), which links the city's own query.
+live by `convex/wall.ts` (housingPulse), which links the city's own query. Who it is for, in numbers: `npm run
+right-now` ([data/right-now-2026-09-21.json](data/right-now-2026-09-21.json)): about 14,000 repairs certified in the last
+70 days, in about 4,800 buildings with about 221,000 apartments; three in four are not inside any one apartment, so
+anyone who lives there can answer. Every push runs the checks on GitLab's runners ([.gitlab-ci.yml](.gitlab-ci.yml)).
 
 **Known issues, left alone until judging ends** (each fix is a function deploy on a working path):
 - The phone call opens with "you asked for it on our website" even when CALL ME arrived by email (engine/call.ts).
 - The call tool proves a number was typed by the person asking, not that they own it. The fences: a consent box on
   /try, two calls per number a day, two per person, twelve a day in all, and a number that says it never asked is never
   rung again.
+- On a typed or spoken answer, the note GPT-6 Astra passes to record_answer is shown on your record as your words. The
+  agent is told never to add words (convex/agent.ts), but no code checks it yet; on a phone call it is checked
+  (engine/call.ts saidIt). The same check belongs on the typed path.
+- The 70-day clock is shown on repairs certified LATE as well as ON TIME. The city's own file says HPD closes on-time
+  certifications 72-75 days later and does not close late ones on that clock: 2,494 of the 14,027 in the window today
+  are late (data/right-now-2026-09-21.json). The fix is one line in engine/hpd.ts, which the backend imports.
 
 - **Project:** Faultline
 - **Event:** Convex All Gas Hackathon
