@@ -1,5 +1,22 @@
 # Hackathon log
 
+**Read this first.** Faultline is for New York City tenants. When a landlord tells the city (HPD) a repair is done,
+the city closes the violation after 70 days unless someone challenges it through 311 and an inspector goes back.
+Faultline shows the tenant each repair their landlord certified and the day its 70 days run out, tells them how to
+challenge it, takes their answer in their own words (typed, spoken, or on a real phone call), keeps it dated beside the
+city's record, and tells them if the city later stamps that certification FALSE. Try it with no sign-in at
+https://clear-dogfish-72.convex.site/try: press the first button, then the suggested sentence. Or email
+`ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.to from your own address and answer the reply in a
+sentence. Nothing on either path is seeded or simulated. Demo: https://youtu.be/Xa8uKOZP-Y4 (the real phone call
+starts at 1:25). Every check, run: [tests/RUN.md](tests/RUN.md). The certification counts on the landing are computed
+live by `convex/wall.ts` (housingPulse), which links the city's own query.
+
+**Known issues, left alone until judging ends** (each fix is a function deploy on a working path):
+- The phone call opens with "you asked for it on our website" even when CALL ME arrived by email (engine/call.ts).
+- The call tool proves a number was typed by the person asking, not that they own it. The fences: a consent box on
+  /try, two calls per number a day, two per person, twelve a day in all, and a number that says it never asked is never
+  rung again.
+
 - **Project:** Faultline
 - **Event:** Convex All Gas Hackathon
 - **What it does:** Your landlord told New York City the repair is done. Is it? Faultline is an email address (getnotice@agentmail.to): write ASK and your address and it sends back every repair the owner certified there, in the city's words, with the day the city's 70 days run out. Answer in your own words; GPT-6 Astra reads it but can only choose a tool, and the tool writes the reply. Your answer is kept private and dated beside the city's record, and you are told the day the city stamps that certification FALSE. Underneath: ten government files that overwrite themselves (NYC housing violations, NYC restaurant inspections, eight states' layoff notices), read on a schedule with every version kept. Email a company name and get back what it filed, including the versions the state has since overwritten.
@@ -13,13 +30,13 @@
 - **Components (4):** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex, @convex-dev/rate-limiter
 - **Convex features:** schema, 33 tables, 67 indexes, 181 functions (npx convex function-spec --prod: 56 queries, 83 mutations, 27 actions, 15 HTTP actions), 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
 - **Auth:** Convex Auth, email + password only, and optional everywhere: it is needed only to follow a filing from the web. Every other path, the judges' included, needs no account
-- **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: twelve strict tools, tool choice required, a cost ledger in cents; and the second reader of every phone call, through one strict tool); gpt-live-1 over WebRTC with client delegation (talk to it in the browser: the voice hands every request to the same door as typing, and the server ends each conversation at two and a half minutes); gpt-4o-mini-transcribe and gpt-4o-mini-tts (say your answer, hear ours, and the recording is never kept); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
+- **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: twelve strict tools, tool choice required, a cost ledger in cents; and the second reader of every phone call, through one strict tool); gpt-live-1 over WebRTC with client delegation (talk to it in the browser: the voice hands every request to the same door as typing, the page ends each conversation at 2:30, and the server ends it by 2:40 whatever the page does); gpt-4o-mini-transcribe and gpt-4o-mini-tts (say your answer, hear ours, and the recording is never kept); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
 - **Firecrawl:** the Convex component: scrape with waits for a state page this deployment cannot reach, change tracking in git-diff mode kept beside our own diff, full-page screenshots, and search (FIND)
 - **AgentMail:** the inbox; the component's verified webhook and event store; delivery events that are acted on (a bounce or complaint stops the mail); labels on every message; attachments in and out
 - **Photon:** the same inbox by text, behind a signed webhook
 - **CALL-E:** the same questions on a real telephone: one API call carrying the script the tools wrote and a strict result schema, an unsigned webhook believed for nothing but a call id, the call read back with our own key, and the transcript read a second time by GPT-6 Astra before anything is recorded
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-21
+- **Last updated:** 2026-09-21 (evening)
 
 ## Log
 
@@ -1671,6 +1688,28 @@ page or get stuck behind it, and the button it means pulses. Walked on
 production from a clean browser: step 1, the first button; step 2, answer any
 way you like; step 3, what is under your message; "Got it", and it stays gone
 after a reload.
+
+### 2026-09-21 - 4e033d8 · e1cb2c4 · cf9ab5d · f3c744a · a27cc1f · 4107014
+Copy only, no behaviour change, and no function deploy. A judging pass over all
+61 entries (four judge personas modelled on this panel, and every finalist's
+listing claims checked against its repository) said the same thing four times:
+the first screen buried the tenant. It opened with a line to judges about the
+phone call, which is not a sponsor's, then a manifesto, four doors, a keyword
+table and eight states' layoff files; a minute in, a judge could not say what a
+tenant does with it. So the page title, the share card (now a picture of an
+answer stamped STILL BROKEN beside the city's record), the /try heading, the
+landing and the judges' ninety seconds all start from the tenant: see what the
+landlord certified, answer, be told how to make the city send an inspector
+back. The typed answer and the email round trip now come before the phone call.
+After an answer, the first suggestion is the tenant's own next question - who
+owns this building - which Firecrawl answers from the open web.
+
+The same pass checked this log's claims against the code and found two that
+were not true, now corrected. The server does not end a live conversation at
+2:30: the page does, and the server by 2:40 (the 8211554 entry below says 2:30).
+And this log does not have one entry per commit: it has a dated entry for each
+step, with the corrections included. tests/RUN.md is every suite run once, with
+its output: 360 checks, all passing.
 
 ## About
 
