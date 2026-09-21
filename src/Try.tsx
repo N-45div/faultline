@@ -466,7 +466,13 @@ export default function Try({ go }: { go: (p: string) => void }) {
           return (
             <div key={r.id} className="try-row" data-id={r.id}>
               <p className="try-row-head">
-                <strong>{r.thing ?? `Repair #${r.id}`}</strong> · #{r.id}
+                {r.thing ? (
+                  <>
+                    <strong>{r.thing}</strong> · #{r.id}
+                  </>
+                ) : (
+                  <strong>Repair #{r.id}</strong>
+                )}
                 {r.cls ? ` · class ${r.cls}` : ""}
                 {said && (
                   <>
