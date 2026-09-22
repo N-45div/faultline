@@ -52,7 +52,9 @@ export function shareLetter(s: ShareInput): { subject: string; text: string } {
     `${s.askedStatus} as of ${s.askedStatusDate}${s.certifiedBy ? `; the owner certified it on ${s.certifiedBy}` : ""}.`,
     deadline ? `HPD's 70 days run to ${deadline}. After that the city can close it on the owner's word unless an inspector goes back.` : ``,
     ``,
-    `Their answer: ${WORD[s.answer]}, kept on ${day(s.saidAt)} by one tap on ${s.site}/try.`,
+    // Every letter comes from the browser trial, which does not know who is answering: the letter says so, so a
+    // forwarded copy never reads as a tenant's checked word.
+    `Their answer, given in Faultline's browser trial: ${WORD[s.answer]}, kept on ${day(s.saidAt)} at ${s.site}/try. The trial does not check who is answering, and its answers are never counted on the building's public page.`,
     ``,
     `The city's own row: ${cityRowUrl(s.violationId)}`,
     `How a tenant challenges a certification: call 311 or use nyc.gov/311, give the violation number, and say the condition is still there.`,
@@ -61,7 +63,7 @@ export function shareLetter(s: ShareInput): { subject: string; text: string } {
     ``,
     `Faultline · ${s.inbox}`,
   ].filter((l, i, all) => !(l === "" && all[i - 1] === ""));
-  return { subject: `Repair #${s.violationId}: the city's record, and a tenant's answer`, text: lines.join("\n") };
+  return { subject: `Repair #${s.violationId}: the city's record, and an answer from Faultline's browser trial`, text: lines.join("\n") };
 }
 
 /** An address as the page may show it back: the first letter and the domain. */
