@@ -1,7 +1,7 @@
 # Hackathon log
 
 **Read this first.** Faultline is for New York City tenants. When a landlord tells the city (HPD) a repair is done,
-the city closes the violation after 70 days unless someone challenges it through 311 and an inspector goes back.
+the city can close the violation after 70 days unless someone challenges it through 311 and an inspector goes back.
 Faultline shows the tenant each repair their landlord certified and, for one certified on time, the day its 70 days
 run out, tells them how to
 challenge it, takes their answer in their own words (typed, spoken, or on a real phone call), keeps it dated beside the
@@ -46,18 +46,20 @@ each sponsor lives, file by file: [README, Where each thing lives](README.md#whe
 - **Live app:** https://clear-dogfish-72.convex.site
 - **Try it without email or sign-in:** https://clear-dogfish-72.convex.site/try
 - **Tour for judges:** https://clear-dogfish-72.convex.site/judge
+- **How it works, for a tenant:** https://clear-dogfish-72.convex.site/how-it-works
 - **Demo video:** https://youtu.be/Xa8uKOZP-Y4
 - **Repo:** https://gitlab.com/ndivij2004/faultline (moved from GitHub on 20 Sep 2026 with its whole history, every commit and date as it was)
 - **Frontend:** Convex static hosting (convex.site)
 - **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held)
-- **Components (4):** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex, @convex-dev/rate-limiter
-- **Convex features:** schema, 33 tables, 67 indexes, 181 functions (npx convex function-spec --prod: 56 queries, 83 mutations, 27 actions, 15 HTTP actions), 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
+- **Components (6):** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex, @convex-dev/rate-limiter, @convex-dev/action-cache (a building's history from the city, held twenty hours), @convex-dev/workflow (installed, and switched off on production until a real call has run through it)
+- **Convex features:** schema, 36 tables, 72 indexes, 202 functions (npx convex function-spec --prod: 61 queries, 93 mutations, 33 actions, 15 HTTP actions), 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
 - **Auth:** Convex Auth, email + password only, and optional everywhere: it is needed only to follow a filing from the web. Every other path, the judges' included, needs no account
 - **OpenAI:** GPT-6 Astra on the OpenAI Agents SDK (the inbox agent: twelve strict tools, tool choice required, a cost ledger in cents; and the second reader of every phone call, through one strict tool); gpt-live-1 over WebRTC with client delegation (talk to it in the browser: the voice hands every request to the same door as typing, the page ends each conversation at 2:30, and the server ends it by 2:40 whatever the page does); gpt-4o-mini-transcribe and gpt-4o-mini-tts (say your answer, hear ours, and the recording is never kept); gpt-5.6-luna (forwarded letters and photographed notices: strict structured outputs from one zod schema, prompt caching, PDF and image input, hosted web search); text-embedding-3-small in a Convex vector index (which repair a person's words are about); omni-moderation-latest
-- **Firecrawl:** the Convex component: scrape with waits for a state page this deployment cannot reach, change tracking in git-diff mode kept beside our own diff, full-page screenshots, and search (FIND)
-- **AgentMail:** the inbox; the component's verified webhook and event store; delivery events that are acted on (a bounce or complaint stops the mail); labels on every message; attachments in and out
+- **Firecrawl:** the Convex component: HPD Online, the city's own site, read the moment someone answers a repair (the violation number typed into its search box, the row kept with a screenshot and a SHA-256); scrape with waits for a state page this deployment cannot reach, change tracking in git-diff mode kept beside our own diff, full-page screenshots, and search (FIND)
+- **AgentMail:** the inbox; the component's verified webhook and event store; delivery events that are acted on (a bounce or complaint stops the mail); labels on every message; attachments in and out; a letter to someone helping a tenant, sent from the agent's own inbox under an Idempotency-Key and built by code from the city's fields and the answer (engine/shareLetter.ts), with its delivery events and every reply shown under it
 - **Photon** (not a hackathon sponsor): the same inbox by text, behind a signed webhook
 - **CALL-E** (not a hackathon sponsor): the same questions on a real telephone: one API call carrying the script the tools wrote and a strict result schema, an unsigned webhook believed for nothing but a call id, the call read back with our own key, and the transcript read a second time by GPT-6 Astra before anything is recorded
+- **Built with:** Claude Code and the Convex plugin; Convex's agent skills and guidelines are in the repository ([README, Built with](README.md#built-with))
 - **Started:** 2026-08-29T18:42:23Z
 - **Last updated:** 2026-09-22
 
@@ -1867,11 +1869,174 @@ data and address unchanged, so it stays up through judging. Checks: 471, in
 tests/RUN.md; the judges' path passed all seven steps on production after the
 upload.
 
+### 2026-09-22 - 8f7e05e
+Docs only. The README now says how Faultline was built: with Claude Code and the
+Convex plugin. Convex's agent skills (get-convex/agent-skills, pinned in
+skills-lock.json) are in .claude/skills/ for Claude Code and in .agents/skills/
+for Codex and other agents, and `npx convex ai-files install` keeps Convex's
+guidelines in convex/_generated/ai/guidelines.md, which CLAUDE.md and AGENTS.md
+point to. All of it has been in the repository since f6be936, the second entry
+in this log.
+
+### 2026-09-22 - a letter to a helper, and the reply, on production
+The letter to a helper, sent for real. At 09:14:17 UTC, on production, Send was
+pressed on /try under a repair answered there, with the author's own Gmail as
+the helper's address. The row read sent 0.9 s later, and accepted by their mail
+server - AgentMail's delivered event - 2.1 s after Send. The author replied from
+that inbox, and at 09:15 UTC, about a minute after the letter, the reply was on
+the letter's row on /try: "Got it thanks I have the city record for #19112933".
+
+In the same session a typed sentence was read by GPT-6 Astra -> record_answer
+for 2.37c and recorded in 11.8 s, and the record page open beside it changed
+with no reload. Firecrawl's reading of HPD Online for #19112934, at 09:02 UTC,
+showed CIV14 MAILED, 09/21/2026, while the data file's row said NOV CERTIFIED ON
+TIME, 2026-09-18: the city's two places, each with its own date, and each is
+shown as it is.
+
+### 2026-09-22 - d2d5c0c · 9a28b53 · 3552147 · 50d03b3 · ea4e400 · ec3c65e · af3e582 · eac225b · 3d6ef56 · 80a128d
+The first of three rounds of fixes today from reviews by Codex, running GPT-6
+Astra, on what a judge or a tenant reads. Five places still said the city
+"closes" a certified violation after 70 days: the clock's spoken label, the
+reply for a building with nothing to ask about, the building page, the landing
+and /judge. Each now says it can close one. /judge also says that Firecrawl
+opens HPD Online the moment someone answers, that the letter to a helper is a
+step of its own, and that there are six components.
+
+A browser trial's ASK reply now calls the answer a practice answer: it is kept,
+dated, on that page and on the record, and never counted on the building's
+public page. A housing receipt on the web offers Check these repairs, which
+opens /try with the ASK for that address in the box and sends nothing until it
+is pressed; its city links are shown by the site's name instead of an address
+hundreds of characters long, and the city's words wrap on a phone instead of
+widening the page. Each answer button now names its violation to a screen reader
+("Still broken: #19112933").
+
+The letter to a helper keeps every reply now, in order, each under the letter
+(the newest 20, each cut at 500 characters); a second reply used to replace the
+first. A send AgentMail never answered is no longer called failed: a dropped
+connection, a timeout (the send now gives up after 30 seconds), a 502 or 504,
+or an answer with no message id can come after AgentMail took the letter. The
+row says delivery could not be confirmed, and nothing sends it again on its own:
+a retry would carry the same Idempotency-Key and be the same send. Only an error
+status from AgentMail means nothing was sent. So that AgentMail's later event
+could still reach such a letter, eac225b matched the event by the address the
+letter went to; the next round found what that could do.
+
+### 2026-09-22 - 7fb7625 · 2ab078c · d83cb3a · 3a1fc93 · 52d0a0c · 5add687 · 7563bf5 · f5d407e · 2f290b9
+The first round, continued. The record page is one case file per repair
+(src/Record.tsx). Each case holds what the owner told the city, with the city's
+status now and whether it has changed; the earlier citation, where there is
+one, drawn by the same callout /try uses (src/CitedBefore.tsx); the answers,
+dated and private; what the city shows, Firecrawl's reading of HPD Online
+beside the data file's row, with a line that these are the city's two places,
+each with its own date, so a different label between them is not a
+contradiction; one next step; and what is checked next. Each case says that
+saving an answer does not file anything with HPD, and has Copy summary; the
+page has Print this record.
+
+What is checked next comes from a new query, attest.recordChecks, opened by the
+record's own link: the city's housing file is read for the building about every
+three hours, when it was last read and whether that read went through, and when
+the next is due. It hands back nothing about anyone else's buildings
+(tests/record.test.ts). HPD Online is read when someone answers, not on a
+schedule, and the case says that too. Under a reading, HPD Online is now named
+plainly, the saved page opens in one link, and the SHA-256 is in full behind
+"How this copy is kept".
+
+/how-it-works is a plain page for tenants in ten parts, among them what a
+certification means, the 70 days and where they stop, what saving an answer
+does, how to challenge a certification through 311, and what is private and what
+is public. It names the only two ways an answer leaves a person's page: a
+building's public page may say someone said STILL BROKEN once the city's own
+record agrees, and a letter they choose to send a helper carries the answer in
+one word. Its source lists the files behind what it says. The nav links it
+beside Try it, Tour and Files, and the landing leads to it from its three steps.
+The landing's card beside the headline now reads in seconds: each repair as a
+short name, the owner's date and HPD's 70 days drawn, with the reply's own lines
+one tap down, word for word as the email prints them.
+
+### 2026-09-22 - b93bbfe · ac50271 · aecdee8
+The second round began with a bug a Codex (GPT-6 Astra) review reproduced. To let
+AgentMail's late event reach a letter whose send was never confirmed, eac225b
+matched the event to the newest unconfirmed letter to the address it named, and
+two people can write to the same helper. The review ran the real function with
+stand-in reads: tenant A and tenant B both write to one helper, and neither send
+is confirmed; A's late event then attached A's message and thread to B's row, so
+the helper's replies to A would have shown on B's page.
+
+Every send now carries two labels, `share` and `share-<id>`. A late event moves
+only the row its own label names; an event that names only the address moves
+nothing, and that row stays "not confirmed", which is true; and the index by
+address is gone. tests/share.test.ts holds two unconfirmed letters to one
+helper from two pages: an event naming only the address moves neither, and the
+event with one letter's label moves that letter only. The matching by address
+never reached production: it was added and removed between two deploys.
+
+A browser trial's record now says its answers are practice answers, never
+counted on the building's page (attest.record says whether a record is a
+trial's). And /how-it-works said a record opens only with the link in the email.
+It says now that anyone who has the link can open it, so keep it to yourself,
+and that a browser trial's answers are on the trial page in that browser and on
+its record page, which opens the same way.
+
+### 2026-09-22 - 6ddbd75 · 3457dad · a5aff2b · 612880c · f69e05c · d6cefad
+The third round. Every letter to a helper comes from the browser trial, which
+does not check who is answering, and the letter now says so
+(engine/shareLetter.ts, still built from the city's fields and the answer only):
+its subject ends "the city's record, and an answer from Faultline's browser
+trial", and the answer's line says the trial does not check who is answering and
+its answers are never counted on the building's public page, so a forwarded
+copy does not read as a tenant's checked word. The record's copied summary calls
+such an answer a practice one too.
+
+On the record, what to do next follows the city's latest status, not the one we
+asked about. A certification the city has since closed, or found false or
+invalid, has nothing left to challenge, so that case says to call 311 and
+describe the condition; a date to challenge by, from the 70 days, is given only
+while the status we asked about still stands.
+
+A link can open the record at one repair (`#v-<number>`): the case comes into
+view, lit for a moment, and is held there while the cases above it grow with the
+city's pages, for up to three seconds or until the person scrolls or taps; with
+reduced motion it jumps rather than glides. Your repairs, a list of every
+repair, is at the top. The record button on /try opens at the repair last
+answered.
+
+Prepare my 311 call, in each case's next step, is a checklist built from the
+page's own facts: the building, the violation number, the city's words, the date
+the owner certified it, the city's file when we asked and its latest status, the
+answer and the person's own words where the page has them, and what they will
+say. Above it: "Nothing has been filed. This is for your own call to 311." It
+can be changed in place, copied, or printed on a sheet of its own; nothing is
+sent from it.
+
+### 2026-09-22 - d6cefad, deployed
+All three rounds went to production together, in the fourth deploy today. The
+site's bundle is assets/index-Y4uIWKnS.js, and /how-it-works, /judge and /try
+answer 200. `npx convex function-spec --prod` counts 202 functions: 61 queries,
+93 mutations, 33 actions and 15 HTTP actions, one query more than after the
+third deploy (attest.recordChecks). The schema is 36 tables, 72 indexes, a
+full-text index and a vector index, the same counts as before: the index by
+address came and went in between.
+
+The judges' path - a script that walks a judge's first ninety seconds in a fresh
+browser - passed all seven steps on production at 11:34 UTC: the landing served
+its title and three clocks; og.png answered 200; /judge showed its box of five
+items; ASK 155 Linden Boulevard, Brooklyn was answered in 2.4 s with three rows,
+the first #19112933; Still broken was stamped 0.9 s later, read by the keyword
+reader, with no model; the email chip's mailto was right; a 390 by 844 phone had
+no sideways scroll; and the page raised no errors.
+
+Checks: 481 at d6cefad, in tests/RUN.md - 95 convex-test tests in 8 files, 218
+engine, 111 receipt, 38 state, 10 wall and 9 Maryland, with both typechecks and
+the copy lint clean. The repository holds 349 commits at d6cefad, the first on
+29 August.
+
 ## About
 
 When a landlord in New York City tells the housing agency a repair is done, the
-violation closes after 70 days unless the city sends an inspector back. The
-city's file holds the landlord's word and has no place for the tenant's.
+city can close the violation after 70 days unless it sends an inspector back.
+The city's file holds the landlord's word and has no place for the tenant's.
 Faultline asks the person who lives there, keeps their answer private and dated
 beside the city's own record, and tells them the day the city agrees - which it
 does, in its own words, about 45 times a day: FALSE CERTIFICATION, then the
