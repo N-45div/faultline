@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { askFrom, askLine, challengeDeadline, CITY_SAYS_FALSE, SAMPLE_BBL, type Ask } from "../engine/hpd";
 import { isWeb } from "../engine/web";
+import { nycHpd } from "../engine/adapters/nycHpd";
 
 // The tenant's word beside the city's. The city's row says the owner
 // certified a repair; the person who lives with it says whether it happened.
@@ -386,5 +387,56 @@ export const deliveries = query({
       });
     }
     return out.slice(0, 10);
+  },
+});
+
+/**
+ * When the city's housing file is read for this person's buildings: the last
+ * read and how it went, the next one due, and which of their buildings are on
+ * the list it reads (asking about one puts it there, keepWatching). Opened by
+ * the same private link as the record; nothing else about the file is handed
+ * back.
+ */
+export const recordChecks = query({
+  args: { token: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      everyHours: v.number(),
+      lastReadAt: v.union(v.number(), v.null()),
+      lastReadFailed: v.boolean(),
+      nextReadAt: v.union(v.number(), v.null()),
+      onList: v.array(v.string()),
+    }),
+  ),
+  handler: async (ctx, { token }) => {
+    if (token.length < 20) return null;
+    const rec = await ctx.db.query("records").withIndex("by_token", (q) => q.eq("token", token)).unique();
+    if (!rec) return null;
+    const rows = await ctx.db
+      .query("attestations")
+      .withIndex("by_email_asked", (q) => q.eq("email", rec.email))
+      .order("desc")
+      .take(100);
+    const buildings = [...new Set(rows.map((r) => r.subjectKey))];
+    const hpd = await ctx.db.query("sources").withIndex("by_slug", (q) => q.eq("slug", "nyc-hpd")).unique();
+    const onList: string[] = [];
+    if (hpd) {
+      for (const subjectKey of buildings) {
+        const t = await ctx.db
+          .query("targets")
+          .withIndex("by_source_subject", (q) => q.eq("sourceId", hpd._id).eq("subjectKey", subjectKey))
+          .unique();
+        if (t?.active) onList.push(subjectKey);
+      }
+    }
+    return {
+      everyHours: nycHpd.cadence.baseMs / 3_600_000,
+      lastReadAt: hpd?.lastRunAt ?? null,
+      lastReadFailed: (hpd?.lastStatus ?? "").startsWith("error"),
+      // A paused file is not read on its clock, so no next read is promised.
+      nextReadAt: hpd && hpd.status === "active" ? hpd.nextRunAt : null,
+      onList,
+    };
   },
 });
