@@ -92,6 +92,16 @@ Say "violation" about a layoff (the word is *gap*; exceptions are a lawyer's que
 
 "Nothing filed" is an answer too — dated to the minute, with each file's last read, and followable.
 
+## Next, planned (not built)
+
+None of these is in the product; each needs care with who can see what, so none was rushed in before the deadline.
+
+| Planned | Why |
+|---|---|
+| **Track your follow-through** | Save the 311 reference number and the day you called, marked as your own word, beside the repair |
+| **Share chosen repairs** | A link for a helper that holds only the repairs you pick, and that you can take back |
+| **An organizer's view** | Follow several tenants' repairs who each agreed to it, with every tenant's answers kept apart |
+
 ---
 
 ## Sponsor depth
