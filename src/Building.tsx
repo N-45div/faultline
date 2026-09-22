@@ -83,7 +83,7 @@ export default function Building({ bbl, onBack }: { bbl: string; onBack: () => v
                 : `The owner says ${open.length} repairs here are done. Are they?`}
           </h3>
           <p>
-            An owner's certification closes the violation after 70 days unless HPD reinspects and finds it isn't done —
+            On an owner's certification, the city can close the violation after 70 days unless HPD reinspects and finds it isn't done —
             and a tenant may challenge the certification, which triggers that inspection. Email ASK and this address, and
             we'll send each repair certified here, in the city's words, with the day its 70 days run out. Reply FIXED,
             STILL BROKEN or NOT SURE, and your answer is kept, dated, beside the city's record.
