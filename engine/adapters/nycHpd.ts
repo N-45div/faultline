@@ -77,8 +77,10 @@ export const nycHpd: SourceAdapter<Raw> = {
       inspectiondate: r.inspectiondate ? dateOnly(r.inspectiondate) : null,
       violationstatus: r.violationstatus ?? "",
       novdescription: (r.novdescription ?? "").replace(/\s+/g, " ").trim().slice(0, 512),
-      // The unit number is redacted on every shared surface. It lives only on
-      // the private case page, so it is never part of the public row.
+      // The city's separate apartment and story columns are not kept. Its
+      // description, which often names the unit ("LOCATED AT APT 4A, 4th
+      // STORY, …"), is kept and shown on the building page as the city
+      // publishes it; only a link preview leaves the unit out (engine/hpd.ts).
       __subjectKind: "building",
       __subjectKey: r.bbl ?? "",
       __subjectLabel: label(r),

@@ -470,7 +470,7 @@ export default defineSchema({
     receivedAt: v.number(),
     authenticated: v.boolean(),
     bodySha256: v.string(),
-    /** Redacted at ingest: emails, phones, SSNs, unit numbers. */
+    /** Meant for forwarded text with emails, phones, SSNs and unit numbers taken out. Nothing writes this table, and no step takes them out. */
     redactedText: v.string(),
   })
     .index("by_message_id", ["messageId"])

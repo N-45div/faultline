@@ -133,8 +133,9 @@ export async function stampsFor(db: DatabaseReader, bbl: string): Promise<Buildi
       date: String(c.fields.currentstatusdate),
       hazardClass: String(c.fields.class ?? ""),
       certifiedBy: c.fields.certifiedbydate ? String(c.fields.certifiedbydate) : null,
-      // The city's own words for what was wrong. The unit number never
-      // leaves the row; the description is the whole point of the page.
+      // The city's own words for what was wrong, the whole point of the page,
+      // as the city publishes them: they often end by naming the unit. Only
+      // the link preview leaves it out (convex/http.ts).
       violationId: String(c.fields.violationid ?? ""),
       description: c.fields.novdescription ? String(c.fields.novdescription) : null,
       inspected: c.fields.inspectiondate ? String(c.fields.inspectiondate) : null,
