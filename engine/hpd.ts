@@ -83,11 +83,16 @@ export function askHeadline(n: number): string {
   return n === 1 ? "They say it's fixed. Is it?" : `They say ${n} things are fixed. Are they?`;
 }
 
-/** The two lines under the asks in every ASK reply: how to answer, and where the answer goes. */
-export function howToAnswer(firstViolationId: string): string[] {
+/**
+ * The two lines under the asks in every ASK reply: how to answer, and where the answer goes. A browser trial's
+ * answer is never counted on a public page, so its reply says that instead of how a real answer can reach one.
+ */
+export function howToAnswer(firstViolationId: string, trial = false): string[] {
   return [
     `Reply with the number and one of FIXED, STILL BROKEN or NOT SURE — for example: #${firstViolationId} STILL BROKEN. Add a photo if you have one. Or just tell us in your own words.`,
-    "Your answer stays private to you, dated, beside the city's record. It shows on the building's page only if the city's own record later agrees.",
+    trial
+      ? "This is a practice answer: it is kept, dated, on this page and on your record, and it is never counted on the building's public page."
+      : "Your answer stays private to you, dated, beside the city's record. It shows on the building's page only if the city's own record later agrees.",
   ];
 }
 

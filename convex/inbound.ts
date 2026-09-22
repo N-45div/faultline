@@ -930,7 +930,7 @@ async function askReceiptFor(ctx: MutationCtx, from: string, bbl: string, label:
     query: `ask:${bbl}`,
     subjectKey: bbl,
     headline: askHeadline(asks.length),
-    blocks: [asks.map((a) => `- ${askLine(a, label)}`), howToAnswer(asks[0].violationId)],
+    blocks: [asks.map((a) => `- ${askLine(a, label)}`), howToAnswer(asks[0].violationId, isWeb(from))],
     links: [
       { label: "Your answers, beside the city's record", url: record },
       { label: "This building's record", url: page },
