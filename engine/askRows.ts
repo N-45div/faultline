@@ -23,7 +23,7 @@ export type AskRow = {
   asOf: string;
   /** The last of HPD's 70 days, for an owner's certification made on time. */
   until: string | null;
-  /** The line exactly as askLine wrote it, without the "- " the reply puts before it. */
+  /** The line as askLine writes it, without the "- " the reply puts before it. */
   line: string;
 };
 
@@ -68,11 +68,15 @@ export function askRows(reply: string): AskRow[] {
     const [, id, , cls, described, who, status, asOf, certifiedBy, until] = m;
     // askLine picks its words from the status, so the two must agree; the
     // owner's earlier date is only written for a closure, the 70 days only
-    // for a certification made on time.
+    // for a certification.
     const owner = fixedClaim(status) === "owner";
     if ((who === OWNER) !== owner) return [];
     if (certifiedBy !== undefined && owner) return [];
-    if (until !== undefined && (!owner || certifiedLate(status))) return [];
+    if (until !== undefined && !owner) return [];
+    // askLine used to give a late certification its 70 days too, and a thread
+    // already kept may still hold that line. It reads back as the line is
+    // written now: the day is left out, and the row has no clock.
+    const late = certifiedLate(status);
     const cityWords = described ?? "";
     rows.push({
       id,
@@ -81,8 +85,8 @@ export function askRows(reply: string): AskRow[] {
       cityWords,
       status,
       asOf,
-      until: until ?? null,
-      line: raw.slice(2),
+      until: late ? null : (until ?? null),
+      line: late ? raw.slice(2).replace(/ HPD's 70 days run to \d{4}-\d{2}-\d{2}\.$/, "") : raw.slice(2),
     });
   }
   return rows;

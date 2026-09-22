@@ -390,7 +390,8 @@ console.log("\n== the ASK reply, read back into rows");
   check(late.length === 1 && late[0].asOf === "2026-09-17" && late[0].until === "2026-11-26", "ASK rows: a status date with a time on it reads as its day");
   check(closed.length === 1 && closed[0].status === "VIOLATION CLOSED" && closed[0].until === null && closed[0].cls === null && closed[0].cityWords === "", "ASK rows: a closure, with the owner's earlier date, no class and no description");
   // One made on time and one made late, in one reply: the late one reads back
-  // with no clock, and a late line that still carried a clock would not.
+  // with no clock. A thread kept earlier may hold the late line with the 70
+  // days askLine used to give it: it reads back too, without them.
   const mixed = [row("19041834", "A", "BROKEN OR DEFECTIVE VINYL FLOOR TILES"), row("19106317", "B", "EVIDENCE OF A WATER LEAK AT CEILING", "2026-09-17", "2026-09-17", "NOV CERTIFIED LATE")];
   const both = askRows(reply(mixed));
   check(
@@ -398,7 +399,16 @@ console.log("\n== the ASK reply, read back into rows");
     `ASK rows: ON TIME reads back with its 70 days, LATE with none, each as askLine wrote it (got ${JSON.stringify(both.map((r) => [r.id, r.until]))})`,
   );
   const lateWithClock = reply(mixed).replace("NOV CERTIFIED LATE as of 2026-09-17.", "NOV CERTIFIED LATE as of 2026-09-17. HPD's 70 days run to 2026-11-26.");
-  check(askRows(lateWithClock).length === 0, "ASK rows: a late line with a clock is not one askLine writes, and none is used");
+  const kept22 = askRows(lateWithClock);
+  check(
+    kept22.length === 2 && kept22[0].until === "2026-11-26" && kept22[1].status === "NOV CERTIFIED LATE" && kept22[1].until === null && kept22.every((r, i) => r.line === askLine(mixed[i], where)),
+    `ASK rows: a late line kept with its old clock reads back with none, as askLine writes it now (got ${JSON.stringify(kept22.map((r) => [r.id, r.until]))})`,
+  );
+  check(
+    askRows(lateWithClock.replace("HPD's 70 days run to 2026-11-26.", "HPD's 70 days run to 2026-11-26. It closes then.")).length === 0 &&
+      askRows(reply(mixed).replace("NOV CERTIFIED LATE as of 2026-09-17.", "NOV CERTIFIED LATE as of 2026-09-17. HPD closes it later.")).length === 0,
+    "ASK rows: anything else after a late line is still not read back, and none is used",
+  );
   const one = text.split("\n");
   const broken = one.map((l) => (l.startsWith("- #19106317") ? l.replace(" as of ", " on ") : l)).join("\n");
   check(askRows(broken).length === 0, "ASK rows: one line that does not read back and none is used");
