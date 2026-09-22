@@ -2,17 +2,22 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import schema from "../convex/schema";
+import actionCacheTest from "@convex-dev/action-cache/test";
 import { api, internal } from "../convex/_generated/api";
 import fixture from "../data/condition-history-3050840061.json?raw";
 
 // A repair the city cited before, against an in-memory Convex: the city's file
-// for the sample building is read by an internal action, and nothing of it is
-// stored; what the rule finds is kept per violation; and the page's one query
-// reads only that. The city's API is stood in for by sixteen of the building's
-// real rows (data/condition-history-3050840061.json).
+// for the sample building is read once, through the Action Cache, by an
+// internal action; what the rule finds is kept per violation; and the page's
+// one query reads only that. The city's API is stood in for by sixteen of the
+// building's real rows (data/condition-history-3050840061.json).
 
 const modules = import.meta.glob("../convex/**/*.*s");
-const make = () => convexTest(schema, modules);
+const make = () => {
+  const t = convexTest(schema, modules);
+  actionCacheTest.register(t);
+  return t;
+};
 
 const BBL = "3050840061";
 const ROWS: unknown[] = JSON.parse(fixture).rows;
@@ -41,7 +46,7 @@ afterEach(() => {
 
 const kept = (t: ReturnType<typeof make>) => t.run((ctx) => ctx.db.query("repairHistory").collect());
 
-test("refresh reads the building's file, and keeps what the rule finds and none of the city's rows", async () => {
+test("refresh reads the building's file once, through the cache, and keeps what the rule finds", async () => {
   const t = make();
   const out = await t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934", "19178388", "17916497"] });
   expect(out).toEqual({ read: 16, checked: 3, cited: ["19112934"] });
@@ -61,10 +66,9 @@ test("refresh reads the building's file, and keeps what the rule finds and none 
   ]);
   expect(rows[0].earlier).toEqual([{ violationId: "18037661", inspectionDate: "2025-06-18", certifiedDate: "2025-07-31", status: "NOT COMPLIED WITH", statusDate: "2025-08-22" }]);
 
-  // A second check reads the city again, since nothing of the first read was
-  // stored, and replaces the row it kept.
+  // A second check that day reuses the rows the cache holds, and replaces the row it kept.
   await t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] });
-  expect(city).toHaveLength(2);
+  expect(city).toHaveLength(1);
   expect(await kept(t)).toHaveLength(3);
 });
 
@@ -91,7 +95,7 @@ test("forRepairs reads at most ten", async () => {
   expect(city).toHaveLength(0);
 });
 
-test("a failed read throws, and nothing is kept from it", async () => {
+test("a failed read throws, and nothing is cached or kept from it", async () => {
   const t = make();
   answer = () => new Response("busy", { status: 503 });
   await expect(t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).rejects.toThrow(/HTTP 503/);
@@ -101,22 +105,19 @@ test("a failed read throws, and nothing is kept from it", async () => {
   answer = () => json([]);
   await expect(t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).rejects.toThrow(/answered with no rows/);
   expect(await kept(t)).toEqual([]);
-  // The next check reads the city again, and keeps the chain.
+  // The failures were not cached: the next check reads the city again, and keeps the chain.
   answer = theRows;
   expect(await t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).toMatchObject({ cited: ["19112934"] });
   expect(city).toHaveLength(4);
 
-  // An empty answer after that leaves the chain as it was kept, and the next check reads the city again.
+  // The rows are cached: a second check the same day does not read the city again, and keeps the chain.
   answer = () => json([]);
-  await expect(t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).rejects.toThrow(/answered with no rows/);
+  expect(await t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).toMatchObject({ cited: ["19112934"] });
+  expect(city).toHaveLength(4);
   const still = async () => (await t.query(api.history.forRepairs, { violationIds: ["19112934"] }))[0]?.earlier.map((e) => e.violationId);
   expect(await still()).toEqual(["18037661"]);
   // Nor does a check that read none of the city's rows replace a citation already kept.
   await t.mutation(internal.history.keep, { bbl: BBL, rowsRead: 0, checked: [{ violationId: "19112934", earlier: [] }] });
-  expect(await still()).toEqual(["18037661"]);
-  answer = theRows;
-  await t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] });
-  expect(city).toHaveLength(6);
   expect(await still()).toEqual(["18037661"]);
 });
 
