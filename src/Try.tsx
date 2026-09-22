@@ -6,6 +6,7 @@ import { ClockUntil, SAMPLE_ASK } from "./AskCard";
 import { canTalk, useLive } from "./useLive";
 import { askRows, type AskRow } from "../engine/askRows";
 import CitedBefore from "./CitedBefore";
+import DocumentedCase from "./DocumentedCase";
 import CityPage from "./CityPage";
 
 // The inbox, without the email. What is typed here goes through the handler an
@@ -779,6 +780,12 @@ export default function Try({ go }: { go: (p: string) => void }) {
             </a>
             ). Press the first button to see what the owner has certified since.
           </p>
+        )}
+        {messages.length === 0 && (
+          <details className="tour-more try-doc-case">
+            <summary>Explore a documented case: the owner said the roaches were gone, and the city found it false</summary>
+            <DocumentedCase />
+          </details>
         )}
         {messages.map((m, at) =>
           m.who === "live" ? (
