@@ -28,7 +28,8 @@ export const limits = new RateLimiter(components.rateLimiter, {
   /** Asking about a building reads every row we hold for it. */
   webAsk: { kind: "fixed window", rate: 40, period: DAY },
   webAgentRun: { kind: "fixed window", rate: 80, period: DAY },
-  webPage: { kind: "fixed window", rate: 6, period: DAY },
+  /** Pages the trial keeps, by KEEP or FIND, every browser together. */
+  webPage: { kind: "fixed window", rate: 20, period: DAY },
   // Speech is paid for by the second. A recording is charged here before any
   // model hears it, and so is a reply before it is read aloud.
   webHearSender: { kind: "fixed window", rate: 15, period: DAY },
