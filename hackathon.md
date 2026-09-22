@@ -22,12 +22,14 @@ each sponsor lives, file by file: [README, Where each thing lives](README.md#whe
 - The call tool proves a number was typed by the person asking, not that they own it. The fences: a consent box on
   /try, two calls per number a day, two per person, twelve a day in all, and a number that says it never asked is never
   rung again.
-- On a typed or spoken answer, the note GPT-6 Astra passes to record_answer is shown on your record as your words. The
-  agent is told never to add words (convex/agent.ts), but no code checks it yet; on a phone call it is checked
-  (engine/call.ts saidIt). The same check belongs on the typed path.
-- The 70-day clock is shown on repairs certified LATE as well as ON TIME. The city's own file says HPD closes on-time
-  certifications 72-75 days later and does not close late ones on that clock: 2,494 of the 14,027 in the window today
-  are late (data/right-now-2026-09-21.json). The fix is one line in engine/hpd.ts, which the backend imports.
+
+**Fixed on 22 September:**
+- On a typed or spoken answer, the note GPT-6 Astra passes to record_answer is kept as your words only if your own
+  message bears it out, by the test a phone call's quote is put to (engine/call.ts, wroteIt and saidIt; convex/match.ts).
+  A note that fails it is dropped; the answer is recorded either way.
+- A repair certified LATE shows no 70-day clock and no close date: the city's own file shows HPD closing on-time
+  certifications 72-75 days later, and not closing late ones on that clock. It is still asked about, with a line that
+  HPD does not close a late certification on its 70-day clock (engine/hpd.ts).
 
 - **Project:** Faultline
 - **Event:** Convex All Gas Hackathon
