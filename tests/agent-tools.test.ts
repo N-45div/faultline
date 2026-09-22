@@ -396,6 +396,7 @@ test("their own words decide which repair, when the model picks the other one", 
     answer: "still_broken",
     note: null,
     words: "the latch on the compactor closet door is still broken",
+    subject: LABEL,
   });
   expect(out).toContain("asked them which");
   const reply = await lastReply(t);
@@ -433,6 +434,7 @@ test("when their words match the number the model picked, the answer is recorded
     answer: "still_broken",
     note: null,
     words: "the ceramic tiles by the floor are still cracked",
+    subject: LABEL,
   });
   expect(out).toBe("recorded and replied");
 });
@@ -466,6 +468,7 @@ test("a note the model passes on is kept when the words are theirs", async () =>
     answer: "still_broken",
     note: "water still comes through",
     words: `the super painted over the stain but water still comes through${QUOTED}`,
+    subject: LABEL,
   });
   expect(out).toBe("recorded and replied");
   expect(await lastReply(t)).toContain('Your word: still broken, 2026-09-14 — "water still comes through".');
@@ -485,6 +488,7 @@ test("a note the model made up is dropped, and the answer is still recorded", as
     answer: "still_broken",
     note: "the landlord refuses to fix anything and threatened me",
     words: `still broken, nobody came${QUOTED}`,
+    subject: LABEL,
   });
   expect(out).toBe("recorded and replied");
   const reply = await lastReply(t);
@@ -508,11 +512,69 @@ test("the city's words quoted back under their reply are not their note", async 
     answer: "not_sure",
     note: "POST A PROPER NOTICE REGARDING RENT STABILIZATION LAW",
     words: `not sure, I haven't been downstairs${QUOTED}`,
+    subject: LABEL,
   });
   const kept = await answeredRows(t);
   expect(kept).toHaveLength(1);
   expect(kept[0].answer).toBe("not_sure");
   expect(kept[0].note).toBeUndefined();
+});
+
+// The model is shown the subject beside their lines, and a reply can hold the
+// answer only in its subject, or only between our quoted lines.
+test("a note written in the subject is theirs, though the body is only our quote", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m-s1@test>", `Re: ${LABEL}`, "ASK");
+  const inboxId = await incoming(t, "<m-s2@test>");
+  await t.action(internal.match.recordChecked, {
+    inboxId,
+    violationId: VIOLATION,
+    answer: "still_broken",
+    note: "the super painted over it, water comes through",
+    words: QUOTED,
+    subject: "the super painted over it, water comes through",
+  });
+  const kept = await answeredRows(t);
+  expect(kept).toHaveLength(1);
+  expect(kept[0]).toMatchObject({ answer: "still_broken", note: "the super painted over it, water comes through" });
+});
+
+test("with nothing typed above our quote, the city's words in it are still not their note", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m-s3@test>", `Re: ${LABEL}`, "ASK");
+  const inboxId = await incoming(t, "<m-s4@test>");
+  await t.action(internal.match.recordChecked, {
+    inboxId,
+    violationId: VIOLATION,
+    answer: "still_broken",
+    note: "POST A PROPER NOTICE REGARDING RENT STABILIZATION LAW",
+    words: QUOTED,
+    subject: LABEL,
+  });
+  const kept = await answeredRows(t);
+  expect(kept).toHaveLength(1);
+  expect(kept[0].answer).toBe("still_broken");
+  expect(kept[0].note).toBeUndefined();
+});
+
+test("a note written between our quoted lines is theirs", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m-s5@test>", `Re: ${LABEL}`, "ASK");
+  const inboxId = await incoming(t, "<m-s6@test>");
+  await t.action(internal.match.recordChecked, {
+    inboxId,
+    violationId: VIOLATION,
+    answer: "still_broken",
+    note: "the notice was never posted",
+    words: `${QUOTED}\nstill broken, the notice was never posted`,
+    subject: LABEL,
+  });
+  const kept = await answeredRows(t);
+  expect(kept).toHaveLength(1);
+  expect(kept[0]).toMatchObject({ answer: "still_broken", note: "the notice was never posted" });
 });
 
 test("one-tap and keyword answers are read as before, with no model and their note as they typed it", async () => {

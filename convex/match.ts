@@ -3,7 +3,7 @@ import { internalAction, internalMutation, internalQuery } from "./_generated/se
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { wroteIt } from "../engine/call";
-import { ownLines } from "../engine/hpd";
+import { theirWords } from "../engine/hpd";
 
 /**
  * Which repair a person is talking about, checked against their own words.
@@ -203,6 +203,8 @@ export const recordChecked = internalAction({
     answer: v.union(v.literal("fixed"), v.literal("still_broken"), v.literal("not_sure")),
     note: v.union(v.string(), v.null()),
     words: v.string(),
+    /** The subject as the model was shown it, with Re: taken off. */
+    subject: v.string(),
   },
   returns: v.string(),
   handler: async (ctx, a): Promise<string> => {
@@ -241,13 +243,14 @@ export const recordChecked = internalAction({
     }
     // The model is told to quote them and never add a word, and nothing made
     // it. The note is shown on their record as their words, so it is kept only
-    // if their own lines bear it out: the test a quote from a phone call is put
-    // to (engine/call.ts, saidIt). A note that fails it, or cannot be put to
-    // it, is dropped. The answer never is.
+    // if most of its words are in what they wrote, the subject included and our
+    // quoted reply not (engine/hpd.ts, theirWords): the test a quote from a
+    // phone call is put to (engine/call.ts, saidIt). A note that fails it, or
+    // cannot be put to it, is dropped. The answer never is.
     let note: string | null = null;
     if (a.note) {
       try {
-        note = wroteIt(a.note, ownLines(a.words) || a.words) ? a.note : null;
+        note = wroteIt(a.note, theirWords(a.subject, a.words)) ? a.note : null;
         if (note === null) console.log("[match] the note is not in their words; recording the answer without it");
       } catch (e) {
         console.warn(`[match] the note could not be checked; recording the answer without it: ${String(e)}`);

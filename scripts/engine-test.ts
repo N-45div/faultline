@@ -11,7 +11,7 @@ import { adapters } from "../engine/adapters/index";
 import { hashFields } from "../engine/canon";
 import { diffRows } from "../engine/diff";
 import { warnNoticeGap } from "../engine/rules";
-import { askFrom, askHeadline, askLine, challengeDeadline, fixedClaim, howToAnswer, nextStepFor, parseAnswer, pickAsks, secondWordLine, seventyDaysFrom, type Ask } from "../engine/hpd";
+import { askFrom, askHeadline, askLine, challengeDeadline, fixedClaim, howToAnswer, nextStepFor, parseAnswer, pickAsks, secondWordLine, seventyDaysFrom, theirWords, type Ask } from "../engine/hpd";
 import { askRows, plainThing } from "../engine/askRows";
 import { receiptText, type Receipt } from "../engine/receipt";
 import { classifyInbound } from "../engine/intent";
@@ -313,6 +313,14 @@ console.log("\n== tenant loop");
       wroteIt("water still comes through", "The super painted over it, but water still comes through.") && !wroteIt("the landlord is a criminal", "still broken, nobody came") && !wroteIt("", "still broken"),
       "typed: a note is theirs only if their message has it, by the same test as a call",
     );
+    const ours = 'On Mon, Sep 14, 2026 at 9:02 AM Faultline <getnotice@agentmail.to> wrote:\n> They say it\'s fixed. Is it?\n> - #19106317 at 155 LINDEN BOULEVARD, Brooklyn (class B) — "EVIDENCE OF A WATER LEAK AT CEILING".';
+    check(
+      wroteIt("the super painted over it, water comes through", theirWords("the super painted over it, water comes through", ours)) &&
+        !wroteIt("WATER LEAK AT CEILING", theirWords("155 LINDEN BOULEVARD, Brooklyn", ours)),
+      "typed: a note in the subject is theirs; the city's words in our quote are not, when they wrote nothing above it",
+    );
+    const between = theirWords("", `${ours}\nstill broken, water comes through\n> - #19041834 at 155 LINDEN BOULEVARD, Brooklyn (class A).\n\n--\nA Tenant`);
+    check(between === "still broken, water comes through", `typed: an answer written between our quoted lines is theirs, without the line that introduces the quote or the signature (got ${JSON.stringify(between)})`);
     const a = (violationId: string, answer: "fixed" | "still_broken" | "not_sure", words = "") => ({ violationId, answer, words });
     const one = settle([a("1", "still_broken", "water's still coming through")], { answers: [a("1", "still_broken", "made up by a model")], declined: false }, turns);
     check(one.agreed.length === 1 && one.agreed[0].words === "water's still coming through" && one.unsure.length === 0, "call: two readers who agree record the answer, with the quote the transcript bears out");

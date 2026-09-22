@@ -180,19 +180,38 @@ export function parseAnswer(subject: string, body: string): ParsedAnswer | null 
   return { answer, violationId: id ? id[1] : null, note };
 }
 
+/** The line a mail client writes above the reply it quotes: "On Mon, Sep 14, 2026 … wrote:". */
+const QUOTE_INTRO = /^on .{6,160} wrote:$/i;
+
 /** The lines a person typed, above the quoted reply. */
 export function ownLines(body: string): string {
   const lines = (body ?? "").replace(/\r/g, "").split("\n");
   const out: string[] = [];
   for (const raw of lines) {
     const l = raw.trim();
-    if (/^on .{6,160} wrote:$/i.test(l) || /^-{2,}\s*(original|forwarded) message/i.test(l) || /^from:\s/i.test(l) || /^_{5,}$/.test(l)) break;
+    if (QUOTE_INTRO.test(l) || /^-{2,}\s*(original|forwarded) message/i.test(l) || /^from:\s/i.test(l) || /^_{5,}$/.test(l)) break;
     // "-- " is the signature separator; "Sent via …" and "Sent from my …" are signatures without one.
     if (/^-{2,3}$/.test(l) || /^sent (via|from) /i.test(l)) break;
     if (l.startsWith(">")) continue;
     out.push(l);
   }
   return out.join("\n").trim();
+}
+
+/**
+ * Everything a person wrote in a reply and nothing we did, for a note passed on
+ * as theirs: the subject they gave it, as the model is shown it, and their lines
+ * above our quoted reply, or, with none above it, the lines they wrote under and
+ * between its quoted ones. Our quote and the line that introduces it do not
+ * count; a forwarded message or a signature still ends what they wrote.
+ */
+export function theirWords(subject: string, body: string): string {
+  const inline = (body ?? "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .filter((l) => !QUOTE_INTRO.test(l.trim()))
+    .join("\n");
+  return [(subject ?? "").trim(), ownLines(body) || ownLines(inline)].filter(Boolean).join("\n");
 }
 
 /** Our own subject line comes back on every reply; only what the person added counts. */

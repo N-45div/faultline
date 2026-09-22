@@ -27,7 +27,7 @@ import { paused, providerFault } from "./guard";
 // A tenant's email is not sent to a trace store.
 setTracingDisabled(true);
 
-type Ctx = { convex: ActionCtx; inboxId: Id<"inbox">; email: string; text: string; acted: string | null };
+type Ctx = { convex: ActionCtx; inboxId: Id<"inbox">; email: string; subject: string; text: string; acted: string | null };
 
 const TERMINAL = [
   "record_answer",
@@ -110,13 +110,15 @@ const tools = [
       const c = contextOf(rc);
       // Their own words go with the choice: what they wrote decides which
       // question this is about if the number the model picked disagrees, and
-      // whether the note it passes on is kept as theirs.
+      // whether the note it passes on is kept as theirs. The subject goes too:
+      // the model is shown it, so a note may come from it.
       const out = await c.convex.runAction(internal.match.recordChecked, {
         inboxId: c.inboxId,
         violationId,
         answer,
         note,
         words: c.text,
+        subject: c.subject,
       });
       c.acted = "record_answer";
       return out;
@@ -283,8 +285,8 @@ export const handleMessage = internalAction({
     }
 
     setDefaultOpenAIKey(key);
-    const state: Ctx = { convex: ctx, inboxId: a.inboxId, email: who.email, text: a.text, acted: null };
-    const input = `Subject: ${cleanSubject(a.subject) || "none"}\n\nTheir own words:\n${words}`;
+    const state: Ctx = { convex: ctx, inboxId: a.inboxId, email: who.email, subject: cleanSubject(a.subject), text: a.text, acted: null };
+    const input = `Subject: ${state.subject || "none"}\n\nTheir own words:\n${words}`;
     try {
       const result = await run(agent, input, { context: state, maxTurns: 6 });
       const u = result.state.usage;
