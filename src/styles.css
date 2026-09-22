@@ -2139,3 +2139,42 @@ a.try-chip {
 .howto-list li {
   overflow-wrap: anywhere;
 }
+
+/* ---------- the home page's side card: short rows, the full reply one tap down ---------- */
+.side-asks {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.side-asks li {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.side-asks .side-ask-head,
+.side-asks .side-ask-said {
+  margin: 0 0 4px;
+}
+.side-asks .side-ask-said {
+  font-size: 14px;
+  color: var(--muted);
+}
+.side-more {
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+.side-more > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 600;
+}
+.side-more p {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+.mail-body .side-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}

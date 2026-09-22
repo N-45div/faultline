@@ -1,7 +1,10 @@
+import type { ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import Pricing, { INBOX, mailto } from "./Pricing";
-import AskCard from "./AskCard";
+import { Clock, SAMPLE_ASK } from "./AskCard";
+import { askHeadline, askLine, certifiedLate, howToAnswer, pickAsks, SAMPLE_BBL } from "../engine/hpd";
+import { plainThing } from "../engine/askRows";
 
 // The front door. Everything numeric on this page is read live from the
 // records we hold, and the reply beside the headline is built from the city's
@@ -9,6 +12,98 @@ import AskCard from "./AskCard";
 // here is typed in.
 
 const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+
+/**
+ * The reply beside the headline, made to be read in a few seconds: each repair
+ * as a short name, the owner's date and HPD's 70 days, drawn. The reply's own
+ * lines, the city's full descriptions and how to answer, are one tap down,
+ * word for word as the email and AskCard print them. The same row and the same
+ * functions as AskCard (the tour keeps the full card); nothing here is typed.
+ */
+function SideCard({ go, whenNone }: { go: (p: string) => void; whenNone: ReactNode }) {
+  const b = useQuery(api.wall.sampleAsk, {});
+  const to = (p: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    go(p);
+  };
+
+  if (b === undefined) {
+    return (
+      <div className="mail-card" aria-label="A real reply">
+        <div className="mail-body">
+          <p className="muted">Reading the city's record…</p>
+        </div>
+      </div>
+    );
+  }
+  if (b === null) return <>{whenNone}</>;
+  const today = new Date().toISOString().slice(0, 10);
+  const asks = pickAsks(
+    b.stamps.map((s) => ({
+      currentstatus: s.status,
+      currentstatusdate: s.date,
+      certifiedbydate: s.certifiedBy,
+      violationid: s.violationId,
+      class: s.hazardClass,
+      novdescription: s.description,
+    })),
+    today,
+  );
+  if (asks.length === 0) return <>{whenNone}</>;
+
+  return (
+    <div className="mail-card" aria-label="A real reply">
+      <div className="mail-head">
+        <span className="dot" />
+        <span>
+          <strong>Re: {SAMPLE_ASK}</strong> · the reply right now
+        </span>
+      </div>
+      <div className="mail-body">
+        <p>
+          <strong>{askHeadline(asks.length)}</strong>
+        </p>
+        <ul className="side-asks">
+          {asks.map((a) => {
+            const thing = plainThing(a.description);
+            return (
+              <li key={a.violationId}>
+                <p className="side-ask-head">
+                  <strong>{thing ?? `Repair #${a.violationId}`}</strong>
+                  {thing ? ` · #${a.violationId}` : ""}
+                  {a.hazardClass ? ` · class ${a.hazardClass}` : ""}
+                </p>
+                <p className="side-ask-said">
+                  The owner says it's fixed · certified {certifiedLate(a.status) ? "late, " : ""}
+                  {a.certifiedBy ?? a.statusDate}
+                </p>
+                <Clock ask={a} today={today} />
+              </li>
+            );
+          })}
+        </ul>
+        <details className="side-more">
+          <summary>The whole reply, in the city's words</summary>
+          {asks.map((a) => (
+            <p key={a.violationId}>{askLine(a, b.label)}</p>
+          ))}
+          {howToAnswer(asks[0].violationId).map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </details>
+        <p className="fine side-links">
+          <a href="/how-it-works" onClick={to("/how-it-works")}>
+            What the 70 days mean →
+          </a>
+          <a href={`/b/${SAMPLE_BBL}`} onClick={to(`/b/${SAMPLE_BBL}`)}>
+            This building's record →
+          </a>
+          <a href={mailto(SAMPLE_ASK)}>Send it and get this reply →</a>
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function Landing({ go }: { go: (p: string) => void }) {
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });
@@ -100,7 +195,7 @@ export default function Landing({ go }: { go: (p: string) => void }) {
             </p>
           </div>
 
-          <AskCard go={go} whenNone={layoffCard} />
+          <SideCard go={go} whenNone={layoffCard} />
         </div>
       </section>
 
