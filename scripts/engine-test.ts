@@ -311,6 +311,10 @@ console.log("\n== tenant loop");
     check(saidIt("the super painted over it but water is still coming through", turns), "call: a quote is theirs when the transcript has them saying it, give or take a contraction");
     check(!saidIt("the landlord is a criminal", turns) && !saidIt("Is it fixed, still broken", turns), "call: words they never said, and the voice's own words, are not their quote");
     check(
+      !wroteIt("The leak is fixed", "The leak is not fixed") && !wroteIt("water comes through the super painted over it", "The super painted over it, but water still comes through.") && wroteIt("the leak is not fixed", "The leak isn't fixed."),
+      "quote: a note that drops a 'not' or reorders their words is not theirs; one that spells out their contraction is",
+    );
+    check(
       wroteIt("water still comes through", "The super painted over it, but water still comes through.") && !wroteIt("the landlord is a criminal", "still broken, nobody came") && !wroteIt("", "still broken"),
       "typed: a note is theirs only if their message has it, by the same test as a call",
     );

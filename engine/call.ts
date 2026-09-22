@@ -138,27 +138,52 @@ export function answersFromCall(structured: unknown, asked: string[]): { answers
 const wordsOf = (s: string): string[] =>
   s
     .toLowerCase()
+    // A contraction is the same words either way, on both sides: "water's" is
+    // "water is", "isn't" is "is not". A "not" left out is still left out.
+    .replace(/[’‘]/g, "'")
+    .replace(/\bwon't\b/g, "will not")
+    .replace(/\bcan't\b/g, "can not")
+    .replace(/\bcannot\b/g, "can not")
+    .replace(/n't\b/g, " not")
+    .replace(/'re\b/g, " are")
+    .replace(/'m\b/g, " am")
+    .replace(/'ll\b/g, " will")
+    .replace(/'ve\b/g, " have")
+    .replace(/'d\b/g, " would")
+    .replace(/'s\b/g, " is")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
     .split(" ")
     .filter(Boolean);
 
+/** Is the quote an unbroken run of these words, in their order? Case and punctuation aside, nothing else is forgiven. */
+function isRun(quote: string[], words: string[]): boolean {
+  if (quote.length === 0 || quote.length > words.length) return false;
+  outer: for (let i = 0; i + quote.length <= words.length; i++) {
+    for (let j = 0; j < quote.length; j++) if (words[i + j] !== quote[j]) continue outer;
+    return true;
+  }
+  return false;
+}
+
 /**
- * Did they say it? A quote is kept only if most of its words are words the
- * person spoke on the call. Transcription bends a contraction; it does not
- * invent a sentence, and neither may a model that is summarising one.
+ * Did they say it? A quote is kept only if it is an unbroken run of words the
+ * person spoke on the call, in the order they spoke them. Counting shared words
+ * was not enough: "the leak is fixed" shares every word with "the leak is not
+ * fixed". A quote the transcript does not hold word for word is left out, and
+ * the answer is recorded without one.
  */
 export function saidIt(quote: string, turns: CallTurn[]): boolean {
-  const said = new Set(wordsOf(turns.filter((t) => t.who === "you").map((t) => t.text).join(" ")));
+  const theirs = turns.filter((t) => t.who === "you").map((t) => wordsOf(t.text));
   const words = wordsOf(quote);
-  if (words.length === 0 || said.size === 0) return false;
-  return words.filter((w) => said.has(w)).length / words.length >= 0.8;
+  if (words.length === 0 || theirs.length === 0) return false;
+  return theirs.some((t) => isRun(words, t)) || isRun(words, theirs.flat());
 }
 
 /**
  * Did they write it? The same test as saidIt, against a message they typed or
  * spoke instead of a call: the note a model passes on with a written answer is
- * kept as their words only if it is their words.
+ * kept as their words only if it is their words, in their order.
  */
 export function wroteIt(quote: string, theirMessage: string): boolean {
   return saidIt(quote, [{ who: "you", text: theirMessage }]);
