@@ -262,7 +262,7 @@ test("no answer from AgentMail: the page says delivery could not be confirmed, n
 const event = (event_type: string, part: string, body: Record<string, unknown>) =>
   ({ event: { event_type, [part]: { inbox_id: "getnotice@agentmail.to", ...body } } });
 
-test("an unconfirmed letter AgentMail later reports on moves to delivered or bounced, and a reply to it is kept", async () => {
+test("an unconfirmed letter is matched to AgentMail's later event only by its own label, never by the address", async () => {
   const t = make();
   await answered(t);
   sendAnswers(() => {
@@ -273,24 +273,33 @@ test("an unconfirmed letter AgentMail later reports on moves to delivered or bou
   const status = async (to: string) => (await mine(t)).find((r) => r.to === to)?.status;
   expect(await status("o•••@example.org")).toBe("unconfirmed");
   expect(await status("g•••@example.org")).toBe("unconfirmed");
+  // Each send carried a label that is its own: share-<id>.
+  const label = (to: string) => (sends.find((s) => s.body.to?.[0] === to)!.body.labels as string[]).find((l) => l !== "share")!;
+  expect(label(HELPER)).toMatch(/^share-\w+$/);
+  expect(label("gone@example.org")).not.toBe(label(HELPER));
 
-  // Mail to someone else, and a reply the agent itself sent to this address, are not the letter.
-  await t.mutation(internal.inbound.onMailEvent, event("message.delivered", "delivery", { message_id: "<other@agentmail.to>", thread_id: "t-other", recipients: ["someone@else.org"] }));
-  await t.run(async (ctx) => {
-    await ctx.db.insert("receipts", { query: "19112934", kind: "none", text: "", html: "", createdAt: Date.now(), outboundId: "<our-reply@agentmail.to>" });
-  });
-  await t.mutation(internal.inbound.onMailEvent, event("message.delivered", "delivery", { message_id: "<our-reply@agentmail.to>", thread_id: "t-reply", recipients: [HELPER] }));
-  expect(await status("o•••@example.org")).toBe("unconfirmed");
+  // Another page's letter to the same helper, also never confirmed.
+  const other = await t.run((ctx) =>
+    ctx.db.insert("shares", { session: "b".repeat(32), violationId: VIOLATION, to: HELPER, status: "unconfirmed", createdAt: Date.now() }),
+  );
+  const otherStatus = async () => (await t.run((ctx) => ctx.db.get(other)))!.status;
 
+  // An event naming only the address could be either letter, so it moves neither.
   await t.mutation(internal.inbound.onMailEvent, event("message.delivered", "delivery", { message_id: "<late@agentmail.to>", thread_id: "share-thread-late", recipients: [HELPER] }));
+  expect(await status("o•••@example.org")).toBe("unconfirmed");
+  expect(await otherStatus()).toBe("unconfirmed");
+
+  // The event carrying this letter's own label moves this letter, and only it.
+  await t.mutation(internal.inbound.onMailEvent, event("message.delivered", "delivery", { message_id: "<late@agentmail.to>", thread_id: "share-thread-late", recipients: [HELPER], labels: ["share", label(HELPER)] }));
   const row = (await mine(t)).find((r) => r.to === "o•••@example.org")!;
   expect(row.status).toBe("delivered");
   expect(row.why).toBeUndefined();
+  expect(await otherStatus()).toBe("unconfirmed");
   // A late "sent" for it does not undo delivered.
   await t.mutation(internal.inbound.onMailEvent, event("message.sent", "send", { message_id: "<late@agentmail.to>", thread_id: "share-thread-late", recipients: [HELPER] }));
   expect(await status("o•••@example.org")).toBe("delivered");
 
-  await t.mutation(internal.inbound.onMailEvent, event("message.bounced", "bounce", { message_id: "<gone@agentmail.to>", thread_id: "share-thread-gone", type: "Permanent", recipients: [{ address: "gone@example.org", status: "5.1.1" }] }));
+  await t.mutation(internal.inbound.onMailEvent, event("message.bounced", "bounce", { message_id: "<gone@agentmail.to>", thread_id: "share-thread-gone", type: "Permanent", recipients: [{ address: "gone@example.org", status: "5.1.1" }], labels: ["share", label("gone@example.org")] }));
   expect(await status("g•••@example.org")).toBe("bounced");
 
   // The letter now has its thread, so their reply lands beside it, and nothing goes back.

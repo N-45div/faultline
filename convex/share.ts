@@ -114,7 +114,7 @@ export const deliver = internalAction({
       const res = await fetch(`${API}/inboxes/${encodeURIComponent(inbox())}/messages/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "Idempotency-Key": `share-${shareId}` },
-        body: JSON.stringify({ to: [j.share.to], subject: letter.subject, text: letter.text, labels: ["share"], headers: { "Auto-Submitted": "auto-generated" } }),
+        body: JSON.stringify({ to: [j.share.to], subject: letter.subject, text: letter.text, labels: ["share", `share-${shareId}`], headers: { "Auto-Submitted": "auto-generated" } }),
         signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       });
       const data: any = await res.json().catch(() => ({}));
@@ -201,13 +201,14 @@ export const forSession = query({
 /**
  * AgentMail's word on a letter we sent: sent, delivered, bounced, complained,
  * rejected. A letter whose send was never confirmed has no message id on its
- * row, so its event is known by the address it went to instead; the row then
- * takes the event's message id and thread, and a reply to it is kept as well.
+ * row, so its event is known only by the label that send carried, share-<id>;
+ * the row then takes the event's message id and thread, and a reply to it is
+ * kept as well.
  */
 export async function shareEvent(ctx: MutationCtx, messageId: string, status: string, event?: unknown): Promise<void> {
   const share =
     (await ctx.db.query("shares").withIndex("by_outbound", (q) => q.eq("outboundId", messageId)).first()) ??
-    (await unconfirmedFor(ctx, messageId, event));
+    (await unconfirmedFor(ctx, event));
   if (!share) return;
   // Delivered is not undone by a late "sent".
   if (share.status === "delivered" && status === "sent") return;
@@ -225,24 +226,20 @@ export async function shareEvent(ctx: MutationCtx, messageId: string, status: st
   await ctx.db.patch(share._id, { status, statusAt: Date.now() });
 }
 
-/** How long after an unconfirmed send an event is still matched to it by address. */
-const UNCONFIRMED_MATCH_MS = 2 * 24 * 60 * 60 * 1000;
-
-/** The unconfirmed letter to the address an event names, if there is one and the message is not our own reply. */
-async function unconfirmedFor(ctx: MutationCtx, messageId: string, event: unknown): Promise<Doc<"shares"> | null> {
-  const to = recipientsOf(event);
-  if (to.length === 0) return null;
-  // A reply the agent sent to that address is not the letter.
-  if (await ctx.db.query("receipts").withIndex("by_outbound", (q) => q.eq("outboundId", messageId)).first()) return null;
-  const since = Date.now() - UNCONFIRMED_MATCH_MS;
-  for (const address of to) {
-    const rows = await ctx.db
-      .query("shares")
-      .withIndex("by_to", (q) => q.eq("to", address).gt("createdAt", since))
-      .order("desc")
-      .take(5);
-    const row = rows.find((s) => s.status === "unconfirmed" && !s.outboundId);
-    if (row) return row;
+/**
+ * The unconfirmed letter an event is about, known only by the label its own send carried: share-<id>, one letter,
+ * one label. An event without it is not matched by the address it went to: two people can write to the same helper,
+ * and a thread attached to the wrong letter would put one person's helper's replies on the other's page. Such a row
+ * stays "not confirmed", which is true.
+ */
+async function unconfirmedFor(ctx: MutationCtx, event: unknown): Promise<Doc<"shares"> | null> {
+  const labels = [payloadOf(event)?.labels].flat().filter((l): l is string => typeof l === "string");
+  for (const label of labels) {
+    const id = /^share-(\w+)$/.exec(label)?.[1];
+    const shareId = id ? ctx.db.normalizeId("shares", id) : null;
+    if (!shareId) continue;
+    const row = await ctx.db.get(shareId);
+    if (row && row.status === "unconfirmed" && !row.outboundId) return row;
   }
   return null;
 }
@@ -253,16 +250,6 @@ function payloadOf(event: unknown): any {
   return e?.send ?? e?.delivery ?? e?.bounce ?? e?.complaint ?? e?.reject ?? e?.message ?? null;
 }
 
-/** The addresses an event says the message went to: plain, "Name <address>", or { address } / { email }. */
-function recipientsOf(event: unknown): string[] {
-  const p = payloadOf(event);
-  const listed: unknown[] = [p?.recipients, p?.to, p?.recipient].flat().filter((x) => x != null);
-  const addresses = listed
-    .map((x: any) => String(typeof x === "string" ? x : (x?.address ?? x?.email ?? "")))
-    .map((s) => (/<([^>]+)>/.exec(s)?.[1] ?? s).trim().toLowerCase())
-    .filter((s) => s.includes("@"));
-  return [...new Set(addresses)];
-}
 
 /**
  * A reply in the thread of a letter we sent. Kept only from the address we
