@@ -19,6 +19,7 @@ const files = [
   ...readdirSync("src").filter((f) => f.endsWith(".tsx") && f !== "Files.tsx").map((f) => join("src", f)),
   "engine/receipt.ts",
   "engine/rules.ts",
+  "engine/conditionHistory.ts",
   "convex/digest.ts",
   "convex/inbound.ts",
   "convex/packBuild.ts",
