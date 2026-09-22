@@ -18,7 +18,7 @@ Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 
 ## Try it in sixty seconds
 
-**In a browser:** open [/try](https://clear-dogfish-72.convex.site/try) and press the first button. What you type goes through the handler an email goes through, the reply arrives on the page by itself from a live Convex query, and under each of your messages it says how it was read: by the keyword reader with no model, or by GPT-6 Astra, with the tool it finished on and what the run cost. Nothing is emailed, and what is said in a trial is never counted on a public page.
+**In a browser:** open [/try](https://clear-dogfish-72.convex.site/try) and press the first button. What you type goes through the handler an email goes through, the reply arrives on the page by itself from a live Convex query, and under each of your messages it says how it was read: by the keyword reader with no model, or by GPT-6 Astra, with the tool it finished on and what the run cost. Nothing is emailed unless you ask: after an answer, the page offers to send your record to someone helping you, and Faultline's agent writes to them from its own AgentMail inbox with the city's record and your one-word answer, never anything you typed; you watch it go out, and their reply comes back onto the page. What is said in a trial is never counted on a public page.
 
 **By voice:** on the same page press **Say it**, answer out loud the way you'd tell a neighbour, and press again. OpenAI writes your words down, the recording is dropped, and the words go through the same door as typing. Every reply has a **Listen** button, and what it reads is what the tool wrote, made sayable: no web addresses, a violation by its last four digits, forty seconds at most. The model writes no sentence you hear; it writes down yours and reads out ours.
 
@@ -124,6 +124,7 @@ Photon and CALL-E are not sponsors of this hackathon. They are here so the same 
 | A repair the city cited before under another number: the city's history for a building, read through the Action Cache | `engine/conditionHistory.ts`, `convex/history.ts` |
 | Everything after a phone call hangs up as a durable Workflow, switched on by `NOTICE_CALL_FLOW=workflow` | `convex/callFlow.ts` |
 | AgentMail: the inbox, its verified webhook and events, delivery events acted on, labels, attachments | `convex/agentmailClient.ts`, `convex/http.ts`, `convex/inbound.ts`, `convex/mail.ts` |
+| AgentMail: the agent sending a tenant's record on, from its own inbox, under an Idempotency-Key; the delivery status and the helper's reply back on /try | `convex/share.ts`, `engine/shareLetter.ts` |
 | OpenAI: GPT-6 Astra on the Agents SDK, twelve strict tools, and the second reader of every call | `convex/agent.ts` |
 | OpenAI: gpt-live-1, gpt-4o-mini-transcribe and gpt-4o-mini-tts | `convex/liveActions.ts`, `convex/voice.ts` |
 | OpenAI: gpt-5.6-luna for letters and photographed notices, and moderation | `convex/llm.ts`, `convex/llmActions.ts` |
