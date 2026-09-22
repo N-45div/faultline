@@ -1,16 +1,16 @@
 # Faultline
 
+### Your landlord told the city the repair is done. Is it?
+
+When a landlord in New York City certifies a repair to the city's housing agency, HPD, the city can close the violation after 70 days on that word. Faultline shows a tenant each repair their landlord certified, with its clock, takes their answer in one tap or their own words, and keeps it dated beside the city's record.
+
+**It reads the city's history too.** At 155 Linden Boulevard in Brooklyn, one of the repairs /try asks about was cited before under another number: the owner certified it on 31 July 2025, and the city recorded NOT COMPLIED WITH on 22 August 2025. The row says so. [Try it, no sign-in](https://clear-dogfish-72.convex.site/try): press the first button. Or write `ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.to, and the same handler answers in the same thread.
+
+**Live:** https://clear-dogfish-72.convex.site · **Try it, no sign-in:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://youtu.be/Xa8uKOZP-Y4) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), dated, corrections included
+
 [![checks](https://gitlab.com/ndivij2004/faultline/badges/main/pipeline.svg)](https://gitlab.com/ndivij2004/faultline/-/pipelines) Every push runs the checks on a clean machine ([.gitlab-ci.yml](.gitlab-ci.yml)); the last full run is in [tests/RUN.md](tests/RUN.md).
 
 **Why GitLab:** this repository was on GitHub until 20 September 2026, when my GitHub account was flagged and its public pages stopped loading. I moved it here the same day with its whole history: every commit and its date are as they were, back to the first on 29 August.
-
-### Your landlord told the city the repair is done. Is it?
-
-Faultline asks the person living with it, keeps their answer dated beside the city's own record, and tells them the day that record agrees. It also keeps every government file the government overwrites — layoff notices, housing violations, restaurant inspections — so yesterday's version still exists when someone needs it.
-
-It is an inbox. There is nothing to install and no account to make. **Or [try it in your browser](https://clear-dogfish-72.convex.site/try)**: the same handler, the same agent, the reply arriving live, with no sign-in.
-
-**Live:** https://clear-dogfish-72.convex.site · **Try it, no sign-in:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://youtu.be/Xa8uKOZP-Y4) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), dated, corrections included
 
 Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 
@@ -94,7 +94,7 @@ Say "violation" about a layoff (the word is *gap*; exceptions are a lawyer's que
 
 | | Where it does real work |
 |---|---|
-| **Convex** | The whole backend. 33 tables, 67 indexes, a full-text index and a vector index; 181 deployed functions by `npx convex function-spec --prod` (56 queries, 83 mutations, 27 actions, 15 HTTP); 8 crons; file storage for packs, held bytes and screenshots; realtime queries behind every page; Convex Auth; static hosting; convex-test. **Six components:** static hosting, AgentMail, Firecrawl; `@convex-dev/rate-limiter`, which holds one counter for each ceiling the inbox keeps instead of counting a table that only grows, and gives the browser trial rooms of its own, so a public page that can reach a paid model cannot spend the inbox's replies or its agent runs; `@convex-dev/action-cache`, which holds the city's history for a building for twenty hours, so the repairs cited before under another number are found without reading the city again; and `@convex-dev/workflow`, which can run everything after a phone call hangs up as durable, retried steps. |
+| **Convex** | The whole backend. 34 tables, 68 indexes, a full-text index and a vector index; 192 deployed functions by `npx convex function-spec --prod` (57 queries, 89 mutations, 31 actions, 15 HTTP); 8 crons; file storage for packs, held bytes and screenshots; realtime queries behind every page; Convex Auth; static hosting; convex-test. **Six components:** static hosting, AgentMail, Firecrawl; `@convex-dev/rate-limiter`, which holds one counter for each ceiling the inbox keeps instead of counting a table that only grows, and gives the browser trial rooms of its own, so a public page that can reach a paid model cannot spend the inbox's replies or its agent runs; `@convex-dev/action-cache`, which holds the city's history for a building for twenty hours, so the repairs cited before under another number are found without reading the city again; and `@convex-dev/workflow`, which can run everything after a phone call hangs up as durable, retried steps; it is installed and switched off on production until a real call has run through it (`NOTICE_CALL_FLOW=workflow`), and every call test runs both ways. |
 | **AgentMail** | The front door and the back door. The component verifies the inbox's webhook, stores each event once, and hands us inbound mail and the delivery events for what we send. Those events are **acted on**: a bounce, rejection or complaint writes the address down and takes every follow off with it — a complaint is final, a bounce clears when mail arrives from that address, which is proof the mailbox works. Every inbound message is **labelled where it lives**: how it was read, what it was about, what came of it, with `unread` removed when the reply goes, so what is still unread in the inbox is exactly what nothing has handled. Attachments both ways: PDFs and photos in, packs and spreadsheets out. |
 | **OpenAI** | GPT-6 Astra on the Agents SDK is the inbox agent: **twelve strict tools**, tool choice required, one call at a time, at most six turns, a byte-stable cached prefix, a cost ledger in cents and a daily cap. gpt-5.6-luna reads forwarded letters and photographed notices into one zod schema that drives both strict output and validation, with PDF and image input and a capped hosted web search. **text-embedding-3-small** embeds the condition behind every question we ask and the sentence a person answers with. **gpt-4o-mini-transcribe** and **gpt-4o-mini-tts** let someone say their answer and hear ours, with the recording never kept and only our own tool-written replies ever read aloud. **gpt-live-1** holds a full conversation in the browser with **client delegation**: the voice asks the page for help, the page asks the inbox, and the tool-written reply goes back as `session.commentary.append`; the server attaches to every session from a node action and closes it at the time limit. GPT-6 Astra is also the **second reader of every phone call**. Free moderation runs first. |
 | **Firecrawl** | Fetches Wisconsin's page from its side, because the host does not resolve from the deployment, and waits for the page's own scripts. Every read asks for **change tracking in git-diff mode** and a **full-page screenshot**, so each capture carries a second reading beside ours — including when the two disagree. **KEEP** holds any page someone sends, as served, hashed. **FIND** uses Firecrawl **search** for the other half of the question: what does this owner say where we have not looked? |
@@ -120,7 +120,7 @@ Photon and CALL-E are not sponsors of this hackathon. They are here so the same 
 | File storage: held pages, screenshots, PDF packs | `convex/files.ts`, `convex/pages.ts`, `convex/packBuild.ts`, `convex/ingest/fetch.ts` |
 | HTTP routes: the AgentMail, CALL-E and Photon webhooks, voice, packs | `convex/http.ts` |
 | Convex Auth | `convex/auth.ts`, `convex/auth.config.ts` |
-| Components: static hosting, AgentMail, Firecrawl, the rate limiter, the Action Cache, Workflow | `convex/convex.config.ts`; every limit in `convex/limits.ts` |
+| Components: static hosting, AgentMail, Firecrawl, the rate limiter, the Action Cache, and Workflow (installed; off until a live call runs through it) | `convex/convex.config.ts`; every limit in `convex/limits.ts` |
 | A repair the city cited before under another number: the city's history for a building, read through the Action Cache | `engine/conditionHistory.ts`, `convex/history.ts` |
 | Everything after a phone call hangs up as a durable Workflow, switched on by `NOTICE_CALL_FLOW=workflow` | `convex/callFlow.ts` |
 | AgentMail: the inbox, its verified webhook and events, delivery events acted on, labels, attachments | `convex/agentmailClient.ts`, `convex/http.ts`, `convex/inbound.ts`, `convex/mail.ts` |
@@ -130,7 +130,7 @@ Photon and CALL-E are not sponsors of this hackathon. They are here so the same 
 | OpenAI: text-embedding-3-small | `convex/match.ts` |
 | Firecrawl: FIND, KEEP, and change tracking in git-diff mode | `convex/pages.ts`, `convex/ingest/firecrawl.ts` |
 | CALL-E (not a sponsor): the phone call and its two readers | `convex/calls.ts`, `engine/call.ts` |
-| Tests | `tests/*.test.ts` (50 convex-test), `scripts/*-test.ts`; every push runs them in [.gitlab-ci.yml](.gitlab-ci.yml) |
+| Tests | `tests/*.test.ts` (70 convex-test), `scripts/*-test.ts`; every push runs them in [.gitlab-ci.yml](.gitlab-ci.yml) |
 
 ### The two rules that decide correctness
 
