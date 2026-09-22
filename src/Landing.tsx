@@ -215,8 +215,8 @@ export default function Landing({ go }: { go: (p: string) => void }) {
               <div>
                 <p className="big">70 days</p>
                 <p className="muted">
-                  until HPD closes a certified violation it hasn't reinspected. A tenant may challenge the certification
-                  inside them.
+                  until HPD can close a certified violation it hasn't reinspected. A tenant may challenge the
+                  certification inside them.
                 </p>
               </div>
             </div>
