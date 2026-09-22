@@ -3,7 +3,7 @@ import { api } from "../convex/_generated/api";
 import FollowButton from "./FollowButton";
 import Versions from "./Versions";
 import { mailto } from "./Pricing";
-import { challengeDeadline, fixedClaim } from "../engine/hpd";
+import { challengeDeadline, fixedClaim, seventyDaysFrom, type Ask } from "../engine/hpd";
 
 // One building's record, the same words the email uses. The city's own status
 // vocabulary is quoted exactly — FALSE CERTIFICATION is their phrase, not ours.
@@ -17,10 +17,18 @@ const STAMPED = new Set(["FALSE CERTIFICATION", "INVALID CERTIFICATION"]);
 
 type Stamp = { status: string; date: string; certifiedBy: string | null; violationId: string };
 
-/** HPD's 70 days, for a violation the owner certified; null for anything else. */
+const askOf = (s: Stamp): Ask => ({ violationId: s.violationId, status: s.status, statusDate: s.date, certifiedBy: s.certifiedBy, hazardClass: "", description: "" });
+
+/** HPD's 70 days, for a violation the owner certified on time; null for anything else. */
 function clock(s: Stamp): string | null {
   if (fixedClaim(s.status) !== "owner") return null;
-  return challengeDeadline({ violationId: s.violationId, status: s.status, statusDate: s.date, certifiedBy: s.certifiedBy, hazardClass: "", description: "" });
+  return challengeDeadline(askOf(s));
+}
+
+/** The last day ASK asks about it: 70 days from the owner's certification, on time or late (pickAsks). */
+function askedUntil(s: Stamp): string | null {
+  if (fixedClaim(s.status) !== "owner") return null;
+  return seventyDaysFrom(askOf(s));
 }
 
 export default function Building({ bbl, onBack }: { bbl: string; onBack: () => void }) {
@@ -38,7 +46,7 @@ export default function Building({ bbl, onBack }: { bbl: string; onBack: () => v
   const { receipt: r, label, stamps } = result;
   const flagged = stamps.filter((s) => STAMPED.has(s.status));
   const today = new Date().toISOString().slice(0, 10);
-  const open = stamps.filter((s) => (clock(s) ?? "") >= today);
+  const open = stamps.filter((s) => (askedUntil(s) ?? "") >= today);
 
   return (
     <>
