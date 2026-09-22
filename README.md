@@ -160,7 +160,7 @@ scripts/     fixture tests on real government bytes, plus a copy lint over every
 data/        the fixtures those tests run on
 ```
 
-**389 automated checks:** 171 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 50 convex-test tests covering the tenant loop, the agent's twelve tools, the phone call from CALL ME to the receipt (against a stand-in for CALL-E: nothing in a test can ring a telephone), the delivery-event suppressions, re-watching a building someone is asked about, the browser trial's fences (nothing mailed, never counted publicly, its own rate-limit rooms), a conversation's (words taken only while one our server started is open, priced by the clock), and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
+**406 automated checks:** 188 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 50 convex-test tests covering the tenant loop, the agent's twelve tools, the phone call from CALL ME to the receipt (against a stand-in for CALL-E: nothing in a test can ring a telephone), the delivery-event suppressions, re-watching a building someone is asked about, the browser trial's fences (nothing mailed, never counted publicly, its own rate-limit rooms), a conversation's (words taken only while one our server started is open, priced by the clock), and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
 
 ## Running it
 
