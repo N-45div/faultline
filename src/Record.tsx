@@ -113,7 +113,7 @@ function Part({ kind, label, children }: { kind: string; label: string; children
   );
 }
 
-function RepairCase({ asked, answers, checks, today, go }: { asked: Item; answers: Item[]; checks: Checks | undefined; today: string; go: (p: string) => void }) {
+function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item; answers: Item[]; checks: Checks | undefined; today: string; trial: boolean; go: (p: string) => void }) {
   const id = asked.violationId;
   // What /try reads for a repair, read here for this one: the earlier citation
   // kept by convex/history.ts, and the newest reading of HPD Online.
@@ -194,7 +194,9 @@ function RepairCase({ asked, answers, checks, today, go }: { asked: Item; answer
           ))
         )}
         <p className="fine">
-          Kept, dated, on this page. It shows on the building's page only if the city's own record later agrees, and never with your words.
+          {trial
+            ? "Kept, dated, on this page. A browser trial's answer is a practice answer: it is never counted on the building's page."
+            : "Kept, dated, on this page. It shows on the building's page only if the city's own record later agrees, and never with your words."}{" "}
           Saving an answer does not file anything with HPD.
         </p>
       </Part>
@@ -340,7 +342,7 @@ export default function YourRecord({ token, go }: { token: string; go: (p: strin
 
       <div className="record-cases" aria-label="Your answers">
         {cases.map((c) => (
-          <RepairCase key={c.key} asked={c.asked} answers={c.answers} checks={checks} today={today} go={go} />
+          <RepairCase key={c.key} asked={c.asked} answers={c.answers} checks={checks} today={today} trial={rec.trial} go={go} />
         ))}
       </div>
 

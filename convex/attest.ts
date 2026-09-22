@@ -215,6 +215,8 @@ export const record = query({
     v.null(),
     v.object({
       since: v.number(),
+      /** A browser trial's record: its answers are never counted on a public page (corroborated, above). */
+      trial: v.boolean(),
       items: v.array(
         v.object({
           id: v.string(),
@@ -296,7 +298,7 @@ export const record = query({
         ...(cur ? { nowStatus: String(cur.fields.currentstatus ?? ""), nowStatusDate: String(cur.fields.currentstatusdate ?? "") } : {}),
       });
     }
-    return { since: rec.createdAt, items };
+    return { since: rec.createdAt, trial: isWeb(rec.email), items };
   },
 });
 
