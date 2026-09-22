@@ -450,6 +450,8 @@ console.log("\n== the unit, left out of a link preview");
   check(withoutUnit(older) === "§ 27-2018 ADMIN. CODE: ABATE THE NUISANCE CONSISTING OF MICE AT ENTIRE APARTMENT [apartment withheld]", "unit: the form with no LOCATED AT, a floor and APARTMENT, goes whole");
   const oldest = "SECTION 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE CERAMIC FLOOR TILE 5 STY NORTHEAST APT L4. , SECTION '' ''";
   check(withoutUnit(oldest) === "SECTION 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE CERAMIC FLOOR TILE APT [unit]. , SECTION '' ''", "unit: the oldest form names it mid-sentence; the unit and its floor go");
+  // A unit with no number is a unit too: the apartment column holds PH.
+  check(withoutUnit(oldest.replace("APT L4", "APT PH")) === withoutUnit(oldest), "unit: after a floor, a unit with no number goes as L4 does");
   const lock =
     "SECTION 27-2005 ADM CODE PROPERLY REPAIR THE BROKEN OR DEFECTIVE MORTISE LOCK AT APT. ENTRANCE DOOR IN THE FOYER LOCATED AT APT 4I, 4th STORY, 1st APARTMENT FROM NORTH AT EAST , SECTION ''WEST''";
   check(withoutUnit(lock) === "SECTION 27-2005 ADM CODE PROPERLY REPAIR THE BROKEN OR DEFECTIVE MORTISE LOCK AT APT. ENTRANCE DOOR IN THE FOYER [apartment withheld]", "unit: APT. ENTRANCE DOOR names no unit and stays");
@@ -468,6 +470,12 @@ console.log("\n== the unit, left out of a link preview");
       .join(" ");
   const cut = shared(door);
   check(door.length > 220 && cut.startsWith("NOV CERTIFIED ON TIME on 2026-09-17 (class B)") && !/\bAPT\b|STORY|FROM NORTH/.test(cut), `unit: a line cut inside the clause shows none of it (…${cut.slice(-40)})`);
+  // The oldest form, lengthened at its start so the cut lands on each
+  // character from the end of its floor to the end of its unit.
+  const from = oldest.indexOf("5 STY") + "5 STY".length;
+  const to = oldest.indexOf("L4") + "L4".length;
+  const leaks = Array.from({ length: to - from + 1 }, (_, i) => shared(" ".repeat(217 - (from + i)) + oldest)).filter((s) => !/FLOOR TILE(?: APT \[unit\])?…$/.test(s) || /\bSTY\b|NORTH|EAST/.test(s));
+  check(to - from > 10 && leaks.length === 0, `unit: a line cut anywhere in the oldest form after its floor shows neither the floor nor the unit${leaks.length ? ` (…${leaks[0].slice(-40)})` : ""}`);
 
   // Every row in HPD's file on disk: no in-unit row keeps its unit, its floor
   // or its place on the floor; every other row is left exactly as it was. And

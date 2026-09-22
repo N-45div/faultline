@@ -268,7 +268,11 @@ const SIDE = "(?:NORTH|SOUTH|EAST|WEST)";
 const TO_END = String.raw`.*?(?=\s+ORIGINAL VIOLATION\b|$)`;
 const LOCATED_AT_HOME = new RegExp(String.raw`\s*\bLOCATED AT ${HOME}\b${TO_END}`, "gi");
 const STORY_APARTMENT = new RegExp(String.raw`\s*,?\s*\b\d+(?:ST|ND|RD|TH) STORY, APARTMENT\b${TO_END}`, "gi");
-const UNIT_NAMED = /\b(?:\d+ S?TY(?: (?:NORTH|SOUTH|EAST|WEST)+){0,2} )?APT\b\.?\s*(?:NO\.?|#)?\s*(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]*/gi;
+// After a floor, whatever follows APT is the unit ("5 STY NORTHEAST APT PH"); after a bare APT only one with a number is.
+const UNIT_NAMED = new RegExp(String.raw`\b(?:\d+ S?TY(?: ${SIDE}+){0,2} APT\b\.?\s*(?:NO\.?|#)?\s*|APT\b\.?\s*(?:NO\.?|#)?\s*(?=[A-Z0-9-]*\d))[A-Z0-9][A-Z0-9-]*`, "gi");
+// A receipt line cut inside that form ends in part of it, before the unit ("5 STY NORTHEA…").
+const upTo = (word: string) => [...word].map((_, i) => word.slice(0, i + 1)).reverse().join("|");
+const UNIT_CUT = new RegExp(String.raw`\s*\b\d+ S?TY(?: ${SIDE}+){0,2}(?: ${SIDE}*(?:${["NORTH", "SOUTH", "EAST", "WEST", "APT"].map(upTo).join("|")}))?(?=…$)`, "i");
 const PUBLIC_PARTS_UNIT = /\b(LOCATED AT PUBLIC PARTS) (?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]*/gi;
 const POSITION = new RegExp(String.raw`\s*,?\s*\b\d+(?:ST|ND|RD|TH) (?:(?:CELLAR|BSMT)[ -])?(?:APARTMENT|APT|B-ROOM) FROM ${SIDE}(?: AT ${SIDE})?`, "gi");
 
@@ -282,15 +286,19 @@ const POSITION = new RegExp(String.raw`\s*,?\s*\b\d+(?:ST|ND|RD|TH) (?:(?:CELLAR
  * unit does. What the condition is, "IN THE ENTIRE APARTMENT", and the city's
  * note after the clause that a violation was upgraded stay the city's words.
  * An older form names the unit with no clause ("5 STY NORTHEAST APT L4"); the
- * unit and the floor in front of it go, and "APT. ENTRANCE DOOR", which names
- * no unit, stays. A public part keeps its place and loses only the unit the
- * city filed it under ("LOCATED AT PUBLIC PARTS 1E, 1st STORY").
+ * unit and the floor in front of it go, whatever the unit is ("APT PH"), and
+ * a line cut inside them after the floor loses the part of them it kept
+ * ("5 STY NORTHEA…"). "APT. ENTRANCE DOOR", with no floor in front and no
+ * number after, names no unit and stays. A public part keeps its place and
+ * loses only the unit the city filed it under ("LOCATED AT PUBLIC PARTS 1E,
+ * 1st STORY").
  */
 export function withoutUnit(text: string): string {
   return (text ?? "")
     .replace(LOCATED_AT_HOME, " [apartment withheld]")
     .replace(STORY_APARTMENT, " [apartment withheld]")
     .replace(UNIT_NAMED, "APT [unit]")
+    .replace(UNIT_CUT, "")
     .replace(PUBLIC_PARTS_UNIT, "$1")
     .replace(POSITION, "")
     .trim();
