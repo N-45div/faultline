@@ -180,8 +180,9 @@ export default function HowItWorks({ go }: { go: (p: string) => void }) {
         <h2 className="h2">{h("private")}</h2>
         <p>
           <strong>Private:</strong> your answers, your words, and any note or photo you send. They are on your own page,
-          which only the link in your email opens. In the browser trial, they are kept on the trial's own page, which
-          only your browser can open.
+          which opens with its private link, the one in your email: anyone who has that link can open it, so keep it to
+          yourself. In the browser trial, they are kept on the trial page in this browser and on its record page, which
+          opens the same way, with its link.
         </p>
         <p>
           Your answer leaves that page in two ways only: a building's public page may say that someone said STILL
