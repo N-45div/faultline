@@ -231,10 +231,16 @@ function PrepareCall({ prefill, trial }: { prefill: string; trial: boolean }) {
   };
   return (
     <details className="case-call">
-      <summary>Prepare my 311 call</summary>
+      <summary>
+        <span className="case-purpose-tag">For your call:</span> Prepare my 311 call
+      </summary>
       <p>
         <strong>Nothing has been filed. This is for your own call to 311.</strong>
         {trial && " The answer in it is a practice answer from the browser trial."}
+      </p>
+      <p className="fine">
+        <strong>Before you call:</strong> check that this is your repair, describe what you see today, and have your address and violation number
+        ready.
       </p>
       <textarea
         ref={box}
@@ -281,6 +287,33 @@ function Part({ kind, label, children }: { kind: string; label: string; children
       <p className="case-label">{label}</p>
       {children}
     </section>
+  );
+}
+
+/**
+ * What the city has recorded since we asked, in one line at the top of a
+ * repair: a later HPD stamp on the certification, or a new status, with both
+ * dates; or that nothing new is recorded. It says only what the city's file
+ * says, and never that an answer caused it.
+ */
+function Changed({ asked, last, cityStatus, cityDate, sinceAsked }: { asked: Item; last: Item | undefined; cityStatus: string; cityDate: string; sinceAsked: boolean }) {
+  const later = asked.laterStatus ? { status: asked.laterStatus, date: asked.laterStatusDate ?? "" } : sinceAsked ? { status: cityStatus, date: cityDate } : null;
+  const answeredOn = last?.saidAt !== undefined ? day(last.saidAt) : null;
+  if (!later) {
+    return (
+      <p className="case-change">
+        <strong>No new city status since we asked</strong> ({day(asked.askedAt)}): the city's file still says {cityStatus}, as of {cityDate}.
+        {answeredOn ? " Your answer stays separate from the city's record." : ""}
+      </p>
+    );
+  }
+  const after = answeredOn !== null && (ymd(later.date) ?? "") >= answeredOn;
+  return (
+    <p className="case-change changed">
+      <strong>The city's record changed {after ? "after your answer" : "since we asked"}.</strong> When we asked, on {day(asked.askedAt)}:{" "}
+      {asked.askedStatus}. Latest: <strong>{later.status}</strong>
+      {later.date ? `, ${later.date}` : ""}. {answeredOn ? "Your dated answer and both city records are kept below." : "Both city records are kept below."}
+    </p>
   );
 }
 
@@ -371,6 +404,8 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
         {asked.description && <p className="case-words">The city's words: {asked.description}</p>}
       </header>
 
+      <Changed asked={asked} last={last} cityStatus={cityStatus} cityDate={cityDate} sinceAsked={sinceAsked} />
+
       <Sequence id={id} asked={asked} answers={answers} before={before} read={read} cityStatus={cityStatus} cityDate={cityDate} trial={trial} />
 
       <Part kind="owner" label={byCity ? "What the city's file said" : "What the owner told the city"}>
@@ -399,6 +434,7 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
 
       {before && (
         <div className="case-before">
+          <p className="case-label">Here's relevant history you can bring with you</p>
           <CitedBefore before={before} violationId={id} basis />
         </div>
       )}
@@ -441,6 +477,13 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
         <p className="fine">
           The data file and HPD Online are the city's two places, each with its own date. A different date or label between them, or beside the
           owner's word or yours, is not a contradiction: each says what it said, when it said it.
+        </p>
+        <p className="fine case-purpose">
+          <strong>For checking the evidence:</strong>{" "}
+          <a href={cityRowsUrl([id])} target="_blank" rel="noreferrer">
+            the city's own row for #{id} ↗
+          </a>
+          {read ? ", and HPD Online's saved page above." : "."}
         </p>
       </Part>
 
@@ -496,6 +539,9 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
         </p>
       </Part>
 
+      <p className="fine case-purpose">
+        <strong>For someone helping you:</strong> copy this repair's summary, or print the whole record from the top of the page.
+      </p>
       <CopySummary text={summaryText({ asked, answers, before, read, trial })} />
     </article>
   );

@@ -2042,6 +2042,50 @@ a.try-chip {
   color: var(--muted);
   margin-right: 6px;
 }
+/* what the city recorded since we asked, one line at the top of a repair (src/Record.tsx, Changed) */
+.case-change {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-size: 14.5px;
+}
+.case-change.changed {
+  border-color: var(--accent);
+}
+/* what each record tool is for */
+.case-purpose-tag,
+.case-purpose strong {
+  color: var(--ink);
+}
+.case-purpose-tag {
+  font-weight: 650;
+}
+/* a documented case from the city's own file (src/DocumentedCase.tsx, on /try) */
+.doc-case-one {
+  margin: 8px 0 10px;
+}
+.doc-case-head {
+  margin: 0 0 4px;
+  font-size: 14.5px;
+}
+/* the landing's address box: Check a repair */
+.lede-check input {
+  flex: 1 1 260px;
+  min-width: 0;
+  font: inherit;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+}
+.lede-check button.cta {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
 .case-part[data-part="tenant"] {
   border-left-color: var(--ink);
 }
