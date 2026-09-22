@@ -1803,3 +1803,54 @@ a.try-chip {
   line-height: 1.45;
   color: var(--muted);
 }
+
+/* ---------- a record sent on by the agent, and the reply that came back ---------- */
+.try-share {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink);
+  border-radius: 10px;
+  background: var(--card);
+}
+.try-share p {
+  margin: 0 0 8px;
+}
+.try-share .try-share-label {
+  font-weight: 650;
+}
+.try-share-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.try-share-form input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+.try-share-row {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.try-share-row.delivered {
+  color: var(--ok, #1f6b3a);
+}
+.try-share-row.bounced,
+.try-share-row.rejected,
+.try-share-row.complained,
+.try-share-row.failed {
+  color: var(--accent);
+}
+.try-share-reply {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-style: italic;
+}

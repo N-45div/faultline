@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { INBOX, mailto } from "./Pricing";
@@ -245,6 +245,78 @@ function Linked({ text }: { text: string }) {
   );
 }
 
+/** How a letter the agent sent stands, in AgentMail's words made plain. */
+const SHARE_STATUS: Record<string, string> = {
+  queued: "sending…",
+  sent: "sent from " + INBOX,
+  delivered: "accepted by their mail server",
+  bounced: "it bounced",
+  complained: "they marked it as spam",
+  rejected: "their server refused it",
+  failed: "not sent",
+};
+
+/**
+ * Send the record on: Faultline's agent writes, from its own AgentMail inbox,
+ * to someone helping the tenant, with the city's record and the tenant's one
+ * answer, and nothing they typed. The row below shows the letter go out and
+ * their reply come back, both live.
+ */
+function SharePanel({ session, violationId }: { session: string; violationId: string }) {
+  const send = useMutation(api.share.send);
+  const shares = useQuery(api.share.forSession, { session }) ?? [];
+  const [to, setTo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [why, setWhy] = useState("");
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!to.trim() || busy) return;
+    setBusy(true);
+    setWhy("");
+    try {
+      const r = await send({ session, violationId, to });
+      if (r.ok) setTo("");
+      else setWhy(r.why ?? "That did not go through.");
+    } catch {
+      setWhy("That did not go through.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const time = (ms: number) => new Date(ms).toISOString().slice(11, 16) + " UTC";
+  return (
+    <div className="try-share">
+      <p className="try-share-label">Send this record to someone helping you</p>
+      <p className="fine">
+        An organizer, a lawyer, a relative. Faultline's agent writes to them from its own inbox, {INBOX}, with the city's
+        record for #{violationId} and your answer, and nothing you typed. When they reply, it lands here.
+      </p>
+      <form className="try-share-form" onSubmit={(e) => void submit(e)}>
+        <input type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="their email address" aria-label="Their email address" maxLength={254} />
+        <button type="submit" className="cta" disabled={busy || !to.trim()}>
+          {busy ? "Sending…" : "Send"}
+        </button>
+      </form>
+      {why && <p className="fine error">{why}</p>}
+      {shares.map((s) => (
+        <p key={s.id} className={`try-share-row ${s.status}`}>
+          → {s.to} · #{s.violationId} · {SHARE_STATUS[s.status] ?? s.status}
+          {s.status === "failed" && s.why ? ` (${s.why})` : ""} · {time(s.at)}
+          {s.replyText && (
+            <>
+              <br />
+              <span className="try-share-reply">
+                Their reply, {time(s.replyAt ?? s.at)}: “{s.replyText}”
+              </span>
+            </>
+          )}
+          {s.stopped && " · they replied STOP, and get nothing more"}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export default function Try({ go }: { go: (p: string) => void }) {
   const [session, fresh] = useSession();
   const thread = useQuery(api.web.thread, { session });
@@ -371,6 +443,8 @@ export default function Try({ go }: { go: (p: string) => void }) {
   const cardSeen = useRef<boolean | null>(null);
   const cardTimer = useRef<number | undefined>(undefined);
   const hasCard = answeredOnce && rec !== null;
+  // The repair the newest stamped answer was about: what a letter sent on carries.
+  const lastAnswered = [...ours].reverse().map((m) => (stampOf(m.text) ? answeredId(m.text) : null)).find((id): id is string => Boolean(id)) ?? null;
   useEffect(() => () => window.clearTimeout(cardTimer.current), []);
   useEffect(() => {
     if (thread === undefined) return;
@@ -781,6 +855,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
           </a>
         </div>
       )}
+      {hasCard && lastAnswered && <SharePanel session={session} violationId={lastAnswered} />}
 
       {next.length > 0 && (
         <div className="try-next">
