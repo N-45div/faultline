@@ -373,7 +373,10 @@ export default defineSchema({
   })
     .index("by_session", ["session", "createdAt"])
     .index("by_outbound", ["outboundId"])
-    .index("by_mail_thread", ["mailThreadId"]),
+    .index("by_mail_thread", ["mailThreadId"])
+    // A letter whose send was never confirmed has no message id; AgentMail's
+    // later event for it is matched by the address it went to (share.ts).
+    .index("by_to", ["to", "createdAt"]),
 
   /** "Reply FOLLOW": email me when this filing changes. */
   subscriptions: defineTable({

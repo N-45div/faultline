@@ -1898,7 +1898,7 @@ export const onMailEvent = internalMutation({
       .find((x: unknown) => typeof x === "string" && x.length > 0);
     if (!messageId) return null;
     // A letter a tenant sent on through the agent: the page shows its status live.
-    await shareEvent(ctx, messageId, status);
+    await shareEvent(ctx, messageId, status, event);
     const receipt = await ctx.db.query("receipts").withIndex("by_outbound", (q) => q.eq("outboundId", messageId)).first();
 
     // The provider's verdict on an address is worth more than our intent to

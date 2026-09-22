@@ -259,6 +259,46 @@ test("no answer from AgentMail: the page says delivery could not be confirmed, n
   expect(sends).toHaveLength(3);
 });
 
+const event = (event_type: string, part: string, body: Record<string, unknown>) =>
+  ({ event: { event_type, [part]: { inbox_id: "getnotice@agentmail.to", ...body } } });
+
+test("an unconfirmed letter AgentMail later reports on moves to delivered or bounced, and a reply to it is kept", async () => {
+  const t = make();
+  await answered(t);
+  sendAnswers(() => {
+    throw new TypeError("fetch failed");
+  });
+  await share(t, HELPER);
+  await share(t, "gone@example.org");
+  const status = async (to: string) => (await mine(t)).find((r) => r.to === to)?.status;
+  expect(await status("o•••@example.org")).toBe("unconfirmed");
+  expect(await status("g•••@example.org")).toBe("unconfirmed");
+
+  // Mail to someone else, and a reply the agent itself sent to this address, are not the letter.
+  await t.mutation(internal.inbound.onMailEvent, event("message.delivered", "delivery", { message_id: "<other@agentmail.to>", thread_id: "t-other", recipients: ["someone@else.org"] }));
+  await t.run(async (ctx) => {
+    await ctx.db.insert("receipts", { query: "19112934", kind: "none", text: "", html: "", createdAt: Date.now(), outboundId: "<our-reply@agentmail.to>" });
+  });
+  await t.mutation(internal.inbound.onMailEvent, event("message.delivered", "delivery", { message_id: "<our-reply@agentmail.to>", thread_id: "t-reply", recipients: [HELPER] }));
+  expect(await status("o•••@example.org")).toBe("unconfirmed");
+
+  await t.mutation(internal.inbound.onMailEvent, event("message.delivered", "delivery", { message_id: "<late@agentmail.to>", thread_id: "share-thread-late", recipients: [HELPER] }));
+  const row = (await mine(t)).find((r) => r.to === "o•••@example.org")!;
+  expect(row.status).toBe("delivered");
+  expect(row.why).toBeUndefined();
+  // A late "sent" for it does not undo delivered.
+  await t.mutation(internal.inbound.onMailEvent, event("message.sent", "send", { message_id: "<late@agentmail.to>", thread_id: "share-thread-late", recipients: [HELPER] }));
+  expect(await status("o•••@example.org")).toBe("delivered");
+
+  await t.mutation(internal.inbound.onMailEvent, event("message.bounced", "bounce", { message_id: "<gone@agentmail.to>", thread_id: "share-thread-gone", type: "Permanent", recipients: [{ address: "gone@example.org", status: "5.1.1" }] }));
+  expect(await status("g•••@example.org")).toBe("bounced");
+
+  // The letter now has its thread, so their reply lands beside it, and nothing goes back.
+  await reply(t, "r-late", HELPER, "Got it, thanks.", "share-thread-late");
+  expect((await mine(t)).find((r) => r.to === "o•••@example.org")!.replies.map((r) => r.text)).toEqual(["Got it, thanks."]);
+  expect(sends).toHaveLength(2);
+});
+
 test("STOP from them is final: marked on the page, and the address gets nothing more", async () => {
   const t = make();
   await answered(t);
