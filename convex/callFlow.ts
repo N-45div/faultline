@@ -26,16 +26,27 @@ import type { Reading } from "./agent";
 // they fail, and a step that has finished is not run again. A second reading
 // that fails every time leaves CALL-E's reading standing alone, as it always has.
 //
-// NOTICE_CALL_FLOW=direct places calls without it: they finish as scheduled
-// functions do, the way every call did before this. The switch is read when a
-// call is placed, never after, so a call finishes on the path it started on.
+// It is switched on by NOTICE_CALL_FLOW=workflow and by nothing else. Unset,
+// or direct, calls finish as scheduled functions do, the way every call did
+// before this, so a deploy moves no call onto it until the variable is set.
+// The switch is read when a call is placed, never after, so a call finishes on
+// the path it started on.
 // The workflow's journal holds what was said; it is deleted when the workflow
 // ends.
 
 export const flow = new WorkflowManager(components.workflow);
 
-/** Unset or "workflow": calls placed now finish in the workflow below. "direct": as they did before. */
-export const callFlow = (): "workflow" | "direct" => (process.env.NOTICE_CALL_FLOW?.trim() === "direct" ? "direct" : "workflow");
+/**
+ * "workflow": calls placed now finish in the workflow below. Unset or "direct":
+ * as they did before. Read as NOTICE_PAUSE is (convex/guard.ts), in any case, and
+ * a value that is neither is said in the logs and switches nothing on.
+ */
+export function callFlow(): "workflow" | "direct" {
+  const asked = (process.env.NOTICE_CALL_FLOW ?? "").trim().toLowerCase();
+  if (asked === "workflow") return "workflow";
+  if (asked !== "" && asked !== "direct") console.error(`[calls] NOTICE_CALL_FLOW: "${asked}" is not workflow or direct — calls finish the direct way`);
+  return "direct";
+}
 
 /** What the webhook and the polls send: look at the call. It carries nothing to believe. */
 const LOOK = "look";

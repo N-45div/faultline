@@ -8,6 +8,7 @@ import workpoolTest from "@convex-dev/workpool/test";
 import { cancel, list } from "@convex-dev/workflow";
 import { api, components, internal } from "../convex/_generated/api";
 import { citySecondWord } from "../convex/ingest/write";
+import { callFlow } from "../convex/callFlow";
 
 // The tenant loop, end to end, against an in-memory Convex: a person asks
 // about a building, answers, and — when the city later stamps the owner's
@@ -576,13 +577,13 @@ const NUMBER = "+1 718 555 0142";
 
 /**
  * A call test, run twice: with NOTICE_CALL_FLOW unset, where what happens
- * after the call hangs up is a workflow (convex/callFlow.ts), and set to
- * "direct", the scheduled functions it was before.
+ * after the call hangs up is the scheduled functions it always was, and set to
+ * "workflow", where it is a workflow (convex/callFlow.ts).
  */
 function callTest(name: string, fn: (flow: "workflow" | "direct") => Promise<void>) {
-  for (const flow of ["workflow", "direct"] as const) {
-    test(flow === "workflow" ? name : `${name} (NOTICE_CALL_FLOW=direct)`, async () => {
-      vi.stubEnv("NOTICE_CALL_FLOW", flow === "workflow" ? undefined : flow);
+  for (const flow of ["direct", "workflow"] as const) {
+    test(flow === "direct" ? name : `${name} (NOTICE_CALL_FLOW=workflow)`, async () => {
+      vi.stubEnv("NOTICE_CALL_FLOW", flow === "direct" ? undefined : flow);
       await fn(flow);
     });
   }
@@ -766,6 +767,7 @@ callTest("a second reading that never comes back is not waited for", async () =>
 
 
 // ---------------------------------------------------------------- after the call hangs up: the workflow
+// Each call here is placed with NOTICE_CALL_FLOW=workflow: unset, a call finishes the direct way.
 const workflows = (t: T) => t.run(async (ctx) => (await list(ctx, components.workflow)).page);
 const hook = (t: T) =>
   t.fetch("/hooks/calle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "call.completed", data: { id: "call_test_1" } }) });
@@ -773,9 +775,29 @@ const stillBroken = () =>
   finished({ reached: "yes", asked_for_this_call: "yes", answers: [{ violation: VIOLATION, answer: "still_broken", their_words: "nobody came, it is the same" }] });
 const agrees = { asked_for_this_call: "yes", answers: [{ violation: VIOLATION, answer: "still_broken", their_words: "Nobody came, it's the same" }] };
 
+test("only NOTICE_CALL_FLOW=workflow, in any case, switches the workflow on; any other value is said in the logs and places calls the direct way", () => {
+  const said = vi.spyOn(console, "error").mockImplementation(() => {});
+  const cases: [string | undefined, "workflow" | "direct"][] = [
+    [undefined, "direct"],
+    ["", "direct"],
+    ["direct", "direct"],
+    ["workflow", "workflow"],
+    [" Workflow ", "workflow"],
+    ["on", "direct"],
+    ["true", "direct"],
+  ];
+  for (const [value, flow] of cases) {
+    vi.stubEnv("NOTICE_CALL_FLOW", value);
+    expect(callFlow()).toBe(flow);
+  }
+  expect(said.mock.calls.map((c) => String(c[0]))).toEqual([expect.stringContaining('"on"'), expect.stringContaining('"true"')]);
+  said.mockRestore();
+});
+
 test("a webhook that comes again, and the polls, start no second workflow, and the call is recorded once", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
   await seed(t);
   await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
   await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
@@ -818,6 +840,7 @@ test("a webhook that comes again, and the polls, start no second workflow, and t
 test("CALL-E failing to answer when the call is read back is tried again, without waiting for the next poll", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
   await seed(t);
   await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
   await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
@@ -837,6 +860,7 @@ test("CALL-E failing to answer when the call is read back is tried again, withou
 test("the second reader failing once is tried again, and what the two readers agree on is recorded", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
   await seed(t);
   await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
   await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
@@ -860,6 +884,7 @@ test("the second reader failing once is tried again, and what the two readers ag
 test("the second reader failing every time leaves CALL-E's reading standing alone, as on the direct path", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
   await seed(t);
   await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
   await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
@@ -878,10 +903,9 @@ test("a call placed by the old code, and parked by it for a second reading, stil
   vi.stubEnv("CALLE_API_KEY", "test-calle");
   await seed(t);
   await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
-  // Placed the way every call was before the workflow; then the switch changes, or the deploy lands, while it rings.
-  vi.stubEnv("NOTICE_CALL_FLOW", "direct");
+  // Placed the way every call was before the workflow; then the switch is set, or the deploy lands, while it rings.
   await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
-  vi.stubEnv("NOTICE_CALL_FLOW", undefined);
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
   const callRow = (await t.run((ctx) => ctx.db.query("calls").first()))!._id;
   expect((await t.run((ctx) => ctx.db.get(callRow)))?.workflowId).toBeUndefined();
 
@@ -897,14 +921,15 @@ test("a call placed by the old code, and parked by it for a second reading, stil
   expect(await workflows(t)).toEqual([]);
 });
 
-test("a call placed with a workflow finishes in it after the switch is set to direct", async () => {
+test("a call placed with a workflow finishes in it after the switch is turned off", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
   await seed(t);
   await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
   await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
   expect(await workflows(t)).toHaveLength(1);
-  vi.stubEnv("NOTICE_CALL_FLOW", "direct");
+  vi.stubEnv("NOTICE_CALL_FLOW", undefined);
   calle.result = stillBroken();
   await t.action(internal.calls.reconcile, { callId: "call_test_1" });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
@@ -917,6 +942,7 @@ test("a call placed with a workflow finishes in it after the switch is set to di
 test("a workflow that stops before the call ends does not lose the call: the direct path finishes it", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
   await seed(t);
   await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
   await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);

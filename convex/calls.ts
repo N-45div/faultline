@@ -38,10 +38,9 @@ import { callFlow, startAfterCall } from "./callFlow";
 // and the call is then read back from CALL-E's API with our own key.
 //
 // What happens once it hangs up - read back, read a second time, recorded -
-// runs as a workflow (convex/callFlow.ts), each step retried on its own. With
-// NOTICE_CALL_FLOW=direct it runs as the scheduled functions below and in
-// convex/inbound.ts, as it did before there was one. A call finishes on the
-// path it was placed on.
+// runs as the scheduled functions below and in convex/inbound.ts. With
+// NOTICE_CALL_FLOW=workflow it runs as a workflow instead (convex/callFlow.ts),
+// each step retried on its own. A call finishes on the path it was placed on.
 
 const API = () => process.env.CALLE_BASE_URL ?? "https://api.heycall-e.com";
 const INBOX = () => process.env.AGENTMAIL_INBOX_ID ?? "getnotice@agentmail.to";
