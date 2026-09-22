@@ -11,7 +11,7 @@ import { SAMPLE_ASK } from "./AskCard";
 //   the letter to a helper ...................... engine/shareLetter.ts, convex/share.ts
 //   what is read, and when ...................... engine/adapters/, convex/crons.ts,
 //                                                convex/ingest/seed.ts, convex/cityPage.ts
-//   "not found" and "not read" .................. src/CityPage.tsx, convex/inbound.ts
+//   "not found" and "not checked" ............... src/CityPage.tsx, convex/inbound.ts
 //   the earlier-citation check .................. convex/history.ts, convex/wall.ts
 // Change one of those and this page changes with it. The rule HPD states in its
 // own words is "can close", never "closes": an inspector who goes back changes it.
@@ -28,7 +28,7 @@ const SECTIONS: [string, string][] = [
   ["private", "What is private, and what is public"],
   ["helper", "How someone helping you sees the record"],
   ["data", "Where the information comes from"],
-  ["states", "What \"not found\" and \"not read\" mean"],
+  ["states", "What \"not found\" and \"not checked\" mean"],
   ["limits", "What it does not cover yet"],
 ];
 
@@ -75,7 +75,7 @@ export default function HowItWorks({ go }: { go: (p: string) => void }) {
         </p>
         <p>
           You don't need an account. Email <strong>ASK</strong> and your address to{" "}
-          <a href={mailto(SAMPLE_ASK)}>{INBOX}</a>, or{" "}
+          <a href={mailto("ASK ")}>{INBOX}</a>, or{" "}
           <a href="/try" onClick={link("/try")}>
             try it in your browser
           </a>{" "}
@@ -152,8 +152,8 @@ export default function HowItWorks({ go }: { go: (p: string) => void }) {
           dates.
         </p>
         <p>
-          <strong>Saving an answer does not file anything with HPD.</strong> HPD does not see it, and it does not send an
-          inspector. Only you can ask for that, the way the next section says.
+          <strong>Saving an answer does not file anything with HPD.</strong> Faultline does not send it to HPD, and it
+          does not send an inspector. Only you can ask for that, the way the next section says.
         </p>
       </section>
 
@@ -181,14 +181,18 @@ export default function HowItWorks({ go }: { go: (p: string) => void }) {
         <p>
           <strong>Private:</strong> your answers, your words, and any note or photo you send. They are on your own page,
           which only the link in your email opens. In the browser trial, they are kept on the trial's own page, which
-          only your browser can open. The one exception is a letter you choose to send a helper (below).
+          only your browser can open.
+        </p>
+        <p>
+          Your answer leaves that page in two ways only: a building's public page may say that someone said STILL
+          BROKEN once the city agrees (below), and a letter you choose to send a helper carries your answer in one word.
         </p>
         <p>
           <strong>Public:</strong> a building's page shows the city's records for it, every version we read, dated. It
           also shows how many answers are kept for the building, as a number with no words.
         </p>
         <p>
-          A building's page says someone answered only once the city's own record agrees: they said STILL BROKEN, and
+          A building's page says what someone answered only once the city's own record agrees: they said STILL BROKEN, and
           afterwards HPD stamped that certification FALSE or INVALID. Even then it shows the day they said it and the
           city's stamp, not their words and not who they are.
         </p>
@@ -265,9 +269,10 @@ export default function HowItWorks({ go }: { go: (p: string) => void }) {
             anything about the repair; the city's file line is shown with it.
           </li>
           <li>
-            <strong>"HPD Online was not read"</strong> or <strong>"could not be read"</strong>: we didn't look, or the
-            page didn't come back readable. Firecrawl's browsers were busy, the day's readings were used up, or the page
-            was not what we asked for. It says nothing about the repair either way.
+            <strong>Not checked</strong>, which the site says as <strong>"HPD Online was not read"</strong> or{" "}
+            <strong>"could not be read"</strong>: we didn't look, or the page didn't come back readable. Firecrawl's
+            browsers were busy, the day's readings were used up, or the page was not what we asked for. It says nothing
+            about the repair either way.
           </li>
           <li>
             <strong>"We don't hold … yet"</strong>: nobody had asked about that building, so we had not read it. It is
