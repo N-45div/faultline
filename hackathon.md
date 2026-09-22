@@ -17,7 +17,7 @@ right-now` ([data/right-now-2026-09-21.json](data/right-now-2026-09-21.json)): a
 anyone who lives there can answer. Every push runs the checks on GitLab's runners ([.gitlab-ci.yml](.gitlab-ci.yml)). Where each Convex feature and
 each sponsor lives, file by file: [README, Where each thing lives](README.md#where-each-thing-lives).
 
-**Known issues, left alone until judging ends** (each fix is a function deploy on a working path):
+**Known issues** (each fix is a function deploy on a working path). Left alone until judging ends:
 - The phone call opens with "you asked for it on our website" even when CALL ME arrived by email (engine/call.ts).
 - The call tool proves a number was typed by the person asking, not that they own it. The fences: a consent box on
   /try, two calls per number a day, two per person, twelve a day in all, and a number that says it never asked is never
@@ -26,7 +26,7 @@ each sponsor lives, file by file: [README, Where each thing lives](README.md#whe
   (engine/hpd.ts, HOW_TO_TELL_HPD). It says so on a LATE repair too; whether that holds for a late certification
   waits on the same query as the LATE item below.
 
-**Fixed on 22 September:**
+**Fixed on 22 September, while judging runs:**
 - On a typed or spoken answer, the note GPT-6 Astra passes to record_answer is kept as your words only if at least
   four in five of its words appear in what you wrote, your subject included and our quoted reply not: the test a phone
   call's quote is put to (engine/call.ts, wroteIt and saidIt; engine/hpd.ts, theirWords; convex/match.ts). A note that
@@ -1747,8 +1747,9 @@ being reset after load to the old tagline; it is the tenant's question now.
 every query kept in its output (data/right-now-2026-09-21.json). On 21
 September: 14,027 certifications inside their 70 days, in 4,826 buildings
 holding 221,411 apartments; 10,663 of them (76%) are not inside any one
-apartment, so anyone who lives in the building can answer. The same run counts
-2,494 certified LATE, which is where the last known issue above comes from.
+apartment, so anyone who lives in the building can answer. Of these, 2,494
+are certified LATE, a count that output does not hold; the LATE item under
+Fixed on 22 September above comes from it.
 
 Every push now runs the checks on GitLab's shared runners (.gitlab-ci.yml):
 typecheck, the convex-test suite, the engine, receipt and wall checks and the
