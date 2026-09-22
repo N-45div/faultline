@@ -27,16 +27,16 @@ export function saysFalse(status: string): boolean {
 }
 
 /**
- * The owner certified, but after the date the notice set for it. The city's
- * own file shows HPD closing a certification made on time 72 to 75 days later,
- * and not closing a late one on that clock: a late one has no 70 days to count.
+ * The owner certified, but after the date the notice set for it. A late one is
+ * shown no 70-day clock and no close date, and nothing is said in their place.
+ * The city's file was read as HPD closing a certification made on time 72 to 75
+ * days later and not closing a late one on that clock, but the query that shows
+ * it is not kept in this repo, so a tenant is not told it. Leaving a day out
+ * claims nothing.
  */
 export function certifiedLate(status: string): boolean {
   return (status ?? "").trim().toUpperCase() === "NOV CERTIFIED LATE";
 }
-
-/** Said on a late certification's line, where an on-time one gives the day its 70 days run out. */
-export const LATE_NO_CLOCK = "HPD does not close a late certification on its 70-day clock.";
 
 export interface Ask {
   violationId: string;
@@ -74,7 +74,7 @@ export function askLine(a: Ask, where: string): string {
   const what = a.description ? ` — "${shorten(a.description, 120)}"` : "";
   const by = a.certifiedBy && fixedClaim(a.status) === "city" ? `; the owner had certified it corrected on ${a.certifiedBy}` : "";
   const clock = challengeDeadline(a);
-  const until = clock ? ` HPD's 70 days run to ${clock}.` : certifiedLate(a.status) ? ` ${LATE_NO_CLOCK}` : "";
+  const until = clock ? ` HPD's 70 days run to ${clock}.` : "";
   return `#${a.violationId} at ${where}${cls}${what}. ${who}: ${a.status} as of ${a.statusDate}${by}.${until}`;
 }
 
@@ -118,8 +118,8 @@ export const HOW_TO_REPORT_AGAIN =
 
 /**
  * HPD's 70 days from the certification, after which an unreinspected violation
- * is deemed complied. Only for a certification made on time: HPD does not
- * close a late one on this clock (certifiedLate), so it has no day to show.
+ * is deemed complied. Only for a certification made on time: a late one is
+ * shown no day (certifiedLate).
  */
 export function challengeDeadline(a: Ask): string | null {
   if (fixedClaim(a.status) !== "owner" || certifiedLate(a.status)) return null;

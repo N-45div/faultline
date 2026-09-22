@@ -11,7 +11,7 @@ import { adapters } from "../engine/adapters/index";
 import { hashFields } from "../engine/canon";
 import { diffRows } from "../engine/diff";
 import { warnNoticeGap } from "../engine/rules";
-import { askFrom, askHeadline, askLine, challengeDeadline, fixedClaim, howToAnswer, nextStepFor, parseAnswer, LATE_NO_CLOCK, pickAsks, secondWordLine, seventyDaysFrom, type Ask } from "../engine/hpd";
+import { askFrom, askHeadline, askLine, challengeDeadline, fixedClaim, howToAnswer, nextStepFor, parseAnswer, pickAsks, secondWordLine, seventyDaysFrom, type Ask } from "../engine/hpd";
 import { askRows, plainThing } from "../engine/askRows";
 import { receiptText, type Receipt } from "../engine/receipt";
 import { classifyInbound } from "../engine/intent";
@@ -140,8 +140,8 @@ console.log("\n== tenant loop");
   const certified = { violationid: "17321000", currentstatusdate: "2026-09-10", certifiedbydate: "2026-09-08", class: "C", novdescription: "repair the broken or defective plastered surfaces" };
   const ask = askFrom({ ...certified, currentstatus: "NOV CERTIFIED LATE" });
   check(!!ask && ask.violationId === "17321000" && ask.certifiedBy === "2026-09-08", "askFrom reads the row");
-  // The same certification, made on time and made late: HPD closes the first on
-  // its 70-day clock, and the city's file shows it does not close the second on it.
+  // The same certification, made on time and made late: the first has its
+  // 70-day clock, and the second is shown none (engine/hpd.ts, certifiedLate).
   const onTime = askFrom({ ...certified, currentstatus: "NOV CERTIFIED ON TIME" });
   check(!!onTime && challengeDeadline(onTime) === "2026-11-17", `ON TIME: HPD's 70 days from 2026-09-08 run to 2026-11-17 (got ${onTime && challengeDeadline(onTime)})`);
   check(!!ask && challengeDeadline(ask) === null && seventyDaysFrom(ask) === "2026-11-17", `LATE: no 70-day clock, though it was certified the same day (got ${ask && challengeDeadline(ask)})`);
@@ -151,8 +151,8 @@ console.log("\n== tenant loop");
     "ON TIME: the line gives the day HPD's 70 days run out, as before",
   );
   check(
-    !!ask && askLine(ask, at37).endsWith("The owner certified this corrected: NOV CERTIFIED LATE as of 2026-09-10. HPD does not close a late certification on its 70-day clock.") && !askLine(ask, at37).includes("2026-11-17"),
-    "LATE: the line gives no clock and no close date, and says HPD does not close it on that clock",
+    !!ask && askLine(ask, at37).endsWith("The owner certified this corrected: NOV CERTIFIED LATE as of 2026-09-10.") && !askLine(ask, at37).includes("2026-11-17"),
+    "LATE: the line gives no clock and no close date, and says nothing in their place",
   );
   const quoted = "STILL BROKEN\n\nOn Mon, Sep 14, 2026 at 9:02 AM Faultline <getnotice@agentmail.to> wrote:\n> They say it's fixed. Is it?\n> - #17321000 at 249 East 37 Street, Brooklyn (class C)";
   const a1 = parseAnswer("Re: Is it fixed?", quoted);
@@ -224,7 +224,7 @@ console.log("\n== tenant loop");
     "They say 2 things are fixed. Are they?",
     "",
     '- #19041834 at 155 LINDEN BOULEVARD, Brooklyn (class A) — "§ 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE VINYL FLOOR TILES IN THE KITCHEN LOCAT…". The owner certified this corrected: NOV CERTIFIED ON TIME as of 2026-09-17. HPD\'s 70 days run to 2026-11-26.',
-    '- #19106317 at 155 LINDEN BOULEVARD, Brooklyn (class B) — "§ 27-2026, 2027 HMC: PROPERLY REPAIR THE SOURCE AND ABATE THE EVIDENCE OF A WATER LEAK AT CEILING AND EAST WALL IN THE …". The owner certified this corrected: NOV CERTIFIED LATE as of 2026-09-17. HPD does not close a late certification on its 70-day clock.',
+    '- #19106317 at 155 LINDEN BOULEVARD, Brooklyn (class B) — "§ 27-2026, 2027 HMC: PROPERLY REPAIR THE SOURCE AND ABATE THE EVIDENCE OF A WATER LEAK AT CEILING AND EAST WALL IN THE …". The owner certified this corrected: NOV CERTIFIED LATE as of 2026-09-17.',
     "",
     "Your answers, beside the city's record: https://faultline.test/r/abc",
     "Reply with another company name, or a building address, for another receipt.",
@@ -236,7 +236,7 @@ console.log("\n== tenant loop");
   check(said.includes("vinyl floor tiles in the kitchen.") && !/locat\b/i.test(said), "spoken: the city's cut-off word, and the little word left dangling before it, are dropped");
   check(said.includes("water leak at ceiling and east wall.") && !/ in the \./.test(said), "spoken: a description cut after 'in the' ends on its last whole word");
   check(said.includes("The owner certified this corrected on September 17.") && said.includes("certified this corrected, late, on September 17."), "spoken: the claim and its date, and late when it was late");
-  check(said.includes("late, on September 17. H P D does not close a late certification on its 70-day clock.") && (said.match(/November 26/g) ?? []).length === 1, "spoken: a late one is said with no clock, and only the on-time one has a day its 70 days run out");
+  check((said.match(/November 26/g) ?? []).length === 1, "spoken: a late one is said with no clock, and only the on-time one has a day its 70 days run out");
   check((said.match(/linden boulevard/gi) ?? []).length === 1, "spoken: the address is said once");
   check(!/Reply with another company/.test(said), "spoken: the line about email is not read out");
   const long = forSpeech(Array.from({ length: 30 }, (_, i) => `Sentence number ${i} of a very long reply that goes on.`).join(" "));
@@ -397,7 +397,8 @@ console.log("\n== the ASK reply, read back into rows");
     both.length === 2 && both[0].until === "2026-11-26" && both[1].status === "NOV CERTIFIED LATE" && both[1].until === null && both.every((r, i) => r.line === askLine(mixed[i], where)),
     `ASK rows: ON TIME reads back with its 70 days, LATE with none, each as askLine wrote it (got ${JSON.stringify(both.map((r) => [r.id, r.until]))})`,
   );
-  check(askRows(reply(mixed).replace(LATE_NO_CLOCK, "HPD's 70 days run to 2026-11-26.")).length === 0, "ASK rows: a late line with a clock is not one askLine writes, and none is used");
+  const lateWithClock = reply(mixed).replace("NOV CERTIFIED LATE as of 2026-09-17.", "NOV CERTIFIED LATE as of 2026-09-17. HPD's 70 days run to 2026-11-26.");
+  check(askRows(lateWithClock).length === 0, "ASK rows: a late line with a clock is not one askLine writes, and none is used");
   const one = text.split("\n");
   const broken = one.map((l) => (l.startsWith("- #19106317") ? l.replace(" as of ", " on ") : l)).join("\n");
   check(askRows(broken).length === 0, "ASK rows: one line that does not read back and none is used");
