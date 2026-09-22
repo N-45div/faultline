@@ -1,24 +1,41 @@
 # Hackathon log
 
-**Read this first.** Faultline is for New York City tenants. When a landlord tells the city (HPD) a repair is done,
-the city can close the violation after 70 days unless someone challenges it through 311 and an inspector goes back.
-Faultline shows the tenant each repair their landlord certified and, for one certified on time, the day its 70 days
-run out, tells them how to
-challenge it, takes their answer in their own words (typed, spoken, or on a real phone call), keeps it dated beside the
-city's record, and tells them if the city later stamps that certification FALSE. Try it with no sign-in at
-https://clear-dogfish-72.convex.site/try: press the first button, then Still broken on a repair, or the suggested
-sentence (GPT-6 Astra reads that one). Or email
-`ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.to from your own address and answer the reply in a
-sentence. Nothing on either path is simulated: the sample building's repairs come from a copy of the city's file refreshed
-every day, and the email, the phone call and every model run are real. Demo: https://youtu.be/Xa8uKOZP-Y4 (the real phone call
-starts at 1:25). Every check, run: [tests/RUN.md](tests/RUN.md). The certification counts on the landing are computed
-live by `convex/wall.ts` (housingPulse), which links the city's own query. Who it is for, in numbers: `npm run
-right-now` ([data/right-now-2026-09-21.json](data/right-now-2026-09-21.json)): about 14,000 repairs certified in the last
-70 days, in about 4,800 buildings with about 221,000 apartments; three in four are not inside any one apartment, so
-anyone who lives there can answer. Every push runs the checks on GitLab's runners ([.gitlab-ci.yml](.gitlab-ci.yml)). Where each Convex feature and
-each sponsor lives, file by file: [README, Where each thing lives](README.md#where-each-thing-lives).
+**Faultline, in thirty seconds.** For people who rent in New York City. When a landlord tells the city's housing
+agency, HPD, that a repair is done, the city can close the violation after 70 days on that word unless an inspector
+goes back. Faultline shows a tenant each repair their landlord certified, with its 70-day clock and how to challenge it
+through 311, and keeps the tenant's answer, dated, beside the city's record. If the city later stamps that certification
+FALSE, the tenant is told.
 
-**Known issues** (each fix is a function deploy on a working path). Left alone until judging ends:
+**Try it, no sign-in, in two minutes:** https://clear-dogfish-72.convex.site/try
+1. Press the first button. A real Brooklyn building, 155 Linden Boulevard, answers from the city's own file: the repairs
+   the owner says are done, each with its clock. One of them was cited before under a new number: the owner certified
+   it on 31 July 2025, and the city recorded NOT COMPLIED WITH on 22 August 2025. The row says so.
+2. Tap **Still broken**, or answer in a sentence: GPT-6 Astra reads it and can only act through twelve tools. The
+   moment you answer, Firecrawl opens HPD Online, the city's own site, types the violation number into its search box,
+   and keeps a picture of the page and a SHA-256 beside the data file's row.
+3. **Open your record**: one case file per repair, opened at the one you answered, with the earlier citation, what the
+   city shows now, and one next step, **Prepare my 311 call** (edit, copy or print; nothing is filed for you).
+4. **Send it to someone helping you**: one letter from Faultline's AgentMail inbox, built from the city's record and
+   your one-word answer, never anything you typed. Its line moves to accepted by their mail server, and their reply
+   comes back under it.
+
+Or by email: write `ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.to and answer the reply in a sentence.
+Nothing on either path is simulated: the repairs come from a copy of the city's file refreshed every day, and the
+email, the phone call and every model run are real.
+
+**Demo:** https://youtu.be/Xa8uKOZP-Y4 · **For a tenant, in plain words:**
+[/how-it-works](https://clear-dogfish-72.convex.site/how-it-works) · **Every check** (481, run on every push by
+[.gitlab-ci.yml](.gitlab-ci.yml)): [tests/RUN.md](tests/RUN.md) · **Where each Convex feature and each sponsor lives,
+file by file:** [README](README.md#where-each-thing-lives)
+
+**Who it is for, in numbers** (`npm run right-now`, [data/right-now-2026-09-21.json](data/right-now-2026-09-21.json)):
+about 14,000 repairs certified in the last 70 days, in about 4,800 buildings with about 221,000 apartments. Three in
+four are not inside any one apartment, so anyone who lives in the building can answer.
+
+The layoff notices and restaurant inspections in the older entries below are where Faultline started: the same engine
+keeps every version of files the government overwrites. The tenant loop above is the product.
+
+**Known issues** (not fixed yet; each fix is a function deploy on a working path):
 - The phone call opens with "you asked for it on our website" even when CALL ME arrived by email (engine/call.ts).
 - The call tool proves a number was typed by the person asking, not that they own it. The fences: a consent box on
   /try, two calls per number a day, two per person, twelve a day in all, and a number that says it never asked is never
@@ -27,7 +44,7 @@ each sponsor lives, file by file: [README, Where each thing lives](README.md#whe
   (engine/hpd.ts, HOW_TO_TELL_HPD). It says so on a LATE repair too; whether that holds for a late certification
   waits on the same query as the LATE item below.
 
-**Fixed on 22 September, while judging runs:**
+**Fixed on 22 September, before submissions closed:**
 - On a typed or spoken answer, the note GPT-6 Astra passes to record_answer is kept as your words only if it is an
   unbroken run of what you wrote, in your order, your subject included and our quoted reply not; a phone call's quote
   is put to the same test against the transcript (engine/call.ts, wroteIt and saidIt; engine/hpd.ts, theirWords;
@@ -42,7 +59,7 @@ each sponsor lives, file by file: [README, Where each thing lives](README.md#whe
 
 - **Project:** Faultline
 - **Event:** Convex All Gas Hackathon
-- **What it does:** Your landlord told New York City the repair is done. Is it? Faultline is an email address (getnotice@agentmail.to): write ASK and your address and it sends back every repair the owner certified there, in the city's words, with the day the city's 70 days run out on each one certified on time. Answer in your own words; GPT-6 Astra reads it but can only choose a tool, and the tool writes the reply. Your answer is kept private and dated beside the city's record, and you are told the day the city stamps that certification FALSE. Underneath: ten government files that overwrite themselves (NYC housing violations, NYC restaurant inspections, eight states' layoff notices), read on a schedule with every version kept. Email a company name and get back what it filed, including the versions the state has since overwritten.
+- **What it does:** Your landlord told New York City the repair is done. Is it? On /try, or by email to getnotice@agentmail.to, Faultline shows each repair the owner certified at an address, in the city's words, with the day the city's 70 days run out on each one certified on time. Answer with one tap or in your own words; GPT-6 Astra reads a sentence but can only choose a tool, and the tool writes the reply. Your answer is kept private and dated beside the city's record, Firecrawl reads HPD Online for that repair, your record becomes one case file with the next step, and you are told the day the city stamps that certification FALSE. Underneath, the engine it started from: government files that overwrite themselves, read on a schedule with every version kept.
 - **Live app:** https://clear-dogfish-72.convex.site
 - **Try it without email or sign-in:** https://clear-dogfish-72.convex.site/try
 - **Tour for judges:** https://clear-dogfish-72.convex.site/judge
@@ -1716,7 +1733,7 @@ after a reload.
 
 ### 2026-09-21 - 4e033d8 · e1cb2c4 · cf9ab5d · f3c744a · a27cc1f · 4107014
 Copy only, no behaviour change, and no function deploy. A judging pass over all
-61 entries (four judge personas modelled on this panel, and every finalist's
+61 entries (each scored against the published criteria, and every finalist's
 listing claims checked against its repository) said the same thing four times:
 the first screen buried the tenant. It opened with a line to judges about the
 phone call, which is not a sponsor's, then a manifesto, four doors, a keyword
