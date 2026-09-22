@@ -108,11 +108,33 @@ Photon and CALL-E are not sponsors of this hackathon. They are here so the same 
 | **Photon** | The same inbox on a phone number: a signed webhook (HMAC-SHA256, five-minute window, constant-time compare) into the same inbound handler, replies out through the Spectrum SDK from a node action. Its free tier texts only numbers registered to the project, so email is how anyone else can try it. |
 | **CALL-E** | The same questions on a real telephone. One `POST /v1/calls` carries the script the tools wrote and a strict `result_schema` whose violation enum holds only the numbers this person was asked about, under an idempotency key. Its webhook is unsigned, so it is believed for one thing, a call id, and the call is then read back from CALL-E's API with our own key. The transcript is shown in the thread that asked and read a second time by GPT-6 Astra; only what both readers agree on is recorded. The number must be written by the person asking, is rung at most twice a day, and our tables keep a hash and four digits of it. |
 
+### Where each thing lives
+
+| What | Where |
+|---|---|
+| The vector index that decides which repair your words are about | `convex/schema.ts` (`by_words`, filtered to the person asking), `convex/match.ts` (`ctx.vectorSearch`) |
+| Full-text search, for company names | `convex/schema.ts` (`search_label`), `convex/lookup.ts` |
+| Live queries: the /try reply and your record change by themselves | `src/Try.tsx`, `src/Record.tsx`, and eleven more pages that use `useQuery` |
+| 8 crons; the one that reads the files ticks every minute | `convex/crons.ts`, `convex/ingest/write.ts` |
+| Scheduled work: fetch, commit in slices, replies, calls | `ctx.scheduler` in `convex/ingest/write.ts`, `convex/inbound.ts`, `convex/calls.ts`, `convex/web.ts` and eight more |
+| File storage: held pages, screenshots, PDF packs | `convex/files.ts`, `convex/pages.ts`, `convex/packBuild.ts`, `convex/ingest/fetch.ts` |
+| HTTP routes: the AgentMail, CALL-E and Photon webhooks, voice, packs | `convex/http.ts` |
+| Convex Auth | `convex/auth.ts`, `convex/auth.config.ts` |
+| Components: static hosting, AgentMail, Firecrawl, the rate limiter | `convex/convex.config.ts`; every limit in `convex/limits.ts` |
+| AgentMail: the inbox, its verified webhook and events, delivery events acted on, labels, attachments | `convex/agentmailClient.ts`, `convex/http.ts`, `convex/inbound.ts`, `convex/mail.ts` |
+| OpenAI: GPT-6 Astra on the Agents SDK, twelve strict tools, and the second reader of every call | `convex/agent.ts` |
+| OpenAI: gpt-live-1, gpt-4o-mini-transcribe and gpt-4o-mini-tts | `convex/liveActions.ts`, `convex/voice.ts` |
+| OpenAI: gpt-5.6-luna for letters and photographed notices, and moderation | `convex/llm.ts`, `convex/llmActions.ts` |
+| OpenAI: text-embedding-3-small | `convex/match.ts` |
+| Firecrawl: FIND, KEEP, and change tracking in git-diff mode | `convex/pages.ts`, `convex/ingest/firecrawl.ts` |
+| CALL-E (not a sponsor): the phone call and its two readers | `convex/calls.ts`, `engine/call.ts` |
+| Tests | `tests/*.test.ts` (43 convex-test), `scripts/*-test.ts`; every push runs them in [.gitlab-ci.yml](.gitlab-ci.yml) |
+
 ### The two rules that decide correctness
 
 **A model picks the tool. It does not decide what is true.** Every reply is written by the tool, in the service's own words. The tool that records an answer refuses a violation number the person was never asked about.
 
-**Which repair a person means is decided by their own words.** The city's description is embedded when we ask; their sentence is embedded when they answer; a Convex vector index, filtered to their own address, says which question the words are nearest. If the model picked a different number and the gap is wide, nothing is recorded — we ask, with both conditions in the city's words. An answer with no number at all is placed the same way, instead of landing on whichever question is newest.
+**Which repair a person means is decided by their own words.** The city's description is embedded when we ask; their sentence is embedded when they answer; a Convex vector index, filtered to the person asking, says which question the words are nearest. If the model picked a different number and the gap is wide, nothing is recorded — we ask, with both conditions in the city's words. An answer with no number at all is placed the same way, instead of landing on whichever question is newest.
 
 That one was found by running it, not by reading it. On 17 September the live inbox was sent *"the latch on the compactor closet door is still broken"* and filed it against **#19178388, the plexiglass at the building entrance**. The same sentence now comes back "Which repair do you mean?", listing four — two of them near-identical latch violations at the same compactor closet, where asking is the only honest answer. ([hackathon.md](hackathon.md), commit 629c295.)
 
