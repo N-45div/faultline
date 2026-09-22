@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import Pricing, { INBOX, mailto } from "./Pricing";
@@ -106,6 +106,7 @@ function SideCard({ go, whenNone }: { go: (p: string) => void; whenNone: ReactNo
 }
 
 export default function Landing({ go }: { go: (p: string) => void }) {
+  const [address, setAddress] = useState("");
   const ny = useQuery(api.wall.layoffNotices, { slug: "ny-warn" });
   const log = useQuery(api.wall.changelog, {});
   const b = useQuery(api.wall.buildings, {});
@@ -161,27 +162,41 @@ export default function Landing({ go }: { go: (p: string) => void }) {
       <section className="band hero-band">
         <div className="container hero-grid">
           <div>
-            <h1 className="lede-title">Your landlord told the city it's fixed. Is it?</h1>
+            <h1 className="lede-title">Still broken after your landlord said it was fixed?</h1>
             <p className="lede-sub">
-              See each repair your landlord told the city is done, when the city can close it on their word, and how to
-              get an inspector sent back if it isn't. Answer in your own words; your answer is kept, dated, beside the
-              city's record.
+              Find the repair, keep your answer beside the city's record, and prepare what to say when you ask for help.
+              The city can close a certified repair after 70 days on the owner's word; Faultline shows you the clock.
             </p>
-            <div className="lede-ctas">
+            {/* An address goes to /try with the ASK already typed (Try.tsx reads ?ask=); nothing is sent until they press. */}
+            <form
+              className="lede-ctas lede-check"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const a = address.trim();
+                window.location.href = a ? `/try?ask=${encodeURIComponent(a)}` : "/try";
+              }}
+            >
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Your NYC address, like 155 Linden Boulevard, Brooklyn"
+                aria-label="Your New York City address"
+                maxLength={120}
+              />
+              <button type="submit" className="cta primary">
+                Check a repair
+              </button>
               <a
-                className="cta primary"
+                className="cta"
                 href="/try"
                 onClick={(e) => {
                   e.preventDefault();
                   go("/try");
                 }}
               >
-                Try it here, no sign-in
+                Try a real building
               </a>
-              <a className="cta" href={mailto("ASK ")}>
-                Email ASK and your address
-              </a>
-            </div>
+            </form>
             <p className="doors">
               <strong>Or don't type at all.</strong> On the same page you can say your answer, talk it through with a
               live voice, or{" "}
