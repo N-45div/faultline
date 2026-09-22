@@ -67,7 +67,7 @@ keeps every version of files the government overwrites. The tenant loop above is
 - **Demo video:** https://youtu.be/Xa8uKOZP-Y4
 - **Repo:** https://gitlab.com/ndivij2004/faultline (moved from GitHub on 20 Sep 2026 with its whole history, every commit and date as it was)
 - **Frontend:** Convex static hosting (convex.site)
-- **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held)
+- **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held). Since 22 Sep the project is back in the author's own Convex team, N DIVIJ, with the same deployment, data and address
 - **Components (6):** @convex-dev/static-hosting, @agentmail/convex, @firecrawl/firecrawl-convex, @convex-dev/rate-limiter, @convex-dev/action-cache (a building's history from the city, held twenty hours), @convex-dev/workflow (installed, and switched off on production until a real call has run through it)
 - **Convex features:** schema, 36 tables, 72 indexes, 202 functions (npx convex function-spec --prod: 61 queries, 93 mutations, 33 actions, 15 HTTP actions), 8 crons, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons, scheduled functions, file storage, realtime queries, Convex Auth, convex-test
 - **Auth:** Convex Auth, email + password only, and optional everywhere: it is needed only to follow a filing from the web. Every other path, the judges' included, needs no account
@@ -1881,8 +1881,9 @@ younger than six hours is shown again and spends nothing; three a day for a
 person and forty a day in all. The first reading on production, for #19112933,
 kept the site's own row: NOV CERT, 09/18/2026, "Showing 1 of 1 result".
 
-The project moved to a paid Convex team the same day, with its deployment,
-data and address unchanged, so it stays up through judging. Checks: 471, in
+The project moved back into the author's own Convex team, N DIVIJ, the same
+day, with its deployment, data and address unchanged, so it stays up through
+judging. Checks: 471, in
 tests/RUN.md; the judges' path passed all seven steps on production after the
 upload.
 
@@ -2085,6 +2086,23 @@ person to fill.
 
 The top of this file was rewritten to open on the tenant in thirty seconds and
 the four steps on /try.
+
+### 2026-09-22 - ab60efa · 9ff6542
+Two more corrections to what changed, from reviews by Codex, running GPT-6
+Astra. The city's file dates a status to the day, not the hour, so a change on
+the day of an answer now reads "on the same date as your answer", never "after"
+(ab60efa). "Latest" is always the file's current status; a stamp HPD recorded
+before it is named with its own date, not in its place, and the headline dates
+the change it names, the current status's date when that is what moved
+(9ff6542). Where the current status is missing, it says "Latest city status
+unavailable" and shows the record from when we asked, rather than claiming
+nothing changed.
+
+Deployed: the live bundle is index-DzLzDBB_.js, and the landing, /try, the
+record and /judge carry every change above. The judges' path passed all seven
+steps on production at 21:31 IST: ASK answered in 3.0 s with three rows, Still
+broken stamped 0.4 s later by the keyword reader with no model, no sideways
+scroll at 390 by 844, and no page errors.
 
 ## About
 
