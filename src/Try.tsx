@@ -455,6 +455,8 @@ export default function Try({ go }: { go: (p: string) => void }) {
   const hasCard = answeredOnce && rec !== null;
   // The repair the newest stamped answer was about: what a letter sent on carries.
   const lastAnswered = [...ours].reverse().map((m) => (stampOf(m.text) ? answeredId(m.text) : null)).find((id): id is string => Boolean(id)) ?? null;
+  // And where the record opens: at that repair (src/Record.tsx reads the #v- anchor).
+  const recAt = `${rec ?? ""}${lastAnswered ? `#v-${lastAnswered}` : ""}`;
   useEffect(() => () => window.clearTimeout(cardTimer.current), []);
   useEffect(() => {
     if (thread === undefined) return;
@@ -852,11 +854,11 @@ export default function Try({ go }: { go: (p: string) => void }) {
           </p>
           <a
             className="cta"
-            href={rec}
+            href={recAt}
             target="_blank"
             rel="noreferrer"
             onClick={(e) => {
-              const w = window.open(rec, "faultline-record", "popup,width=760,height=960");
+              const w = window.open(recAt, "faultline-record", "popup,width=760,height=960");
               if (w) e.preventDefault();
             }}
           >
