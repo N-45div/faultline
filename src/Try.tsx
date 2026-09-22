@@ -205,6 +205,17 @@ function lookedUp(reply: string): boolean {
 }
 
 /**
+ * A reply about a building, read from its headline: the building's own receipt
+ * (buildingReceipt in engine/receipt.ts), the one while its records are still
+ * being pulled, and an ASK with nothing to ask (convex/inbound.ts).
+ */
+function aboutBuilding(reply: string): boolean {
+  return /^(?:.+ — (?:\d+ violations? on record\b|no housing violations in the records we hold\.$)|We don't hold .+ yet — we're pulling this building's records |No repair at .+ is certified as done right now,)/.test(
+    reply.split("\n")[0],
+  );
+}
+
+/**
  * A link to a person's record, where their answers sit beside the city's. Read
  * only from our own line for it (the ASK and answer receipts in
  * convex/inbound.ts), with the whole 40-character token, so a page some reply
@@ -267,12 +278,14 @@ export default function Try({ go }: { go: (p: string) => void }) {
   const onTheLine = messages.some((m) => m.who === "call" && ["placing", "ringing", "on the call", "reading"].includes(m.status ?? ""));
 
   // A thread this browser kept from an earlier visit is drawn under this page's
-  // heading, which is about housing. One that never sent an ASK - about a
+  // heading, which is about housing. One with no building in it - about a
   // company's layoff filings, say - would read as if it were the housing check,
   // so the person chooses first: pick it up again, or start a housing check on a
   // fresh thread. Decided once, when the thread first loads; a thread that is
-  // already a housing ASK opens as it always has.
-  const askedHousing = beenAsked || messages.some((m) => m.who === "you" && /^\s*ask\b/i.test(mine[m.id] ?? m.text));
+  // already about a building opens as it always has: one that sent an ASK, or
+  // one we replied to about a building, however it was asked.
+  const askedHousing =
+    beenAsked || ours.some((m) => aboutBuilding(m.text)) || messages.some((m) => m.who === "you" && /^\s*ask\b/i.test(mine[m.id] ?? m.text));
   const [returning, setReturning] = useState<boolean | null>(null);
   if (returning === null && thread !== undefined) setReturning(messages.length > 0 && !askedHousing);
   // Its topic is the first thing they sent, or, when another browser typed it,
