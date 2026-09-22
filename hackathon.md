@@ -14,7 +14,8 @@ starts at 1:25). Every check, run: [tests/RUN.md](tests/RUN.md). The certificati
 live by `convex/wall.ts` (housingPulse), which links the city's own query. Who it is for, in numbers: `npm run
 right-now` ([data/right-now-2026-09-21.json](data/right-now-2026-09-21.json)): about 14,000 repairs certified in the last
 70 days, in about 4,800 buildings with about 221,000 apartments; three in four are not inside any one apartment, so
-anyone who lives there can answer. Every push runs the checks on GitLab's runners ([.gitlab-ci.yml](.gitlab-ci.yml)).
+anyone who lives there can answer. Every push runs the checks on GitLab's runners ([.gitlab-ci.yml](.gitlab-ci.yml)). Where each Convex feature and
+each sponsor lives, file by file: [README, Where each thing lives](README.md#where-each-thing-lives).
 
 **Known issues, left alone until judging ends** (each fix is a function deploy on a working path):
 - The phone call opens with "you asked for it on our website" even when CALL ME arrived by email (engine/call.ts).
