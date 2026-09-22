@@ -17,7 +17,7 @@ import { receiptText, type Receipt } from "../engine/receipt";
 import { classifyInbound } from "../engine/intent";
 import { changedLines } from "../engine/evidence";
 import { forSpeech, SPOKEN_MAX } from "../engine/speech";
-import { answerLine, answersFromCall, callResultSchema, callTask, normalisePhone, saidIt, secondReaderInput, settle, wroteNumber } from "../engine/call";
+import { answerLine, answersFromCall, callResultSchema, callTask, normalisePhone, saidIt, secondReaderInput, settle, wroteIt, wroteNumber } from "../engine/call";
 import { LIVE_GREETING, LIVE_INSTRUCTIONS, liveCents, spokenToTyped, utterance } from "../engine/live";
 import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../engine/types";
 
@@ -291,6 +291,10 @@ console.log("\n== tenant loop");
     ];
     check(saidIt("the super painted over it but water is still coming through", turns), "call: a quote is theirs when the transcript has them saying it, give or take a contraction");
     check(!saidIt("the landlord is a criminal", turns) && !saidIt("Is it fixed, still broken", turns), "call: words they never said, and the voice's own words, are not their quote");
+    check(
+      wroteIt("water still comes through", "The super painted over it, but water still comes through.") && !wroteIt("the landlord is a criminal", "still broken, nobody came") && !wroteIt("", "still broken"),
+      "typed: a note is theirs only if their message has it, by the same test as a call",
+    );
     const a = (violationId: string, answer: "fixed" | "still_broken" | "not_sure", words = "") => ({ violationId, answer, words });
     const one = settle([a("1", "still_broken", "water's still coming through")], { answers: [a("1", "still_broken", "made up by a model")], declined: false }, turns);
     check(one.agreed.length === 1 && one.agreed[0].words === "water's still coming through" && one.unsure.length === 0, "call: two readers who agree record the answer, with the quote the transcript bears out");

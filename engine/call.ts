@@ -155,6 +155,15 @@ export function saidIt(quote: string, turns: CallTurn[]): boolean {
   return words.filter((w) => said.has(w)).length / words.length >= 0.8;
 }
 
+/**
+ * Did they write it? The same test as saidIt, against a message they typed or
+ * spoke instead of a call: the note a model passes on with a written answer is
+ * kept as their words only if it is their words.
+ */
+export function wroteIt(quote: string, theirMessage: string): boolean {
+  return saidIt(quote, [{ who: "you", text: theirMessage }]);
+}
+
 /** What the second reader is handed: the repairs by number, in the city's words, and the call as it was transcribed. */
 export function secondReaderInput(questions: CallQuestion[], turns: CallTurn[]): string {
   return [
