@@ -186,7 +186,13 @@ function callText({ asked, last, cityStatus, cityDate, certified, trial }: { ask
   const whose = trial ? "a practice answer from Faultline's browser trial" : "my answer";
   lines.push(`What I see now: ${last?.answer ? `${WORD[last.answer]} (${whose}, ${day(last.saidAt ?? 0)})` : ""}`);
   if (last?.note) lines.push(`In my words: ${last.note}`);
-  lines.push(certified ? "What I will say: the certified condition is still there." : "What I will say: the condition is still there, and what it is like now.");
+  // Only a STILL BROKEN answer is put in their mouth as a claim; any other answer, or none, is left for them to fill,
+  // so the checklist never says what they did not.
+  if (last?.answer === "still_broken") {
+    lines.push(certified ? "What I will say: the certified condition is still there." : "What I will say: the condition is still there, and what it is like now.");
+  } else {
+    lines.push("What I want to explain or ask: [describe the condition as it is now]");
+  }
   return lines.join("\n");
 }
 
