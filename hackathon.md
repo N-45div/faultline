@@ -22,14 +22,19 @@ each sponsor lives, file by file: [README, Where each thing lives](README.md#whe
 - The call tool proves a number was typed by the person asking, not that they own it. The fences: a consent box on
   /try, two calls per number a day, two per person, twelve a day in all, and a number that says it never asked is never
   rung again.
+- After STILL BROKEN, the next step quotes HPD: a certified violation it does not reinspect closes after 70 days
+  (engine/hpd.ts, HOW_TO_TELL_HPD). It says so on a LATE repair too; whether that holds for a late certification
+  waits on the same query as the LATE item below.
 
 **Fixed on 22 September:**
 - On a typed or spoken answer, the note GPT-6 Astra passes to record_answer is kept as your words only if your own
   message bears it out, by the test a phone call's quote is put to (engine/call.ts, wroteIt and saidIt; convex/match.ts).
   A note that fails it is dropped; the answer is recorded either way.
-- A repair certified LATE shows no 70-day clock and no close date: the city's own file shows HPD closing on-time
-  certifications 72-75 days later, and not closing late ones on that clock. It is still asked about, with a line that
-  HPD does not close a late certification on its 70-day clock (engine/hpd.ts).
+- A repair certified LATE shows no 70-day clock and no close date, and nothing is said in their place: not in the
+  email, on any page, or aloud. It is still asked about for the same 70 days (engine/hpd.ts). The city's file was read
+  as HPD closing on-time certifications 72-75 days later and not closing late ones on that clock, but the query that
+  shows it is not kept in this repo yet, so no tenant is told it. A /try thread kept with the old clock on a LATE line
+  still draws as rows, without it (engine/askRows.ts).
 
 - **Project:** Faultline
 - **Event:** Convex All Gas Hackathon
