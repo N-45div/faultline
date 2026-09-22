@@ -339,6 +339,29 @@ export default defineSchema({
     .index("by_thread", ["threadId"])
     .index("by_created", ["createdAt"]),
 
+  /**
+   * A tenant's dated answer, sent by Faultline's agent from its own inbox to
+   * someone they named as helping them (convex/share.ts). The address is kept
+   * to send and to hear back; the page is only ever shown it masked.
+   */
+  shares: defineTable({
+    session: v.string(),
+    violationId: v.string(),
+    to: v.string(),
+    status: v.string(),
+    createdAt: v.number(),
+    outboundId: v.optional(v.string()),
+    mailThreadId: v.optional(v.string()),
+    statusAt: v.optional(v.number()),
+    why: v.optional(v.string()),
+    replyText: v.optional(v.string()),
+    replyAt: v.optional(v.number()),
+    stopped: v.optional(v.boolean()),
+  })
+    .index("by_session", ["session", "createdAt"])
+    .index("by_outbound", ["outboundId"])
+    .index("by_mail_thread", ["mailThreadId"]),
+
   /** "Reply FOLLOW": email me when this filing changes. */
   subscriptions: defineTable({
     subjectKey: v.string(),

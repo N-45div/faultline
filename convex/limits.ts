@@ -28,6 +28,13 @@ export const limits = new RateLimiter(components.rateLimiter, {
   /** Asking about a building reads every row we hold for it. */
   webAsk: { kind: "fixed window", rate: 40, period: DAY },
   webAgentRun: { kind: "fixed window", rate: 80, period: DAY },
+  // A record the trial sends on, from the inbox to someone helping the tenant:
+  // three a day from one browser, one a day to any one address, twenty a day
+  // in all. The letter is the city's words and one tapped answer, never
+  // anything typed, so the most anyone can do is send the city's record.
+  shareSender: { kind: "fixed window", rate: 3, period: DAY },
+  shareTo: { kind: "fixed window", rate: 1, period: DAY },
+  shareAll: { kind: "fixed window", rate: 20, period: DAY },
   /** Pages the trial keeps, by KEEP or FIND, every browser together. */
   webPage: { kind: "fixed window", rate: 20, period: DAY },
   // Speech is paid for by the second. A recording is charged here before any
