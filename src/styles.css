@@ -2183,7 +2183,7 @@ a.try-chip {
   margin-top: 22px;
 }
 
-/* ---------- /r/: opening at one repair, and the list of repairs at the top (src/Record.tsx) ---------- */
+/* ---------- /r/: opening at one repair, the list of repairs at the top, and the 311 checklist (src/Record.tsx) ---------- */
 .record-cases > .case {
   /* the list's links and /try's link land below the sticky bar */
   scroll-margin-top: 84px;
@@ -2239,12 +2239,72 @@ a.try-chip {
     box-shadow: 0 0 0 3px var(--accent);
   }
 }
+/* "Prepare my 311 call": an editable checklist in each repair's next step */
+.case-call {
+  margin: 10px 0 0;
+  font-size: 14px;
+}
+.case-call > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+}
+.case-part .case-call p {
+  margin: 8px 0 0;
+}
+.case-call textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.45;
+  resize: vertical;
+  field-sizing: content;
+}
+.case-part .case-call-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+.case-call-tools .cta {
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+/* the one checklist Print was pressed for; never on screen */
+.call-sheet {
+  display: none;
+}
 @media print {
-  .record-jump {
+  .record-jump,
+  .case-call {
     display: none !important;
   }
   .case.case-lit {
     animation: none;
     box-shadow: none;
+  }
+  body.printing-call > :not(.call-sheet) {
+    display: none !important;
+  }
+  body.printing-call > .call-sheet {
+    display: block;
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: #000;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11pt;
+    line-height: 1.5;
   }
 }

@@ -165,6 +165,97 @@ function useOpenAt(ready: boolean): (anchor: string) => void {
   return openAt;
 }
 
+/**
+ * A person's own 311 call, got ready: what the call taker will ask for and
+ * what they came to say, from this page's own facts, in their words where the
+ * page has them. Nothing is sent from here; it is theirs to change, copy or print.
+ */
+function callText({ asked, last, cityStatus, cityDate, certified, trial }: { asked: Item; last: Item | undefined; cityStatus: string; cityDate: string; certified: boolean; trial: boolean }): string {
+  const lines = [
+    "My 311 call about a housing repair",
+    "Nothing has been filed. This is for my own call to 311 (or nyc.gov/311).",
+    "",
+    `Building: ${asked.where}`,
+    `Violation number: #${asked.violationId}`,
+    `The condition, in the city's words: ${asked.description || "none on the city's file"}`,
+    `The owner certified it corrected on: ${asked.certifiedBy ?? "no date on the city's file"}`,
+    `The city's file when Faultline asked me, ${day(asked.askedAt)}: ${asked.askedStatus}, as of ${asked.askedStatusDate}`,
+    `The city's latest status: ${cityStatus}, as of ${cityDate}`,
+  ];
+  if (asked.laterStatus) lines.push(`HPD stamped the certification: ${asked.laterStatus}, ${asked.laterStatusDate}`);
+  const whose = trial ? "a practice answer from Faultline's browser trial" : "my answer";
+  lines.push(`What I see now: ${last?.answer ? `${WORD[last.answer]} (${whose}, ${day(last.saidAt ?? 0)})` : ""}`);
+  if (last?.note) lines.push(`In my words: ${last.note}`);
+  lines.push(certified ? "What I will say: the certified condition is still there." : "What I will say: the condition is still there, and what it is like now.");
+  return lines.join("\n");
+}
+
+/** Print one checklist and nothing else: the print rules in styles.css show only it while the body carries printing-call. */
+function printCall(text: string) {
+  clearCall();
+  const sheet = document.createElement("pre");
+  sheet.className = "call-sheet";
+  sheet.textContent = text;
+  document.body.appendChild(sheet);
+  document.body.classList.add("printing-call");
+  window.addEventListener("afterprint", clearCall, { once: true });
+  window.print();
+}
+function clearCall() {
+  document.querySelectorAll(".call-sheet").forEach((n) => n.remove());
+  document.body.classList.remove("printing-call");
+}
+
+/** The checklist, behind a disclosure in each repair's next step: edited in place, copied or printed as it stands. */
+function PrepareCall({ prefill, trial }: { prefill: string; trial: boolean }) {
+  // Until the person types in it, it follows the page (a new status shows); after, it is theirs.
+  const [edited, setEdited] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"" | "yes" | "no">("");
+  const box = useRef<HTMLTextAreaElement>(null);
+  const text = edited ?? prefill;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied("yes");
+    } catch {
+      box.current?.select();
+      setCopied("no");
+    }
+    setTimeout(() => setCopied(""), 2400);
+  };
+  return (
+    <details className="case-call">
+      <summary>Prepare my 311 call</summary>
+      <p>
+        <strong>Nothing has been filed. This is for your own call to 311.</strong>
+        {trial && " The answer in it is a practice answer from the browser trial."}
+      </p>
+      <textarea
+        ref={box}
+        value={text}
+        onChange={(e) => setEdited(e.target.value)}
+        rows={text.split("\n").length + 2}
+        spellCheck={false}
+        aria-label="Your 311 checklist. Change anything in it."
+      />
+      <p className="case-call-tools">
+        <button type="button" className="cta small" onClick={() => void copy()}>
+          {copied === "yes" ? "Copied" : "Copy"}
+        </button>
+        <button type="button" className="cta small" onClick={() => printCall(text)}>
+          Print
+        </button>
+        {edited !== null && (
+          <button type="button" className="linklike" onClick={() => setEdited(null)}>
+            Start over
+          </button>
+        )}
+        {copied === "no" && <span className="fine">Your browser would not copy it. It is selected above: copy it from there.</span>}
+      </p>
+    </details>
+  );
+}
+
 /** The way HPD takes a tenant's word: 311, by phone or on the web. */
 function Call311() {
   return (
@@ -317,6 +408,7 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
             <strong>#{id}</strong>.
           </p>
         )}
+        <PrepareCall prefill={callText({ asked, last, cityStatus, cityDate, certified: nowClaim === "owner", trial })} trial={trial} />
         <p className="fine">
           Then, if you like, send this record to someone helping you, like a tenant organizer or a lawyer: give them this page's link, a printed
           copy, or the summary below. If you answered on{" "}
@@ -442,7 +534,14 @@ export default function YourRecord({ token, go }: { token: string; go: (p: strin
           to HPD.
         </p>
         <p className="record-tools">
-          <button type="button" className="cta small" onClick={() => window.print()}>
+          <button
+            type="button"
+            className="cta small"
+            onClick={() => {
+              clearCall();
+              window.print();
+            }}
+          >
             Print this record
           </button>
         </p>
