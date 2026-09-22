@@ -13,6 +13,7 @@ import { diffRows } from "../engine/diff";
 import { warnNoticeGap } from "../engine/rules";
 import { askFrom, askHeadline, askLine, challengeDeadline, fixedClaim, howToAnswer, nextStepFor, parseAnswer, pickAsks, secondWordLine, seventyDaysFrom, theirWords, withoutUnit, type Ask } from "../engine/hpd";
 import { askRows, plainThing } from "../engine/askRows";
+import { citedBefore, citedBeforeLine, cityRowsUrl, fromCity, resolvedBefore, sameText, sharingText, whyNot, type CityRow } from "../engine/conditionHistory";
 import { buildingReceipt, receiptText, type Receipt } from "../engine/receipt";
 import { classifyInbound } from "../engine/intent";
 import { changedLines } from "../engine/evidence";
@@ -490,6 +491,66 @@ console.log("\n== the unit, left out of a link preview");
   check(held.filter((r) => !r.apartment).every((r) => withoutUnit(flat(r.novdescription)) === flat(r.novdescription)), "unit: every other row on disk is left as the city wrote it");
   const kept = adapters["nyc-hpd"].normalise(inUnit[0]);
   check(!("apartment" in kept) && !("story" in kept) && String(kept.novdescription).includes(`APT ${inUnit[0].apartment}`), "unit: the apartment and story columns are dropped; the city's description, which names the unit, is kept");
+}
+
+// A repair the city cited before under another number, found in the city's own
+// rows for the sample building (data/condition-history-3050840061.json, sixteen
+// real rows as its API served them).
+console.log("\n== the same condition, cited before");
+{
+  const held = JSON.parse(readFileSync(join("data", "condition-history-3050840061.json"), "utf8")) as { rows: unknown[] };
+  const rows = held.rows.map(fromCity).filter((r): r is CityRow => r !== null);
+  const row = (id: string) => rows.find((r) => r.violationId === id)!;
+  check(rows.length === 16 && row("19112934").inspected === "2026-07-27" && row("18037661").certified === "2025-07-31" && row("18037661").closed === false, "the city's rows read as days, with the open-or-closed column");
+
+  const chain = citedBefore(rows, "19112934");
+  check(
+    chain.length === 1 && chain[0].violationId === "18037661" && chain[0].inspectionDate === "2025-06-18" && chain[0].certifiedDate === "2025-07-31" && chain[0].status === "NOT COMPLIED WITH" && chain[0].statusDate === "2025-08-22",
+    `#19112934 was cited before under #18037661: the same words at the same apartment, certified 2025-07-31, NOT COMPLIED WITH on 2025-08-22 (got ${JSON.stringify(chain)})`,
+  );
+  const line = chain[0] ? citedBeforeLine(chain[0]) : "";
+  check(line === "Cited before under #18037661: the owner certified it on 31 Jul 2025; the city recorded NOT COMPLIED WITH on 22 Aug 2025.", `the line, in the city's own words and dates (got "${line}")`);
+  check(!/came back|again|third|\b4A\b/i.test(line), "the line says nothing the rows do not, and no unit number");
+
+  // One word apart ("THE CEILING" for "AT CEILING"), the same apartment, owner-certified before: not the same citation.
+  check(sameText(row("17916497").text) !== sameText(row("19112934").text) && !chain.some((e) => e.violationId === "17916497"), "#17916497, one word apart, is not linked");
+  check(citedBefore(rows, "17916497").length === 0, "…and has nothing of its own");
+  check(whyNot(row("19178388")) === null && citedBefore(rows, "19178388").length === 0, "the plexiglass #19178388 is pinned to its section, and no earlier row says the same");
+  check(
+    sameText(row("18771844").text) === sameText(row("18771845").text) && citedBefore(rows, "18771845").length === 0 && citedBefore(rows, "18771844").length === 0,
+    "a same-day duplicate (#18771844 and #18771845, one visit) is never a history",
+  );
+  // Each of these has a row with the same words, certified or closed before its inspection, and is still not linked.
+  const earlierDone = (earlier: string, later: string) => sameText(row(earlier).text) === sameText(row(later).text) && resolvedBefore(row(earlier), row(later).inspected!);
+  check(earlierDone("18629954", "19114271") && earlierDone("13609583", "14343916") && earlierDone("12787347", "19114224"), "the three below each have an earlier row with the same words, done before");
+  check(whyNot(row("19114271")) === "a sign or notice" && citedBefore(rows, "19114271").length === 0, "a notice to post (#19114271, rent stabilization) is the same form, not the same condition");
+  check(whyNot(row("14343916")) === "no location words" && citedBefore(rows, "14343916").length === 0, "a description with no place in it (#14343916, garbage receptacles) is not linked");
+  check(
+    whyNot(row("19114224")) === "a common area not pinned to one section" && citedBefore(rows, "19114224").length === 0,
+    "a public hall on the sixth story, with no section, could be any of the complex's buildings (#19114224)",
+  );
+  const roof = citedBefore(rows, "12922592");
+  check(
+    roof.length === 1 && roof[0].violationId === "11036631" && citedBeforeLine(roof[0]) === "Cited before under #11036631: the city recorded VIOLATION CLOSED on 15 May 2017.",
+    `a common area named by its section links, and a closure with no certification says only the city's word (got ${roof.map(citedBeforeLine).join(" | ")})`,
+  );
+
+  // The section sign as the replacement character, lower case and doubled spaces are the same words.
+  const mangled = { ...row("19112934"), violationId: "19999999", text: row("19112934").text.replace("§", "�").toLowerCase().replace(/ /g, "  ") };
+  check(citedBefore([...rows, mangled], "19999999").map((e) => e.violationId).join() === "18037661", "U+FFFD and §, case and spacing are read alike");
+  // The owner's own stamp as the status says nothing the certification date does not.
+  check(
+    citedBeforeLine({ violationId: "1", inspectionDate: "2026-01-01", certifiedDate: "2026-02-03", status: "NOV CERTIFIED ON TIME", statusDate: "2026-02-03" }) === "Cited before under #1: the owner certified it on 3 Feb 2026.",
+    "an earlier row still at the owner's certification says only that",
+  );
+  // Kept small: only rows another number shares words with, and the links are the same.
+  const kept = sharingText(rows);
+  check(!kept.some((r) => r.violationId === "19178388") && rows.every((r) => JSON.stringify(citedBefore(kept, r.violationId)) === JSON.stringify(citedBefore(rows, r.violationId))), `only rows that share words are kept (${kept.length} of ${rows.length}), and every link survives`);
+  const url = cityRowsUrl(["18037661", "19112934"]);
+  check(
+    url.startsWith("https://data.cityofnewyork.us/resource/wvxf-dwi5.json?%24select=") && url.includes("%24where=violationid%20in%28%2718037661%27%2C%2719112934%27%29") && !/[ '(),]/.test(url.split("?")[1]),
+    "the link to the city's own rows is percent-encoded, quotes and brackets included",
+  );
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
