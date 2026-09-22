@@ -5,7 +5,7 @@ import { INBOX, mailto } from "./Pricing";
 import { ClockUntil, SAMPLE_ASK } from "./AskCard";
 import { canTalk, useLive } from "./useLive";
 import { askRows, type AskRow } from "../engine/askRows";
-import { citedBeforeLine, cityRowsUrl } from "../engine/conditionHistory";
+import CitedBefore from "./CitedBefore";
 import CityPage from "./CityPage";
 
 // The inbox, without the email. What is typed here goes through the handler an
@@ -657,17 +657,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 The city's file: {r.cityWords ? `"${r.cityWords}" · ` : ""}
                 {r.status} as of {r.asOf}
               </p>
-              {before && (
-                <div className="try-row-before">
-                  <p className="try-row-before-label">Cited before under a new number</p>
-                  <p>
-                    {citedBeforeLine(before)}{" "}
-                    <a href={cityRowsUrl([before.violationId, r.id])} target="_blank" rel="noreferrer">
-                      the city's rows for both →
-                    </a>
-                  </p>
-                </div>
-              )}
+              {before && <CitedBefore before={before} violationId={r.id} />}
               {r.until && <ClockUntil until={r.until} today={today} />}
               <div className="try-row-answer">
                 {ANSWERS.map(([answer, label, word]) => (
