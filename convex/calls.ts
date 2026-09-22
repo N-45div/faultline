@@ -1,5 +1,5 @@
-import { v } from "convex/values";
-import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { v, type Infer } from "convex/values";
+import { internalAction, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { sha256Hex } from "../engine/canon";
@@ -140,6 +140,8 @@ export const forReading = internalQuery({
   },
 });
 
+type Known = { callRow: Id<"calls">; done: boolean; asked: string[] };
+
 /** Read the call back from CALL-E with our own key. A webhook only ever says which call to read. */
 export const reconcile = internalAction({
   args: { callId: v.string() },
@@ -147,42 +149,58 @@ export const reconcile = internalAction({
   handler: async (ctx, { callId }): Promise<null> => {
     const key = process.env.CALLE_API_KEY;
     if (!key || !/^[\w-]{3,80}$/.test(callId)) return null;
-    const known: { callRow: Id<"calls">; done: boolean; asked: string[] } | null = await ctx.runQuery(internal.calls.byCallId, { callId });
+    const known: Known | null = await ctx.runQuery(internal.calls.byCallId, { callId });
     if (!known || known.done) return null;
     const res = await fetch(`${API()}/v1/calls/${encodeURIComponent(callId)}`, { headers: { Authorization: `Bearer ${key}` } });
     if (!res.ok) {
       console.warn(`[calls] could not read ${callId}: ${res.status}`);
       return null;
     }
-    const call: any = await res.json();
-    const status = String(call?.status ?? "");
-    if (!TERMINAL.has(status)) {
-      // Not over. If CALL-E says it is under way, the thread that asked can say so too.
-      if (status === "in_progress") await ctx.runMutation(internal.calls.underWay, { callRow: known.callRow });
-      return null;
-    }
-    const attempts: any[] = (call?.recipients ?? []).flatMap((r: any) => r?.attempts ?? []);
-    const turns: { who: string; text: string }[] = attempts
-      .flatMap((a: any) => a?.transcript_turns ?? [])
-      .slice(0, 60)
-      .map((t: any) => ({ who: String(t?.speaker ?? "") === "user" ? "you" : "call", text: String(t?.text ?? "").slice(0, 400) }))
-      .filter((t: { text: string }) => t.text.length > 0);
-    // Cut down to what we accept before it reaches a mutation: repairs we asked
-    // about, the three words, one answer each (engine/call.ts).
-    const got: { answers: CallAnswer[]; declined: boolean; reached: boolean } = answersFromCall(
-      call?.structured_result ?? (call?.recipients ?? [])[0]?.structured_result ?? null,
-      known.asked,
-    );
-    await ctx.runMutation(internal.inbound.callFinished, {
-      callRow: known.callRow,
-      status,
-      answers: got.answers,
-      declined: got.declined,
-      reached: got.reached || turns.some((t) => t.who === "you"),
-      turns,
-      why: String(call?.failure_code ?? attempts.at(-1)?.failure_code ?? ""),
-    });
-    console.log(`[calls] ${callId} ${status}: ${got.answers.length} answer(s), ${turns.length} turn(s)${got.declined ? ", declined" : ""}`);
+    const ending = await whatItSays(ctx, callId, known, await res.json());
+    if (!ending) return null;
+    await ctx.runMutation(internal.inbound.callFinished, { callRow: known.callRow, ...ending });
     return null;
   },
 });
+
+/** A call CALL-E says is over, cut down to what we accept: what callFinished is given. */
+const vEnding = v.object({
+  status: v.string(),
+  answers: v.array(v.object({ violationId: v.string(), answer: v.union(v.literal("fixed"), v.literal("still_broken"), v.literal("not_sure")), words: v.string() })),
+  declined: v.boolean(),
+  reached: v.boolean(),
+  turns: v.array(v.object({ who: v.string(), text: v.string() })),
+  why: v.string(),
+});
+export type Ending = Infer<typeof vEnding>;
+
+/** What CALL-E's record of a call says: null while it is not over, or the ending, cut down to what we accept. */
+async function whatItSays(ctx: ActionCtx, callId: string, known: Known, call: any): Promise<Ending | null> {
+  const status = String(call?.status ?? "");
+  if (!TERMINAL.has(status)) {
+    // Not over. If CALL-E says it is under way, the thread that asked can say so too.
+    if (status === "in_progress") await ctx.runMutation(internal.calls.underWay, { callRow: known.callRow });
+    return null;
+  }
+  const attempts: any[] = (call?.recipients ?? []).flatMap((r: any) => r?.attempts ?? []);
+  const turns: { who: string; text: string }[] = attempts
+    .flatMap((a: any) => a?.transcript_turns ?? [])
+    .slice(0, 60)
+    .map((t: any) => ({ who: String(t?.speaker ?? "") === "user" ? "you" : "call", text: String(t?.text ?? "").slice(0, 400) }))
+    .filter((t: { text: string }) => t.text.length > 0);
+  // Cut down to what we accept before it reaches a mutation: repairs we asked
+  // about, the three words, one answer each (engine/call.ts).
+  const got: { answers: CallAnswer[]; declined: boolean; reached: boolean } = answersFromCall(
+    call?.structured_result ?? (call?.recipients ?? [])[0]?.structured_result ?? null,
+    known.asked,
+  );
+  console.log(`[calls] ${callId} ${status}: ${got.answers.length} answer(s), ${turns.length} turn(s)${got.declined ? ", declined" : ""}`);
+  return {
+    status,
+    answers: got.answers,
+    declined: got.declined,
+    reached: got.reached || turns.some((t) => t.who === "you"),
+    turns,
+    why: String(call?.failure_code ?? attempts.at(-1)?.failure_code ?? ""),
+  };
+}
