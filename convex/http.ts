@@ -5,6 +5,7 @@ import { registerStaticRoutes } from "@convex-dev/static-hosting";
 import { agentmail } from "./agentmailClient";
 import { auth } from "./auth";
 import { verifySpectrumSignature } from "../engine/photon";
+import { withoutUnit } from "../engine/hpd";
 import { hear, live, say } from "./voice";
 
 
@@ -212,7 +213,12 @@ const share = (kind: "e" | "b") =>
       if (id) {
         const r = kind === "e" ? await ctx.runQuery(api.lookup.employer, { q: id }) : await ctx.runQuery(api.lookup.building, { key: id });
         const receipt = r.receipt;
-        const lead = receipt.blocks[0]?.slice(0, 3).join(" ") ?? "";
+        // A building's first lines quote the city's description of a repair,
+        // which ends by saying which home it is in. The page shows it as the
+        // city publishes it; a preview is read by whoever the link is pasted
+        // to, so it leaves the unit out.
+        const lines = receipt.blocks[0]?.slice(0, 3) ?? [];
+        const lead = (kind === "b" ? lines.map(withoutUnit) : lines).join(" ");
         const description = (lead || "Every version kept, dated, because the state overwrites its file.").slice(0, 280);
         const path = kind === "e" && "canonical" in r && r.canonical ? `/e/${r.canonical}` : u.pathname;
         html = meta(html, `${receipt.headline} · Faultline`, description, `${u.origin}${path}`);
