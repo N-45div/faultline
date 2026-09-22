@@ -6,6 +6,7 @@ import { ClockUntil, SAMPLE_ASK } from "./AskCard";
 import { canTalk, useLive } from "./useLive";
 import { askRows, type AskRow } from "../engine/askRows";
 import { citedBeforeLine, cityRowsUrl } from "../engine/conditionHistory";
+import CityPage from "./CityPage";
 
 // The inbox, without the email. What is typed here goes through the handler an
 // email goes through - the same keyword reader, the same agent, the same tools
@@ -603,6 +604,14 @@ export default function Try({ go }: { go: (p: string) => void }) {
   const onPage = useMemo(() => [...new Set(ours.flatMap((m) => askRows(m.text).map((r) => r.id)))].slice(-10), [ours.length]);
   const history = useQuery(api.history.forRepairs, onPage.length > 0 ? { violationIds: onPage } : "skip");
   const cited = new Map((history ?? []).map((h) => [h.violationId, h.earlier[0]] as const));
+  // ---- HPD Online (src/CityPage.tsx) ----
+  // The city's own page for a repair answered here, read by Firecrawl when the
+  // answer was kept (convex/cityPage.ts): the newest reading of each of the
+  // last five answered, one indexed read each.
+  const answered = useMemo(() => [...new Set(ours.flatMap((m) => answeredId(m.text) ?? []))].slice(-5), [ours.length]);
+  const cityPages = useQuery(api.cityPage.forViolations, answered.length > 0 ? { violationIds: answered } : "skip");
+  const cityPage = new Map((cityPages ?? []).map((p) => [p.violationId, p] as const));
+  // ---- end HPD Online ----
   const today = new Date().toISOString().slice(0, 10);
   const locked = busy || waiting || onTheLine || live.state !== "idle";
   const saidAfter = (id: string, at: number) => {
@@ -658,6 +667,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
                   </button>
                 ))}
               </div>
+              {said && <CityPage read={cityPage.get(r.id)} violationId={r.id} cityStatus={r.status} cityDate={r.asOf} />}
             </div>
           );
         })}
