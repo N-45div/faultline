@@ -68,7 +68,7 @@ export const capture = internalAction({
       }
       console.warn(`[cityPage] #${violationId} at building ${buildingId}: not read: ${String(e)}`);
       if (tooBusy(e)) await end("busy", "Firecrawl's browsers were all in use, twice", { buildingId });
-      else await end("failed", "HPD Online could not be read", { buildingId });
+      else await end("failed", "Firecrawl could not open the page", { buildingId });
       return null;
     }
     if (page.stepsSaid?.length) console.log(`[cityPage] #${violationId} at building ${buildingId}: ${page.stepsSaid.join(" · ")}`);

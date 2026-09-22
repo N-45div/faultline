@@ -203,7 +203,7 @@ test("when the day's readings are used up, the reading says so and nothing is fe
   const held = await rows(t);
   expect(held).toHaveLength(1);
   expect(held[0]).toMatchObject({ outcome: "capped", sha256: "", buildingId: "" });
-  expect(held[0].why).toBe("HPD Online has been read as many times today as we read it in a day");
+  expect(held[0].why).toBe("the day's readings are used up");
 });
 
 test("one person starts three readings a day; the fourth is capped", async () => {
@@ -274,7 +274,7 @@ test("Firecrawl failing is written down as it happened, and holds off another re
   await settle(t);
   expect(scrapes).toHaveLength(1);
   const [row] = await rows(t);
-  expect(row).toMatchObject({ outcome: "failed", buildingId: BUILDING, sha256: "", why: "HPD Online could not be read" });
+  expect(row).toMatchObject({ outcome: "failed", buildingId: BUILDING, sha256: "", why: "Firecrawl could not open the page" });
 
   vi.setSystemTime(new Date("2026-09-14T12:05:00Z"));
   await t.mutation(internal.cityPage.request, { violationId: VIOLATION, from: "web:other" });

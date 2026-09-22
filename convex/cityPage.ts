@@ -65,7 +65,7 @@ export const request = internalMutation({
         capturedAt: now,
         sha256: "",
         outcome: "capped",
-        why: mine.ok ? "HPD Online has been read as many times today as we read it in a day" : "that is as many readings of HPD Online as one person starts in a day",
+        why: mine.ok ? "the day's readings are used up" : "one person's readings for the day are used up",
       });
       return null;
     }
