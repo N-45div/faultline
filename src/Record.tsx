@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { api } from "../convex/_generated/api";
@@ -106,6 +106,65 @@ function CopySummary({ text }: { text: string }) {
   );
 }
 
+/** A repair's place on the page: /try's link and the list at the top open it by #v-<number>. */
+const anchorOf = (violationId: string) => `v-${violationId}`;
+const ANCHOR = /^#(v-\d{1,12})$/;
+
+/**
+ * Opening the record at one repair: the case is brought into view and lit for
+ * a moment. The cases above it are still reading the city's pages as the
+ * record opens, and grow as they do, so for a few seconds the case is kept in
+ * view, until the person scrolls or taps themselves. With reduced motion set,
+ * it jumps rather than glides, and the light does not fade.
+ */
+function useOpenAt(ready: boolean): (anchor: string) => void {
+  const stop = useRef<() => void>(() => {});
+  const openAt = useCallback((anchor: string) => {
+    stop.current();
+    const el = document.getElementById(anchor);
+    if (!el || !el.classList.contains("case")) return;
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const behavior: ScrollBehavior = still ? "auto" : "smooth";
+    el.scrollIntoView({ block: "start", behavior });
+    el.classList.remove("case-lit");
+    void el.offsetWidth; // named again: the light starts over
+    el.classList.add("case-lit");
+    let held = true;
+    const letGo = () => {
+      held = false;
+    };
+    const grow = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => held && el.scrollIntoView({ block: "start", behavior }));
+    if (el.parentElement) grow?.observe(el.parentElement);
+    const hands = ["wheel", "touchstart", "keydown", "pointerdown"] as const;
+    for (const h of hands) window.addEventListener(h, letGo, { passive: true });
+    const unlight = window.setTimeout(() => el.classList.remove("case-lit"), 2400);
+    const done = window.setTimeout(() => end(), 3000);
+    const end = () => {
+      grow?.disconnect();
+      for (const h of hands) window.removeEventListener(h, letGo);
+      window.clearTimeout(unlight);
+      window.clearTimeout(done);
+      el.classList.remove("case-lit");
+      stop.current = () => {};
+    };
+    stop.current = end;
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    const fromHash = () => {
+      const m = ANCHOR.exec(window.location.hash);
+      if (m) openAt(m[1]);
+    };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    return () => {
+      window.removeEventListener("hashchange", fromHash);
+      stop.current();
+    };
+  }, [ready, openAt]);
+  return openAt;
+}
+
 /** The way HPD takes a tenant's word: 311, by phone or on the web. */
 function Call311() {
   return (
@@ -153,7 +212,7 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
   const challengeBy = nowClaim === "owner" && !sinceAsked && openClock ? asked.deadline : null;
 
   return (
-    <article className="case" aria-label={`Violation #${id}`}>
+    <article className="case" id={anchorOf(id)} aria-label={`Violation #${id}`}>
       <header className="case-head">
         <h3>{thing ?? `Repair #${id}`}</h3>
         <p>
@@ -297,6 +356,7 @@ export default function YourRecord({ token, go }: { token: string; go: (p: strin
   const rec = useQuery(api.attest.record, { token });
   const replies = useQuery(api.attest.deliveries, { token });
   const checks = useQuery(api.attest.recordChecks, { token });
+  const openAt = useOpenAt(Boolean(rec && rec.items.length > 0));
 
   if (rec === undefined) {
     return (
@@ -351,6 +411,31 @@ export default function YourRecord({ token, go }: { token: string; go: (p: strin
             <dt>What to do next</dt>
             <dd>For a repair still broken, call 311, give its violation number, and say it is still there. Saving an answer here does not file anything with HPD.</dd>
           </dl>
+        )}
+        {cases.length > 0 && (
+          <nav className="record-jump" aria-label="Your repairs on this page">
+            <p className="case-label">Your repairs</p>
+            <ul>
+              {cases.map((c) => {
+                const a = anchorOf(c.asked.violationId);
+                return (
+                  <li key={c.key}>
+                    <a
+                      href={`#${a}`}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                        e.preventDefault();
+                        if (window.location.hash !== `#${a}`) window.history.pushState(window.history.state, "", `#${a}`);
+                        openAt(a);
+                      }}
+                    >
+                      {plainThing(c.asked.description) ?? "Repair"} <span className="record-jump-id">#{c.asked.violationId}</span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
         )}
         <p className="fine">
           Anyone with this link can open it, so share it only with someone helping you, like a tenant organizer or a lawyer. Nothing here is sent
