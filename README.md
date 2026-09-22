@@ -108,6 +108,10 @@ Photon and CALL-E are not sponsors of this hackathon. They are here so the same 
 | **Photon** | The same inbox on a phone number: a signed webhook (HMAC-SHA256, five-minute window, constant-time compare) into the same inbound handler, replies out through the Spectrum SDK from a node action. Its free tier texts only numbers registered to the project, so email is how anyone else can try it. |
 | **CALL-E** | The same questions on a real telephone. One `POST /v1/calls` carries the script the tools wrote and a strict `result_schema` whose violation enum holds only the numbers this person was asked about, under an idempotency key. Its webhook is unsigned, so it is believed for one thing, a call id, and the call is then read back from CALL-E's API with our own key. The transcript is shown in the thread that asked and read a second time by GPT-6 Astra; only what both readers agree on is recorded. The number must be written by the person asking, is rung at most twice a day, and our tables keep a hash and four digits of it. |
 
+### Built with
+
+Faultline was written with Claude Code and the Convex plugin. Convex's agent skills (`get-convex/agent-skills`, pinned in `skills-lock.json`) sit in `.claude/skills/` for Claude Code and in `.agents/skills/` for Codex and other agents, and `npx convex ai-files install` keeps Convex's guidelines in `convex/_generated/ai/guidelines.md`, which `CLAUDE.md` and `AGENTS.md` point to. All of it has been in the repository since 30 August (f6be936).
+
 ### Where each thing lives
 
 | What | Where |
