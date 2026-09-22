@@ -15,6 +15,7 @@ import { heldForBuilding, recordAsks, recordToken, recordUrl } from "./attest";
 import { paused } from "./guard";
 import { settle } from "../engine/call";
 import { limits } from "./limits";
+import { shareEvent, shareReply } from "./share";
 import { base64Utf8, layoffCsv } from "../engine/export";
 import { urlSlug } from "../engine/canon";
 
@@ -141,6 +142,14 @@ export async function handleInbound(ctx: MutationCtx, m: any, authenticated: boo
   // Politeness ceilings: per sender, and a global one for the inbox's
   // reputation. Unauthenticated mail is stored, never answered.
   if (!authenticated) return { intent: intent.kind, query, kind: "none", text: "", sent: false };
+  // A reply from someone a tenant sent their record to (convex/share.ts). It is
+  // kept beside that record, where the tenant sees it, and never answered: the
+  // agent does not write back to a helper on its own. STOP from them is final.
+  const shared = threadId ? await ctx.db.query("shares").withIndex("by_mail_thread", (q) => q.eq("mailThreadId", threadId)).first() : null;
+  if (shared && (await shareReply(ctx, shared, from, body, intent.kind === "stop"))) {
+    if (intent.kind === "stop") await suppress(ctx, from, "stop", messageId);
+    return { intent: intent.kind, query, kind: "none", text: "", sent: false };
+  }
   // A browser trial paid at the door, from its own room (convex/web.ts).
   const mine = byWeb ? { ok: true } : await limits.limit(ctx, "replyToSender", { key: from });
   const ours = byWeb || !mine.ok ? mine : await limits.limit(ctx, "replyAll");
@@ -1884,6 +1893,8 @@ export const onMailEvent = internalMutation({
       .map((x: any) => x?.message_id)
       .find((x: unknown) => typeof x === "string" && x.length > 0);
     if (!messageId) return null;
+    // A letter a tenant sent on through the agent: the page shows its status live.
+    await shareEvent(ctx, messageId, status);
     const receipt = await ctx.db.query("receipts").withIndex("by_outbound", (q) => q.eq("outboundId", messageId)).first();
 
     // The provider's verdict on an address is worth more than our intent to
