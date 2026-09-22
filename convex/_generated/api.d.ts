@@ -41,6 +41,7 @@ import type * as packBuild from "../packBuild.js";
 import type * as packs from "../packs.js";
 import type * as pages from "../pages.js";
 import type * as photon from "../photon.js";
+import type * as share from "../share.js";
 import type * as sources from "../sources.js";
 import type * as voice from "../voice.js";
 import type * as wall from "../wall.js";
@@ -86,6 +87,7 @@ declare const fullApi: ApiFromModules<{
   packs: typeof packs;
   pages: typeof pages;
   photon: typeof photon;
+  share: typeof share;
   sources: typeof sources;
   voice: typeof voice;
   wall: typeof wall;
