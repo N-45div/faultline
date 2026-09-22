@@ -216,7 +216,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         <p>
           Every ASK reply links to a private page: each repair you were asked about, what the city's file said when we
           asked and what it says now, HPD's 70 days, and what you said, each dated, with your photo if you sent one.
-          Under it, every reply we sent you and what became of it — "Delivered to your inbox", "Bounced", "Sent by
+          Under it, every reply we sent you and what became of it — "Accepted by your mail server", "Bounced", "Sent by
           text" — from AgentMail's own delivery events. The AgentMail component verifies them and hands each one to a
           mutation that marks the reply's receipt.
         </p>

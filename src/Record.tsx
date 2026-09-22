@@ -18,7 +18,7 @@ const ARRIVED: Record<string, string> = {
   sent: "Sent, waiting for the delivery report",
   accepted: "Sent",
   shown: "Shown in your browser",
-  delivered: "Delivered to your inbox",
+  delivered: "Accepted by your mail server",
   bounced: "Bounced",
   complained: "Marked as spam",
   rejected: "Refused by the mail service",
