@@ -11,11 +11,11 @@ import { SAMPLE_ASK } from "./AskCard";
 // Everything is reachable by keyboard, the menu closes on Escape, and the
 // address copies itself because that is what people actually want from it.
 
+// A tenant's three doors. The files the engine keeps are one step in from /judge and the landing.
 const LINKS: [string, string][] = [
   ["/try", "Try it"],
-  ["/judge", "Tour"],
-  ["/files", "Files"],
   ["/how-it-works", "How it works"],
+  ["/judge", "Tour"],
 ];
 
 export default function Nav({ path, go }: { path: string; go: (p: string) => void }) {
