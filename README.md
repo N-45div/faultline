@@ -30,7 +30,7 @@ Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 
 | Write this | What comes back, in the same thread |
 |---|---|
-| `ASK 155 Linden Boulevard, Brooklyn` | Every repair the owner has certified to the city at that address that is still inside its 70 days, in the city's own words, with the day the clock runs out |
+| `ASK 155 Linden Boulevard, Brooklyn` | Every repair the owner has certified to the city at that address in the last 70 days, in the city's own words, with the day the clock runs out on each one certified on time; one certified late is shown no clock |
 | *(then answer it)* `#19114297 STILL BROKEN`, or just "the tiles by the compactor are still cracked" | Your answer, kept and dated beside the city's record, on a private page only you have the link to |
 | `Spirit Airlines` | Every layoff notice it filed, in every state we read, with the days between notice and layoff against the statute that actually applies |
 | `FOLLOW` | One email a day at most, when anything you follow changes. `STOP` ends it, and is honoured before every other rule |
