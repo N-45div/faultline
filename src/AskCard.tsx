@@ -25,7 +25,7 @@ export function ClockUntil({ until, today }: { until: string; today: string }) {
   const left = Math.max(0, Math.round((Date.parse(`${until}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000));
   const day = Math.min(70, Math.max(0, 70 - left));
   return (
-    <div className="clock70" role="img" aria-label={`Day ${day} of 70. ${left} days until the city closes this on the owner's word.`}>
+    <div className="clock70" role="img" aria-label={`Day ${day} of 70. ${left} ${left === 1 ? "day" : "days"} until the city can close this on the owner's word.`}>
       <div className="clock70-bar">
         <span className="clock70-fill" style={{ width: `${(day / 70) * 100}%` }} />
         <span className="clock70-now" style={{ left: `${(day / 70) * 100}%` }} />

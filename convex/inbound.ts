@@ -915,7 +915,7 @@ async function askReceiptFor(ctx: MutationCtx, from: string, bbl: string, label:
       headline: `No repair at ${label} is certified as done right now, so there is nothing to ask.`,
       blocks: [
         [
-          "HPD closes a certified violation after 70 days unless it reinspects; none of the certifications we hold for this building is inside those 70 days.",
+          "HPD can close a certified violation after 70 days unless it reinspects; none of the certifications we hold for this building is inside those 70 days.",
           "Reply FOLLOW and we'll ask you the day the owner certifies one.",
         ],
       ],
