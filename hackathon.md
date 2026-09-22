@@ -28,11 +28,12 @@ each sponsor lives, file by file: [README, Where each thing lives](README.md#whe
   waits on the same query as the LATE item below.
 
 **Fixed on 22 September, while judging runs:**
-- On a typed or spoken answer, the note GPT-6 Astra passes to record_answer is kept as your words only if at least
-  four in five of its words appear in what you wrote, your subject included and our quoted reply not: the test a phone
-  call's quote is put to (engine/call.ts, wroteIt and saidIt; engine/hpd.ts, theirWords; convex/match.ts). A note that
-  fails it is dropped; the answer is recorded either way. The words may come in any order, so a note that reorders
-  yours or leaves out a "never" can still pass, and a faithful one the model tidied ("it is" for your "it's") can fail.
+- On a typed or spoken answer, the note GPT-6 Astra passes to record_answer is kept as your words only if it is an
+  unbroken run of what you wrote, in your order, your subject included and our quoted reply not; a phone call's quote
+  is put to the same test against the transcript (engine/call.ts, wroteIt and saidIt; engine/hpd.ts, theirWords;
+  convex/match.ts). Case, punctuation and contractions aside ("isn't" is "is not"), nothing is forgiven, so a note that
+  drops your "not" or reorders your words is dropped. The answer is recorded either way. The first version of this
+  check counted shared words, and an outside review showed it kept "the leak is fixed" for "the leak is not fixed".
 - A repair certified LATE shows no 70-day clock and no close date, and nothing is said in their place: not in the
   email, on any page, or aloud. It is still asked about for the same 70 days (engine/hpd.ts). The city's file was read
   as HPD closing on-time certifications 72-75 days later and not closing late ones on that clock, but the query that

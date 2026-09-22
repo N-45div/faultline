@@ -14,7 +14,7 @@ $ npm test   # convex-test, against an in-memory Convex; the city's API is stood
       Tests  70 passed (70)
 
 $ npm run test:engine
-205 checks ok
+206 checks ok
 all checks passed
 
 $ npx tsx scripts/receipt-test.ts
