@@ -130,8 +130,9 @@ Photon and CALL-E are not sponsors of this hackathon. They are here so the same 
 | OpenAI: gpt-5.6-luna for letters and photographed notices, and moderation | `convex/llm.ts`, `convex/llmActions.ts` |
 | OpenAI: text-embedding-3-small | `convex/match.ts` |
 | Firecrawl: FIND, KEEP, and change tracking in git-diff mode | `convex/pages.ts`, `convex/ingest/firecrawl.ts` |
+| Firecrawl: HPD Online, the city's own site, read by a browser the moment someone answers a repair (its search box used, the row opened, the screenshot and a SHA-256 kept beside the data file's row) | `convex/cityPage.ts`, `convex/cityPageCapture.ts`, `engine/hpdOnline.ts` |
 | CALL-E (not a sponsor): the phone call and its two readers | `convex/calls.ts`, `engine/call.ts` |
-| Tests | `tests/*.test.ts` (75 convex-test), `scripts/*-test.ts`; every push runs them in [.gitlab-ci.yml](.gitlab-ci.yml) |
+| Tests | `tests/*.test.ts` (85 convex-test), `scripts/*-test.ts`; every push runs them in [.gitlab-ci.yml](.gitlab-ci.yml) |
 
 ### The two rules that decide correctness
 
@@ -163,7 +164,7 @@ scripts/     fixture tests on real government bytes, plus a copy lint over every
 data/        the fixtures those tests run on
 ```
 
-**449 automated checks:** 206 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 75 convex-test tests covering the tenant loop, the agent's twelve tools, the phone call from CALL ME to the receipt (against a stand-in for CALL-E: nothing in a test can ring a telephone), the delivery-event suppressions, re-watching a building someone is asked about, the browser trial's fences (nothing mailed, never counted publicly, its own rate-limit rooms), a conversation's (words taken only while one our server started is open, priced by the clock), and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
+**471 automated checks:** 218 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 85 convex-test tests covering the tenant loop, the agent's twelve tools, the phone call from CALL ME to the receipt (against a stand-in for CALL-E: nothing in a test can ring a telephone), the delivery-event suppressions, re-watching a building someone is asked about, the browser trial's fences (nothing mailed, never counted publicly, its own rate-limit rooms), a conversation's (words taken only while one our server started is open, priced by the clock), and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
 
 ## Running it
 
