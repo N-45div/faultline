@@ -14,6 +14,15 @@ const askShape = v.object({
   description: v.string(),
 });
 
+/** An earlier citation of the same condition, as the city's row has it. */
+export const earlierCitation = v.object({
+  violationId: v.string(),
+  inspectionDate: v.string(),
+  certifiedDate: v.union(v.string(), v.null()),
+  status: v.string(),
+  statusDate: v.union(v.string(), v.null()),
+});
+
 export default defineSchema({
   // ---- sign-in (users, sessions, accounts, verification codes) --------------
   ...authTables,
@@ -408,6 +417,22 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_token", ["token"]),
+
+  /**
+   * A repair the city cited before under another number: for one violation,
+   * the earlier citations of the same condition at the same place, in the
+   * city's own fields (engine/conditionHistory.ts). Written only by
+   * history.refresh, from the city's file; the page reads these rows and
+   * nothing else. An empty list is a violation checked and nothing found.
+   */
+  repairHistory: defineTable({
+    violationId: v.string(),
+    bbl: v.string(),
+    earlier: v.array(earlierCitation),
+    checkedAt: v.number(),
+    /** Rows of the building's file read to decide it. */
+    rowsRead: v.number(),
+  }).index("by_violation", ["violationId"]),
 
   // ---- the product ---------------------------------------------------------
   cases: defineTable({
