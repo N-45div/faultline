@@ -266,6 +266,22 @@ export default function Try({ go }: { go: (p: string) => void }) {
   const beenAsked = ours.some((m) => /Are they\?|Is it\?/.test(m.text));
   const onTheLine = messages.some((m) => m.who === "call" && ["placing", "ringing", "on the call", "reading"].includes(m.status ?? ""));
 
+  // A thread this browser kept from an earlier visit is drawn under this page's
+  // heading, which is about housing. One that never sent an ASK - about a
+  // company's layoff filings, say - would read as if it were the housing check,
+  // so the person chooses first: pick it up again, or start a housing check on a
+  // fresh thread. Decided once, when the thread first loads; a thread that is
+  // already a housing ASK opens as it always has.
+  const askedHousing = beenAsked || messages.some((m) => m.who === "you" && /^\s*ask\b/i.test(mine[m.id] ?? m.text));
+  const [returning, setReturning] = useState<boolean | null>(null);
+  if (returning === null && thread !== undefined) setReturning(messages.length > 0 && !askedHousing);
+  // Its topic is the first thing they sent, or, when another browser typed it,
+  // the headline of our first reply.
+  const firstYou = messages.find((m) => m.who === "you");
+  const theirFirst = firstYou ? mine[firstYou.id] || firstYou.text : "";
+  const began = theirFirst || (ours[0]?.text.split("\n")[0] ?? "");
+  const topic = began ? `${theirFirst ? "you began" : "our first reply"}: "${began.length > 60 ? `${began.slice(0, 57).trimEnd()}…` : began}"` : "";
+
   // A guide for a first visit. It is not a script: it reads what this thread has
   // actually done and says the next thing worth doing, so it can never be ahead
   // of the page or stuck behind it. Hidden for good once dismissed.
@@ -312,11 +328,12 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 : "Type ASK and a New York City address, like ASK 155 Linden Boulevard, Brooklyn. The reply lists each repair the owner says is done.",
           };
 
-  // The thread follows its newest message. And the moment the record card
-  // first appears - drawn below the guide, under the end of the thread - the
-  // page lets the stamp land, then brings the card up to the bottom of the
-  // screen, with as much of the stamped reply above it as fits. A thread that
-  // already had the card when the page opened is not moved for it.
+  // The thread follows its newest message, and one picked up again opens at
+  // its end. And the moment the record card first appears - drawn below the
+  // guide, under the end of the thread - the page lets the stamp land, then
+  // brings the card up to the bottom of the screen, with as much of the
+  // stamped reply above it as fits. A thread that already had the card when
+  // the page opened is not moved for it.
   const card = useRef<HTMLDivElement>(null);
   const cardSeen = useRef<boolean | null>(null);
   const cardTimer = useRef<number | undefined>(undefined);
@@ -328,7 +345,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
     cardSeen.current = hasCard;
     if (messages.length > 0) end.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     if (appeared) cardTimer.current = window.setTimeout(() => card.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 900);
-  }, [messages.length, waiting, hasCard, thread === undefined]);
+  }, [messages.length, waiting, hasCard, thread === undefined, returning]);
 
   /** Back up to the repairs, to answer the next one. */
   const toRows = () => {
@@ -552,8 +569,8 @@ export default function Try({ go }: { go: (p: string) => void }) {
     );
   }
 
-  return (
-    <div className="try">
+  const head = (
+    <>
       <a
         className="back"
         href="/"
@@ -571,6 +588,44 @@ export default function Try({ go }: { go: (p: string) => void }) {
         that isn't fixed: it's kept, dated, beside the city's record, and the reply tells you how to get an inspector
         sent back before its 70 days run out.
       </p>
+    </>
+  );
+
+  // Back with a thread about something else: the choice, and nothing drawn from
+  // that thread until it is made.
+  if (returning) {
+    return (
+      <div className="try">
+        {head}
+        <div className="try-thread">
+          <div className="try-empty try-resume">
+            <p>This browser has a conversation from an earlier visit, and it is not a housing check.</p>
+            <div className="try-next">
+              <button
+                type="button"
+                className="try-chip"
+                onClick={() => {
+                  setReturning(false);
+                  fresh();
+                }}
+              >
+                <span>Start a housing check</span>
+                <small>a new trial, from a real Brooklyn building · this browser will no longer open the other one</small>
+              </button>
+              <button type="button" className="try-chip" onClick={() => setReturning(false)}>
+                <span>Resume your previous conversation</span>
+                {topic && <small>{topic}</small>}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="try">
+      {head}
 
       <div className="try-thread" aria-live="polite">
         {messages.length === 0 && (

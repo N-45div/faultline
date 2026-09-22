@@ -1012,6 +1012,17 @@ a {
   padding: 16px 18px;
   margin: 0;
 }
+/* back with a thread about something else: pick it up, or a housing check */
+.try-resume p {
+  margin: 0;
+}
+.try-resume .try-next {
+  margin: 12px 0 0;
+}
+.try-resume .try-chip span,
+.try-resume .try-chip small {
+  overflow-wrap: anywhere;
+}
 .try-you {
   align-self: flex-end;
   max-width: 78%;
