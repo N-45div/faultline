@@ -20,6 +20,7 @@ import { changedLines } from "../engine/evidence";
 import { forSpeech, SPOKEN_MAX } from "../engine/speech";
 import { answerLine, answersFromCall, callResultSchema, callTask, normalisePhone, saidIt, secondReaderInput, settle, wroteIt, wroteNumber } from "../engine/call";
 import { LIVE_GREETING, LIVE_INSTRUCTIONS, liveCents, spokenToTyped, utterance } from "../engine/live";
+import { buildingIdOf, readHpdOnline, searchSteps, violationsPage } from "../engine/hpdOnline";
 import type { FetchBody, Observation, PrevIndex, SourceAdapter } from "../engine/types";
 
 const snapDir = join("data", "snapshots");
@@ -554,6 +555,54 @@ console.log("\n== the same condition, cited before");
   check(
     url.startsWith("https://data.cityofnewyork.us/resource/wvxf-dwi5.json?%24select=") && url.includes("%24where=violationid%20in%28%2718037661%27%2C%2719112934%27%29") && !/[ '(),]/.test(url.split("?")[1]),
     "the link to the city's own rows is percent-encoded, quotes and brackets included",
+  );
+}
+
+console.log("\n== HPD Online, the city's own page, read back");
+{
+  // The markdown Firecrawl returned for #19105968 on 22 September 2026, searched
+  // and opened on the site, byte for byte; and the same page searched for a
+  // number it does not list, with the site's own sentence for that.
+  const page = readFileSync(join("tests", "fixtures", "hpdonline-19105968.md"), "utf8");
+  const none = readFileSync(join("tests", "fixtures", "hpdonline-0-results.md"), "utf8");
+  const read = readHpdOnline(page, "19105968");
+  check(
+    read.kind === "found" && read.statusText === "CIV10 MAILED" && read.statusDate === "08/18/2026" && read.certDate === "08/12/2026",
+    `the opened row reads CIV10 MAILED on 08/18/2026, certified 08/12/2026, as the page prints them (got ${JSON.stringify(read)})`,
+  );
+  check(readHpdOnline(none, "11036631").kind === "not_found", "a search the site answers with \"No violations were retrieved.\" is not found");
+  check(readHpdOnline(page, "10594138").kind === "unreadable", "the notice's own number, inside the opened row, is not a repair the page lists");
+  check(readHpdOnline(page, "1910596").kind === "unreadable", "a number is matched whole: a prefix of #19105968 is not it");
+  const shut = page
+    .split("\n")
+    .filter((l) => !l.includes("NOV Issued Date<br>"))
+    .join("\n");
+  const notOpened = readHpdOnline(shut, "19105968");
+  check(notOpened.kind === "unreadable" && notOpened.why === "the repair is listed, but its row did not open", "a row listed but never opened says so, and claims no status");
+  const dashed = readHpdOnline(page.replace("ACTUAL CERT. DATE<br>08/12/2026", "ACTUAL CERT. DATE<br>-"), "19105968");
+  check(dashed.kind === "found" && dashed.certDate === null && dashed.statusText === "CIV10 MAILED", "a dash where a date goes is no date");
+  const broke = readHpdOnline("Something went wrong. We couldn't get this information right now. Please refresh the page or try again later.", "19105968");
+  check(broke.kind === "unreadable" && broke.why === "HPD Online said something went wrong", "the site's own error is unreadable, not not-found");
+  check(readHpdOnline("", "19105968").kind === "unreadable", "an empty shell is unreadable");
+
+  const steps = searchSteps("19105968");
+  check(
+    steps.length === 8 && steps[0].selector === "table tbody tr" && steps[4].type === "press" && steps[4].key === "Enter" && JSON.stringify(steps).split("19105968").length === 3,
+    "the steps wait for the table, type the number, press Enter and open its row: the number is in them twice",
+  );
+  let refused = 0;
+  for (const bad of ["1910596';alert(1)//", "19105968 ", ""]) {
+    try {
+      searchSteps(bad);
+    } catch {
+      refused++;
+    }
+  }
+  check(refused === 3, "anything but a violation number's digits is never written into the steps");
+  check(violationsPage("327072") === "https://hpdonline.nyc.gov/hpdonline/building/327072/violations", "the building's violations page");
+  check(
+    buildingIdOf([{ buildingid: "327072" }]) === "327072" && buildingIdOf([]) === null && buildingIdOf([{ buildingid: "../327072" }]) === null && buildingIdOf({}) === null,
+    "the building id is the data file's digits, or nothing",
   );
 }
 
