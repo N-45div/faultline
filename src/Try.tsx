@@ -5,6 +5,7 @@ import { INBOX, mailto } from "./Pricing";
 import { ClockUntil, SAMPLE_ASK } from "./AskCard";
 import { canTalk, useLive } from "./useLive";
 import { askRows, type AskRow } from "../engine/askRows";
+import { citedBeforeLine, cityRowsUrl } from "../engine/conditionHistory";
 
 // The inbox, without the email. What is typed here goes through the handler an
 // email goes through - the same keyword reader, the same agent, the same tools
@@ -520,6 +521,14 @@ export default function Try({ go }: { go: (p: string) => void }) {
   // it, HPD's clock, and the three answers as buttons. The buttons send the line
   // a person would type, so the keyword reader takes it with no model. A kept
   // answer later in the thread puts its word on the repair it names.
+  //
+  // A repair the city cited before under another number says so, in the
+  // city's own dates (convex/history.ts). The query reads only what was
+  // already worked out, for the newest ten repairs on the page; nothing here
+  // can start a read of the city's file.
+  const onPage = useMemo(() => [...new Set(ours.flatMap((m) => askRows(m.text).map((r) => r.id)))].slice(-10), [ours.length]);
+  const history = useQuery(api.history.forRepairs, onPage.length > 0 ? { violationIds: onPage } : "skip");
+  const cited = new Map((history ?? []).map((h) => [h.violationId, h.earlier[0]] as const));
   const today = new Date().toISOString().slice(0, 10);
   const locked = busy || waiting || onTheLine || live.state !== "idle";
   const saidAfter = (id: string, at: number) => {
@@ -533,6 +542,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
         {rows.map((r) => {
           const said = saidAfter(r.id, at);
           const what = r.thing ? ` (${r.thing.toLowerCase()})` : "";
+          const before = cited.get(r.id);
           return (
             <div key={r.id} className="try-row" data-id={r.id}>
               <p className="try-row-head">
@@ -555,6 +565,14 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 The city's file: {r.cityWords ? `"${r.cityWords}" · ` : ""}
                 {r.status} as of {r.asOf}
               </p>
+              {before && (
+                <p className="try-row-before">
+                  {citedBeforeLine(before)}{" "}
+                  <a href={cityRowsUrl([before.violationId, r.id])} target="_blank" rel="noreferrer">
+                    the city's rows for both →
+                  </a>
+                </p>
+              )}
               {r.until && <ClockUntil until={r.until} today={today} />}
               <div className="try-row-answer">
                 {ANSWERS.map(([answer, label, word]) => (

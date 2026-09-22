@@ -22,6 +22,7 @@ import type * as digest from "../digest.js";
 import type * as files from "../files.js";
 import type * as follows from "../follows.js";
 import type * as guard from "../guard.js";
+import type * as history from "../history.js";
 import type * as http from "../http.js";
 import type * as inbound from "../inbound.js";
 import type * as ingest_fetch from "../ingest/fetch.js";
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   follows: typeof follows;
   guard: typeof guard;
+  history: typeof history;
   http: typeof http;
   inbound: typeof inbound;
   "ingest/fetch": typeof ingest_fetch;
@@ -118,5 +120,6 @@ export declare const components: {
   staticHosting: import("@convex-dev/static-hosting/_generated/component.js").ComponentApi<"staticHosting">;
   agentmail: import("@agentmail/convex/_generated/component.js").ComponentApi<"agentmail">;
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+  actionCache: import("@convex-dev/action-cache/_generated/component.js").ComponentApi<"actionCache">;
   firecrawl: import("@firecrawl/firecrawl-convex/_generated/component.js").ComponentApi<"firecrawl">;
 };

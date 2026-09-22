@@ -341,11 +341,17 @@ const sampleStamp = v.object({
  * instead, when the housing file commits a change and once a day, and the
  * pages read this row. The page still applies today's date itself, so a
  * certification whose 70 days ran out at midnight drops off without a refresh.
+ *
+ * Once a day, from crons.ts and nowhere else, the repairs it could ask about
+ * are also checked against the city's file for an earlier citation of the same
+ * condition (convex/history.ts). Not on every change to the housing file: that
+ * is every few hours, and whether a repair was cited before last year does not
+ * move by the hour.
  */
 export const refreshSampleAsk = internalMutation({
-  args: {},
+  args: { history: v.optional(v.boolean()) },
   returns: v.number(),
-  handler: async (ctx) => {
+  handler: async (ctx, { history }) => {
     // Paused reads move nothing, so there is nothing to rebuild: a deployment
     // that is switched off (the dev one shares this team's quota) stays off.
     if (paused("ingest")) return 0;
@@ -369,6 +375,7 @@ export const refreshSampleAsk = internalMutation({
     const row = await ctx.db.query("stats").withIndex("by_key", (q) => q.eq("key", "sampleAsk")).unique();
     if (row) await ctx.db.patch(row._id, { value, updatedAt: Date.now() });
     else await ctx.db.insert("stats", { key: "sampleAsk", value, updatedAt: Date.now() });
+    if (history && could.size > 0) await ctx.scheduler.runAfter(0, internal.history.refresh, { bbl: SAMPLE_BBL, violationIds: [...could] });
     return value.stamps.length;
   },
 });

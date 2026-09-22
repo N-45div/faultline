@@ -1662,6 +1662,14 @@ a.try-chip {
   color: var(--muted);
   margin: 0 0 8px;
 }
+/* the same condition, cited before under another number, in the city's dates */
+.try-row-before {
+  font-size: 12.5px;
+  margin: 0 0 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--accent);
+  overflow-wrap: anywhere;
+}
 .try-row-answer {
   display: flex;
   gap: 8px;

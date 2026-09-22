@@ -1,0 +1,169 @@
+{
+ "about": "The city's own rows for 155 Linden Boulevard, Brooklyn (BBL 3050840061), as its API served them on 2026-09-22, cut to the columns engine/conditionHistory.ts reads. Sixteen of the building's 3,496: a condition cited before, its one-word near-match, the plexiglass, a same-day duplicate, a notice, a description with no place in it, and a common area with and without its section.",
+ "source": "https://data.cityofnewyork.us/resource/wvxf-dwi5.json?$where=bbl='3050840061'",
+ "rows": [
+  {
+   "violationid": "11036631",
+   "story": "6",
+   "inspectiondate": "2015-12-14T00:00:00.000",
+   "novdescription": "§ 27-2005 ADM CODE REPAIR THE ROOF SO THAT IT WILL NOT LEAK OVER CEILING AT PUBLIC HALL, 6th STORY, SECTION ''730 ROGERS''",
+   "currentstatus": "VIOLATION CLOSED",
+   "currentstatusdate": "2017-05-15T00:00:00.000",
+   "violationstatus": "Close"
+  },
+  {
+   "violationid": "12787347",
+   "story": "6",
+   "inspectiondate": "2018-12-03T00:00:00.000",
+   "novdescription": "§ 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE FIRE RETARDANT MATERIAL AT CEILING AT PUBLIC HALL, 6th STORY",
+   "currentstatus": "VIOLATION CLOSED",
+   "currentstatusdate": "2022-01-28T00:00:00.000",
+   "violationstatus": "Close"
+  },
+  {
+   "violationid": "12922592",
+   "story": "6",
+   "inspectiondate": "2019-02-20T00:00:00.000",
+   "novdescription": "§ 27-2005 ADM CODE REPAIR THE ROOF SO THAT IT WILL NOT LEAK OVER CEILING AT PUBLIC HALL, 6th STORY, SECTION ''730 ROGERS''",
+   "currentstatus": "VIOLATION CLOSED",
+   "currentstatusdate": "2019-04-08T00:00:00.000",
+   "violationstatus": "Close"
+  },
+  {
+   "violationid": "13609583",
+   "story": "0",
+   "inspectiondate": "2020-02-19T00:00:00.000",
+   "novdescription": "§ 27-2021 ADM CODE PROVIDE SUFFICIENT, PROPER AND SEPARATE METAL RECEPTACLES FOR THE DEPOSIT OF GARBAGE, RUBBISH AND OTHER WASTE MATERIAL AND ARRANGE FOR COLLECTION AND DISPOSAL OF SUCH MATERIAL.",
+   "currentstatus": "VIOLATION CLOSED",
+   "currentstatusdate": "2022-12-21T00:00:00.000",
+   "violationstatus": "Close",
+   "certifieddate": "2020-04-02T00:00:00.000"
+  },
+  {
+   "violationid": "14343916",
+   "story": "0",
+   "inspectiondate": "2021-05-16T00:00:00.000",
+   "novdescription": "§ 27-2021 ADM CODE PROVIDE SUFFICIENT, PROPER AND SEPARATE METAL RECEPTACLES FOR THE DEPOSIT OF GARBAGE, RUBBISH AND OTHER WASTE MATERIAL AND ARRANGE FOR COLLECTION AND DISPOSAL OF SUCH MATERIAL.",
+   "currentstatus": "VIOLATION CLOSED",
+   "currentstatusdate": "2021-06-14T00:00:00.000",
+   "violationstatus": "Close",
+   "certifieddate": "2021-06-08T00:00:00.000"
+  },
+  {
+   "violationid": "17916497",
+   "apartment": "4A",
+   "story": "4",
+   "inspectiondate": "2025-05-25T00:00:00.000",
+   "novdescription": "§ 27-2005 ADM CODE REPAIR THE BROKEN OR DEFECTIVE PLASTERED SURFACES AND PAINT IN A UNIFORM COLOR THE CEILING AND WEST WALL IN THE KITCHEN LOCATED AT APT 4A, 4th STORY, 1st APARTMENT FROM NORTH AT EAST",
+   "currentstatus": "FALSE CERTIFICATION",
+   "currentstatusdate": "2025-08-04T00:00:00.000",
+   "violationstatus": "Open",
+   "certifieddate": "2025-07-15T00:00:00.000"
+  },
+  {
+   "violationid": "18037661",
+   "apartment": "4A",
+   "story": "4",
+   "inspectiondate": "2025-06-18T00:00:00.000",
+   "novdescription": "§ 27-2005 ADM CODE REPAIR THE BROKEN OR DEFECTIVE PLASTERED SURFACES AND PAINT IN A UNIFORM COLOR AT CEILING AND WEST WALL IN THE KITCHEN LOCATED AT APT 4A, 4th STORY, 1st APARTMENT FROM NORTH AT EAST",
+   "currentstatus": "NOT COMPLIED WITH",
+   "currentstatusdate": "2025-08-22T00:00:00.000",
+   "violationstatus": "Open",
+   "certifieddate": "2025-07-31T00:00:00.000"
+  },
+  {
+   "violationid": "18629954",
+   "story": "1",
+   "inspectiondate": "2026-02-09T00:00:00.000",
+   "novdescription": "§27-2104(B) HMC POST A PROPER NOTICE REGARDING RENT STABILIZATION LAW, IN A FORM APPROVED BY THE COMMISSIONER, IN A CONSPICUOUS LOCATION WITHIN THE COMMON AREA AT THE BUILDING\u001aS ENTRANCE. FOR MORE INFORMATION ABOUT SIGNAGE REQUIREMENTS, PLEASE VISIT: HTTPS://WWW.NYC.GOV/SITE/HPD/SERVICES-AND-INFORMATION/REQUIRED-SIGNAGE.PAGE",
+   "currentstatus": "VIOLATION CLOSED",
+   "currentstatusdate": "2026-06-27T00:00:00.000",
+   "violationstatus": "Close",
+   "certifieddate": "2026-05-30T00:00:00.000"
+  },
+  {
+   "violationid": "18771844",
+   "apartment": "4K",
+   "story": "4",
+   "inspectiondate": "2026-04-08T00:00:00.000",
+   "novdescription": "§ 27-2031 ADM CODE PROVIDE HOT WATER AT ALL HOT WATER FIXTURES IN THE ENTIRE APARTMENT LOCATED AT APT 4K, 4th STORY, 1st APARTMENT FROM NORTH AT EAST",
+   "currentstatus": "VIOLATION CLOSED",
+   "currentstatusdate": "2026-04-30T00:00:00.000",
+   "violationstatus": "Close",
+   "certifieddate": "2026-04-15T00:00:00.000"
+  },
+  {
+   "violationid": "18771845",
+   "apartment": "4K",
+   "story": "4",
+   "inspectiondate": "2026-04-08T00:00:00.000",
+   "novdescription": "§ 27-2031 ADM CODE PROVIDE HOT WATER AT ALL HOT WATER FIXTURES IN THE ENTIRE APARTMENT LOCATED AT APT 4K, 4th STORY, 1st APARTMENT FROM NORTH AT EAST",
+   "currentstatus": "VIOLATION CLOSED",
+   "currentstatusdate": "2026-04-30T00:00:00.000",
+   "violationstatus": "Close",
+   "certifieddate": "2026-04-15T00:00:00.000"
+  },
+  {
+   "violationid": "19112933",
+   "apartment": "4A",
+   "story": "4",
+   "inspectiondate": "2026-07-27T00:00:00.000",
+   "novdescription": "§ 27-2005 HMC: PROPERLY REPAIR OR REPLACE THE BROKEN OR DEFECTIVE UPPER CABINET AT WEST WALL IN THE KITCHEN LOCATED AT APT 4A, 4th STORY, 1st APARTMENT FROM NORTH AT EAST",
+   "currentstatus": "NOV CERTIFIED ON TIME",
+   "currentstatusdate": "2026-09-18T00:00:00.000",
+   "violationstatus": "Open",
+   "certifieddate": "2026-09-18T00:00:00.000"
+  },
+  {
+   "violationid": "19112934",
+   "apartment": "4A",
+   "story": "4",
+   "inspectiondate": "2026-07-27T00:00:00.000",
+   "novdescription": "§ 27-2005 ADM CODE REPAIR THE BROKEN OR DEFECTIVE PLASTERED SURFACES AND PAINT IN A UNIFORM COLOR AT CEILING AND WEST WALL IN THE KITCHEN LOCATED AT APT 4A, 4th STORY, 1st APARTMENT FROM NORTH AT EAST",
+   "currentstatus": "NOV CERTIFIED ON TIME",
+   "currentstatusdate": "2026-09-18T00:00:00.000",
+   "violationstatus": "Open",
+   "certifieddate": "2026-09-18T00:00:00.000"
+  },
+  {
+   "violationid": "19114224",
+   "story": "6",
+   "inspectiondate": "2026-07-27T00:00:00.000",
+   "novdescription": "§ 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE FIRE RETARDANT MATERIAL AT CEILING AT PUBLIC HALL, 6th STORY",
+   "currentstatus": "NOV CERTIFIED ON TIME",
+   "currentstatusdate": "2026-09-10T00:00:00.000",
+   "violationstatus": "Open",
+   "certifieddate": "2026-09-10T00:00:00.000"
+  },
+  {
+   "violationid": "19114271",
+   "story": "1",
+   "inspectiondate": "2026-07-27T00:00:00.000",
+   "novdescription": "§27-2104(B) HMC POST A PROPER NOTICE REGARDING RENT STABILIZATION LAW, IN A FORM APPROVED BY THE COMMISSIONER, IN A CONSPICUOUS LOCATION WITHIN THE COMMON AREA AT THE BUILDING\u001aS ENTRANCE. FOR MORE INFORMATION ABOUT SIGNAGE REQUIREMENTS, PLEASE VISIT: HTTPS://WWW.NYC.GOV/SITE/HPD/SERVICES-AND-INFORMATION/REQUIRED-SIGNAGE.PAGE",
+   "currentstatus": "NOV CERTIFIED ON TIME",
+   "currentstatusdate": "2026-09-10T00:00:00.000",
+   "violationstatus": "Open",
+   "certifieddate": "2026-09-10T00:00:00.000"
+  },
+  {
+   "violationid": "19178388",
+   "story": "0",
+   "inspectiondate": "2026-08-31T00:00:00.000",
+   "novdescription": "§ 27-2005 ADM CODE & 309 M/D LAW ABATE THE NUISANCE CONSISTING OF PLEXIGLASS INSTALLED AT BUILDING ENTRANCE DOOR AT 1ST STORY AT BUILDING SECTION 160",
+   "currentstatus": "NOV CERTIFIED ON TIME",
+   "currentstatusdate": "2026-09-15T00:00:00.000",
+   "violationstatus": "Open",
+   "certifieddate": "2026-09-15T00:00:00.000"
+  },
+  {
+   "violationid": "19178389",
+   "story": "0",
+   "inspectiondate": "2026-08-31T00:00:00.000",
+   "novdescription": "§ 27-2005 ADM CODE PROVIDE APPROVED GLASS INPLACE OF PLEXIGLASS INSTALLED AT BUILDING ENTRANCE DOOR AT 1ST STORY AT BUILDING SECTION 160",
+   "currentstatus": "NOV CERTIFIED ON TIME",
+   "currentstatusdate": "2026-09-14T00:00:00.000",
+   "violationstatus": "Open",
+   "certifieddate": "2026-09-14T00:00:00.000"
+  }
+ ]
+}
