@@ -1834,6 +1834,39 @@ visitor on /try and a FIND allowance of 20 a day first; then the rest), each
 walked on production afterwards: all seven steps of the judges' path passed.
 Checks: 444, in tests/RUN.md.
 
+### 2026-09-22 - 8f36f9f · b5b4aee · 8e6c14a · e98d857 · 9650286 · d9c63c2 · 18f9832
+Both sponsors on the page a judge uses. A simulated AgentMail and Firecrawl
+judge read the live /try and said neither sponsor showed on it: the inbox only
+answered, and Firecrawl waited behind a FIND a visitor might never press.
+
+AgentMail: after an answer is kept on /try, the page offers to send the record
+to someone helping the tenant - an organizer, a lawyer, a relative. Faultline's
+agent writes to them from its own inbox (convex/share.ts), under an
+Idempotency-Key, with the city's record for that repair and the tenant's
+one-word answer. The letter is built from the city's fields and the answer only
+(engine/shareLetter.ts); the note the model passed on, and anything typed, is
+not an input, so the address box cannot be used to mail anyone anything else.
+Three letters a day from a page, one a day to any address, twenty in all; an
+agentmail.to address is refused, so two agents cannot loop. AgentMail's delivery
+events move the row on the page live, and a reply in the letter's thread from
+the address we wrote to lands beside the record; it is kept, never answered, and
+STOP from them is final. "Delivered" now reads "accepted by their mail server",
+which is what AgentMail's event says.
+
+Firecrawl: the moment someone answers a repair, Firecrawl opens HPD Online - the
+city's own site, which answers a plain request with an empty page - types the
+violation number into the site's search box, opens the row, and keeps the
+screenshot and a SHA-256 of the page beside the data file's row
+(convex/cityPage.ts, convex/cityPageCapture.ts, engine/hpdOnline.ts). A reading
+younger than six hours is shown again and spends nothing; three a day for a
+person and forty a day in all. The first reading on production, for #19112933,
+kept the site's own row: NOV CERT, 09/18/2026, "Showing 1 of 1 result".
+
+The project moved to a paid Convex team the same day, with its deployment,
+data and address unchanged, so it stays up through judging. Checks: 471, in
+tests/RUN.md; the judges' path passed all seven steps on production after the
+upload.
+
 ## About
 
 When a landlord in New York City tells the housing agency a repair is done, the
