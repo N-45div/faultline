@@ -1,6 +1,6 @@
 # Test run
 
-Every automated check, run on 2026-09-22 05:25 UTC at commit `e6665c5`, with the output as it came. Re-run any line from the repo root. The two suites that read live state government files, state-test and md-test, were not run again for this commit: nothing they import has changed since their last run, on 2026-09-21 16:44 UTC at `c54ba1d`, and their counts are from that run.
+Every automated check, run on 2026-09-22 06:06 UTC at commit `acff742`, with the output as it came. Re-run any line from the repo root. The two suites that read live state government files, state-test and md-test, were not run again for this commit: nothing they import has changed since their last run, on 2026-09-21 16:44 UTC at `c54ba1d`, and their counts are from that run.
 
 ```
 $ npm run typecheck
@@ -14,7 +14,7 @@ $ npm test   # convex-test, against an in-memory Convex
       Tests  50 passed (50)
 
 $ npm run test:engine
-171 checks ok
+188 checks ok
 all checks passed
 
 $ npx tsx scripts/receipt-test.ts
