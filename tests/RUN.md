@@ -10,8 +10,8 @@ $ npm run typecheck:tests
 (no output = no type errors)
 
 $ npm test   # convex-test, against an in-memory Convex; the city's API is stood in for, never read
- Test Files  5 passed (5)
-      Tests  70 passed (70)
+ Test Files  6 passed (6)
+      Tests  75 passed (75)
 
 $ npm run test:engine
 206 checks ok

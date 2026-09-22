@@ -130,7 +130,7 @@ Photon and CALL-E are not sponsors of this hackathon. They are here so the same 
 | OpenAI: text-embedding-3-small | `convex/match.ts` |
 | Firecrawl: FIND, KEEP, and change tracking in git-diff mode | `convex/pages.ts`, `convex/ingest/firecrawl.ts` |
 | CALL-E (not a sponsor): the phone call and its two readers | `convex/calls.ts`, `engine/call.ts` |
-| Tests | `tests/*.test.ts` (70 convex-test), `scripts/*-test.ts`; every push runs them in [.gitlab-ci.yml](.gitlab-ci.yml) |
+| Tests | `tests/*.test.ts` (75 convex-test), `scripts/*-test.ts`; every push runs them in [.gitlab-ci.yml](.gitlab-ci.yml) |
 
 ### The two rules that decide correctness
 
@@ -162,7 +162,7 @@ scripts/     fixture tests on real government bytes, plus a copy lint over every
 data/        the fixtures those tests run on
 ```
 
-**444 automated checks:** 206 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 70 convex-test tests covering the tenant loop, the agent's twelve tools, the phone call from CALL ME to the receipt (against a stand-in for CALL-E: nothing in a test can ring a telephone), the delivery-event suppressions, re-watching a building someone is asked about, the browser trial's fences (nothing mailed, never counted publicly, its own rate-limit rooms), a conversation's (words taken only while one our server started is open, priced by the clock), and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
+**449 automated checks:** 206 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 75 convex-test tests covering the tenant loop, the agent's twelve tools, the phone call from CALL ME to the receipt (against a stand-in for CALL-E: nothing in a test can ring a telephone), the delivery-event suppressions, re-watching a building someone is asked about, the browser trial's fences (nothing mailed, never counted publicly, its own rate-limit rooms), a conversation's (words taken only while one our server started is open, priced by the clock), and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
 
 ## Running it
 
