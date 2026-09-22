@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import schema from "../convex/schema";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { internal } from "../convex/_generated/api";
+import { api, internal } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 
 // The agent's hands, without the model. GPT-6 Astra chooses a tool; these
@@ -446,4 +446,93 @@ test("a note the model hands over already in quotation marks is quoted once", as
   const reply = await lastReply(t);
   expect(reply).toContain('"water still comes through"');
   expect(reply).not.toContain('""');
+});
+
+// ---------------------------------------------------------------- the note, checked against their words
+// On a phone call a quote is kept only if the transcript has them saying it
+// (engine/call.ts, saidIt). A typed or spoken answer is held to the same test,
+// against the lines they wrote above our quoted reply.
+const QUOTED = `\n\nOn Mon, Sep 14, 2026 at 12:01 PM Faultline <getnotice@agentmail.to> wrote:\n> They say it's fixed. Is it?\n> - #${VIOLATION} at ${LABEL} (class A) — "POST A PROPER NOTICE REGARDING RENT STABILIZATION LAW"`;
+const answeredRows = (t: T) => t.run(async (ctx) => (await ctx.db.query("attestations").collect()).filter((a) => a.answer !== undefined));
+
+test("a note the model passes on is kept when the words are theirs", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m-n1@test>", `Re: ${LABEL}`, "ASK");
+  const inboxId = await incoming(t, "<m-n2@test>");
+  const out = await t.action(internal.match.recordChecked, {
+    inboxId,
+    violationId: VIOLATION,
+    answer: "still_broken",
+    note: "water still comes through",
+    words: `the super painted over the stain but water still comes through${QUOTED}`,
+  });
+  expect(out).toBe("recorded and replied");
+  expect(await lastReply(t)).toContain('Your word: still broken, 2026-09-14 — "water still comes through".');
+  const kept = await answeredRows(t);
+  expect(kept).toHaveLength(1);
+  expect(kept[0]).toMatchObject({ answer: "still_broken", note: "water still comes through" });
+});
+
+test("a note the model made up is dropped, and the answer is still recorded", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m-n3@test>", `Re: ${LABEL}`, "ASK");
+  const inboxId = await incoming(t, "<m-n4@test>");
+  const out = await t.action(internal.match.recordChecked, {
+    inboxId,
+    violationId: VIOLATION,
+    answer: "still_broken",
+    note: "the landlord refuses to fix anything and threatened me",
+    words: `still broken, nobody came${QUOTED}`,
+  });
+  expect(out).toBe("recorded and replied");
+  const reply = await lastReply(t);
+  expect(reply).toContain("Kept, dated: you said still broken on 2026-09-14.");
+  expect(reply).toContain("Your word: still broken, 2026-09-14.");
+  expect(reply).not.toContain("threatened");
+  const kept = await answeredRows(t);
+  expect(kept).toHaveLength(1);
+  expect(kept[0].answer).toBe("still_broken");
+  expect(kept[0].note).toBeUndefined();
+});
+
+test("the city's words quoted back under their reply are not their note", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m-n5@test>", `Re: ${LABEL}`, "ASK");
+  const inboxId = await incoming(t, "<m-n6@test>");
+  await t.action(internal.match.recordChecked, {
+    inboxId,
+    violationId: VIOLATION,
+    answer: "not_sure",
+    note: "POST A PROPER NOTICE REGARDING RENT STABILIZATION LAW",
+    words: `not sure, I haven't been downstairs${QUOTED}`,
+  });
+  const kept = await answeredRows(t);
+  expect(kept).toHaveLength(1);
+  expect(kept[0].answer).toBe("not_sure");
+  expect(kept[0].note).toBeUndefined();
+});
+
+test("one-tap and keyword answers are read as before, with no model and their note as they typed it", async () => {
+  const t = make();
+  await seed(t);
+  await receive(t, "<m-k1@test>", `Re: ${LABEL}`, "ASK");
+  const typed = await receive(t, "<m-k2@test>", `Re: ${LABEL}`, `#${VIOLATION} STILL BROKEN - the notice was never posted${QUOTED}`);
+  expect(typed).toContain('Your word: still broken, 2026-09-14 — "the notice was never posted".');
+
+  // A tap on /try sends the line a person would type: the keyword reader takes it.
+  const session = "c".repeat(32);
+  await t.mutation(api.web.say, { session, id: "00000001", text: `ASK ${LABEL}` });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  await t.mutation(api.web.say, { session, id: "00000002", text: `#${VIOLATION} STILL BROKEN` });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  const tapped = (await t.query(api.web.thread, { session })).filter((m) => m.who === "faultline").at(-1)?.text ?? "";
+  expect(tapped).toContain("Kept, dated: you said still broken on 2026-09-14.");
+  expect(tapped).toContain("Your word: still broken, 2026-09-14.");
+
+  const kept = await answeredRows(t);
+  expect(kept.map((a) => a.answer)).toEqual(["still_broken", "still_broken"]);
+  expect(kept.map((a) => a.note ?? null).sort()).toEqual([null, "the notice was never posted"].sort());
 });

@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { wroteIt } from "../engine/call";
+import { ownLines } from "../engine/hpd";
 
 /**
  * Which repair a person is talking about, checked against their own words.
@@ -191,7 +193,8 @@ async function nearestOf(ctx: any, email: string, vector: number[], waiting: str
 
 /**
  * Record the answer the model chose, unless this person's own words are
- * plainly about a different repair we asked them about.
+ * plainly about a different repair we asked them about; and the note it
+ * passes on, only if those words are theirs.
  */
 export const recordChecked = internalAction({
   args: {
@@ -236,11 +239,25 @@ export const recordChecked = internalAction({
         });
       }
     }
+    // The model is told to quote them and never add a word, and nothing made
+    // it. The note is shown on their record as their words, so it is kept only
+    // if their own lines bear it out: the test a quote from a phone call is put
+    // to (engine/call.ts, saidIt). A note that fails it, or cannot be put to
+    // it, is dropped. The answer never is.
+    let note: string | null = null;
+    if (a.note) {
+      try {
+        note = wroteIt(a.note, ownLines(a.words) || a.words) ? a.note : null;
+        if (note === null) console.log("[match] the note is not in their words; recording the answer without it");
+      } catch (e) {
+        console.warn(`[match] the note could not be checked; recording the answer without it: ${String(e)}`);
+      }
+    }
     return await ctx.runMutation(internal.inbound.agentRecordAnswer, {
       inboxId: a.inboxId,
       violationId: a.violationId,
       answer: a.answer,
-      note: a.note,
+      note,
     });
   },
 });

@@ -109,7 +109,8 @@ const tools = [
     execute: async ({ violationId, answer, note }, rc) => {
       const c = contextOf(rc);
       // Their own words go with the choice: what they wrote decides which
-      // question this is about if the number the model picked disagrees.
+      // question this is about if the number the model picked disagrees, and
+      // whether the note it passes on is kept as theirs.
       const out = await c.convex.runAction(internal.match.recordChecked, {
         inboxId: c.inboxId,
         violationId,
