@@ -25,7 +25,17 @@ export type Scraped = {
   previousScrapeAt?: string;
   /** The lines Firecrawl saw move since its previous capture, cut from its git-diff. */
   changeDiff?: string;
+  /** What each script among the browser steps returned, in order: what it found on the page. */
+  stepsSaid?: string[];
 };
+
+/**
+ * Browser steps for a page that only shows what matters after someone uses it:
+ * Firecrawl's `actions`, passed through as given. The page is then read as
+ * markdown only, pictured as the screen was left (not scrolled whole), with a
+ * timeout of its own, and neither served from nor kept in Firecrawl's cache.
+ */
+export type Steps = { actions: Array<Record<string, unknown>>; timeoutMs: number };
 
 export type Found = { url: string; title: string; description: string };
 
@@ -52,9 +62,9 @@ export async function searchWeb(ctx: { runAction: any }, query: string, opts: { 
     .filter((r) => /^https?:\/\//.test(r.url));
 }
 
-/** One page, as HTML and markdown, and when asked, a screenshot and Firecrawl's own change tracking. Throws on a non-2xx from the target. */
-export async function scrapePage(ctx: { runAction: any }, url: string, opts: { waitForMs?: number; evidence?: boolean } = {}): Promise<Scraped> {
-  const formats: Format[] = ["html", "markdown"];
+/** One page, as HTML and markdown, and when asked, a screenshot and Firecrawl's own change tracking, or browser steps first. Throws on a non-2xx from the target. */
+export async function scrapePage(ctx: { runAction: any }, url: string, opts: { waitForMs?: number; evidence?: boolean; steps?: Steps } = {}): Promise<Scraped> {
+  const formats: Format[] = opts.steps ? ["markdown", { type: "screenshot", fullPage: false }] : ["html", "markdown"];
   // One tag for all our captures, so Firecrawl compares each read with its
   // previous capture for us. That is usually our last commit but not always: a
   // read that fails after Firecrawl captured the page still counts, so the
@@ -64,13 +74,15 @@ export async function scrapePage(ctx: { runAction: any }, url: string, opts: { w
   const doc = await firecrawl.scrape(ctx as Parameters<FirecrawlClient["scrape"]>[0], url, {
     formats,
     onlyMainContent: false,
-    timeout: 60_000 + (opts.waitForMs ?? 0),
+    timeout: opts.steps?.timeoutMs ?? 60_000 + (opts.waitForMs ?? 0),
     ...(opts.waitForMs ? { waitFor: opts.waitForMs } : {}),
+    ...(opts.steps ? { actions: opts.steps.actions, maxAge: 0, storeInCache: false } : {}),
   });
   const status = Number(doc.metadata?.statusCode ?? 200);
   if (doc.metadata?.error || status >= 400) throw new Error(`Firecrawl: ${doc.metadata?.error ?? `HTTP ${status}`} from ${url}`);
   const tracked = (doc.changeTracking ?? {}) as { changeStatus?: unknown; previousScrapeAt?: unknown; diff?: { text?: unknown } };
   const moved = typeof tracked.diff?.text === "string" ? changedLines(tracked.diff.text) : "";
+  const said = ((doc as { actions?: { javascriptReturns?: Array<{ value?: unknown }> } }).actions?.javascriptReturns ?? []).map((r) => String(r?.value ?? "").slice(0, 200));
   return {
     status,
     url: String(doc.metadata?.sourceURL ?? url),
@@ -81,6 +93,7 @@ export async function scrapePage(ctx: { runAction: any }, url: string, opts: { w
     ...(typeof tracked.changeStatus === "string" ? { changeStatus: tracked.changeStatus } : {}),
     ...(typeof tracked.previousScrapeAt === "string" ? { previousScrapeAt: tracked.previousScrapeAt } : {}),
     ...(moved ? { changeDiff: moved } : {}),
+    ...(said.length ? { stepsSaid: said } : {}),
   };
 }
 
