@@ -15,6 +15,8 @@ import type * as auth from "../auth.js";
 import type * as breaker from "../breaker.js";
 import type * as callFlow from "../callFlow.js";
 import type * as calls from "../calls.js";
+import type * as cityPage from "../cityPage.js";
+import type * as cityPageCapture from "../cityPageCapture.js";
 import type * as corroborate from "../corroborate.js";
 import type * as corroborateData from "../corroborateData.js";
 import type * as crons from "../crons.js";
@@ -61,6 +63,8 @@ declare const fullApi: ApiFromModules<{
   breaker: typeof breaker;
   callFlow: typeof callFlow;
   calls: typeof calls;
+  cityPage: typeof cityPage;
+  cityPageCapture: typeof cityPageCapture;
   corroborate: typeof corroborate;
   corroborateData: typeof corroborateData;
   crons: typeof crons;

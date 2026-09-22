@@ -37,6 +37,12 @@ export const limits = new RateLimiter(components.rateLimiter, {
   shareAll: { kind: "fixed window", rate: 20, period: DAY },
   /** Pages the trial keeps, by KEEP or FIND, every browser together. */
   webPage: { kind: "fixed window", rate: 20, period: DAY },
+  // HPD Online's page for a repair, read by a browser at Firecrawl the moment
+  // someone answers about it: a credit each. Three a day for one person, by
+  // email or in one browser, and forty a day for everyone together. A repair
+  // read in the last six hours is shown again and spends neither.
+  cityPageSession: { kind: "fixed window", rate: 3, period: DAY },
+  cityPageAll: { kind: "fixed window", rate: 40, period: DAY },
   // Speech is paid for by the second. A recording is charged here before any
   // model hears it, and so is a reply before it is read aloud.
   webHearSender: { kind: "fixed window", rate: 15, period: DAY },

@@ -24,6 +24,16 @@ export const earlierCitation = v.object({
   statusDate: v.union(v.string(), v.null()),
 });
 
+/** How a reading of HPD Online's page for a repair ended, or that it has not yet. */
+export const cityPageOutcome = v.union(
+  v.literal("reading"),
+  v.literal("kept"),
+  v.literal("not_found"),
+  v.literal("busy"),
+  v.literal("capped"),
+  v.literal("failed"),
+);
+
 export default defineSchema({
   // ---- sign-in (users, sessions, accounts, verification codes) --------------
   ...authTables,
@@ -463,6 +473,35 @@ export default defineSchema({
     /** Rows of the building's file read to decide it. */
     rowsRead: v.number(),
   }).index("by_violation", ["violationId"]),
+
+  /**
+   * HPD Online's own page for a repair, read through Firecrawl the moment
+   * someone answers about it (convex/cityPage.ts): the building's violations
+   * page, searched for the number in the site's own box, its row opened. The
+   * page's markdown and its picture are in file storage; the status is quoted
+   * as the page prints it. A row is written when the reading starts and
+   * patched with how it ended, failures included. The page reads the newest
+   * row per repair and nothing else.
+   */
+  cityPages: defineTable({
+    violationId: v.string(),
+    /** The city's building id, from its data file; empty until the reading finds it. */
+    buildingId: v.string(),
+    /** When the reading was asked for, then when the page was read. */
+    capturedAt: v.number(),
+    /** SHA-256 of the markdown kept; empty when no page was kept. */
+    sha256: v.string(),
+    statusText: v.optional(v.string()),
+    statusDate: v.optional(v.string()),
+    certDate: v.optional(v.string()),
+    screenshotId: v.optional(v.id("_storage")),
+    markdownId: v.optional(v.id("_storage")),
+    outcome: cityPageOutcome,
+    /** Why a reading kept nothing, or kept a page it could not read, in our words. */
+    why: v.optional(v.string()),
+    /** The earlier reading this page differs from, by its capturedAt. */
+    changedFrom: v.optional(v.number()),
+  }).index("by_violation", ["violationId", "capturedAt"]),
 
   // ---- the product ---------------------------------------------------------
   cases: defineTable({
