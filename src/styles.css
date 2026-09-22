@@ -1664,11 +1664,26 @@ a.try-chip {
 }
 /* the same condition, cited before under another number, in the city's dates */
 .try-row-before {
-  font-size: 12.5px;
-  margin: 0 0 8px;
-  padding-left: 8px;
-  border-left: 2px solid var(--accent);
+  font-size: 13.5px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--card));
   overflow-wrap: anywhere;
+}
+.try-row-before p {
+  margin: 0;
+}
+.try-row-before .try-row-before-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
 }
 .try-row-answer {
   display: flex;

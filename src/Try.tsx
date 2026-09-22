@@ -566,12 +566,15 @@ export default function Try({ go }: { go: (p: string) => void }) {
                 {r.status} as of {r.asOf}
               </p>
               {before && (
-                <p className="try-row-before">
-                  {citedBeforeLine(before)}{" "}
-                  <a href={cityRowsUrl([before.violationId, r.id])} target="_blank" rel="noreferrer">
-                    the city's rows for both →
-                  </a>
-                </p>
+                <div className="try-row-before">
+                  <p className="try-row-before-label">Cited before under a new number</p>
+                  <p>
+                    {citedBeforeLine(before)}{" "}
+                    <a href={cityRowsUrl([before.violationId, r.id])} target="_blank" rel="noreferrer">
+                      the city's rows for both →
+                    </a>
+                  </p>
+                </div>
               )}
               {r.until && <ClockUntil until={r.until} today={today} />}
               <div className="try-row-answer">
