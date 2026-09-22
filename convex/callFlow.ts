@@ -54,7 +54,10 @@ const LOOK = "look";
 /** CALL-E not answering: a few tries, a few seconds apart, before waiting for the next word to look. */
 const READ_BACK = { maxAttempts: 4, initialBackoffMs: 2_000, base: 2 };
 /** The model failing: tried again, then CALL-E's reading stands alone. */
-const SECOND_READING = { maxAttempts: 3, initialBackoffMs: 5_000, base: 2 };
+// Two tries, not three: every failed try is counted by the OpenAI breaker
+// (convex/breaker.ts), which opens at three, and one call's reading must not
+// be what shuts the inbox agent off for everyone else.
+const SECOND_READING = { maxAttempts: 2, initialBackoffMs: 5_000, base: 2 };
 
 export const afterCall = flow.define({
   args: { callRow: v.id("calls"), callId: v.string() },

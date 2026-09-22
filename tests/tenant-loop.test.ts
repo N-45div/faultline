@@ -893,7 +893,7 @@ test("the second reader failing every time leaves CALL-E's reading standing alon
   calle.result = stillBroken();
   await hook(t);
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect(model.runs).toBe(3);
+  expect(model.runs).toBe(2);
   expect(sent.at(-1)?.body.text ?? "").toContain(`On the call you said still broken, about #${VIOLATION}.`);
   expect(await t.run((ctx) => ctx.db.query("calls").first())).toMatchObject({ status: "completed", answered: 1, readBy: "CALL-E" });
 });
