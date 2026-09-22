@@ -1,10 +1,14 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import schema from "../convex/schema";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
-import { api, internal } from "../convex/_generated/api";
+import workflowTest from "@convex-dev/workflow/test";
+import workpoolTest from "@convex-dev/workpool/test";
+import { cancel, list } from "@convex-dev/workflow";
+import { api, components, internal } from "../convex/_generated/api";
 import { citySecondWord } from "../convex/ingest/write";
+import { callFlow } from "../convex/callFlow";
 
 // The tenant loop, end to end, against an in-memory Convex: a person asks
 // about a building, answers, and — when the city later stamps the owner's
@@ -16,9 +20,19 @@ const modules = import.meta.glob("../convex/**/*.*s");
 const make = () => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t);
+  // The workflow a call finishes in (convex/callFlow.ts), and the workpool it runs on.
+  workflowTest.register(t);
   return t;
 };
 type T = ReturnType<typeof make>;
+
+// convex-test waits a bounded number of turns for a scheduled function to
+// finish, and a call's first workflow step loads the workflow's modules. Loaded
+// cold, they sometimes took longer than that; they are loaded here first.
+beforeAll(async () => {
+  const all = [modules, workflowTest.modules, workpoolTest.modules].flatMap((m) => Object.entries(m));
+  await Promise.all(all.filter(([path]) => !/convex\.config|\.test\./.test(path)).map(([, load]) => load()));
+});
 
 const BBL = "3050840061";
 const VIOLATION = "19114271";
@@ -39,7 +53,10 @@ const FIELDS = {
 
 type Sent = { url: string; body: { text?: string } };
 let sent: Sent[] = [];
-const calle: { placed: any[]; result: any } = { placed: [], result: null };
+const calle: { placed: any[]; result: any; reads: number; failReads: number } = { placed: [], result: null, reads: 0, failReads: 0 };
+// GPT-6 Astra reading a call a second time, stood in for at the Responses API:
+// it fails as many times as a test says, then reports what the test says.
+const model: { runs: number; failures: number; report: unknown } = { runs: 0, failures: 0, report: null };
 let labelled: { url: string; add: string[]; remove: string[] }[] = [];
 
 beforeEach(() => {
@@ -54,6 +71,11 @@ beforeEach(() => {
   sent = [];
   calle.placed = [];
   calle.result = null;
+  calle.reads = 0;
+  calle.failReads = 0;
+  model.runs = 0;
+  model.failures = 0;
+  model.report = null;
   labelled = [];
   vi.stubGlobal("fetch", async (url: string | URL, init?: RequestInit) => {
     const body = init?.body ? JSON.parse(String(init.body)) : {};
@@ -64,7 +86,26 @@ beforeEach(() => {
         calle.placed.push(body);
         return new Response(JSON.stringify({ id: "call_test_1", object: "call_task", status: "queued" }), { status: 201, headers: { "Content-Type": "application/json" } });
       }
+      calle.reads += 1;
+      if (calle.failReads > 0) {
+        calle.failReads -= 1;
+        return new Response(JSON.stringify({ error: { code: "unavailable" } }), { status: 503, headers: { "Content-Type": "application/json" } });
+      }
       return new Response(JSON.stringify(calle.result), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    // A failure is a 500 the OpenAI SDK is told not to retry itself, so the retry under test is ours.
+    if (String(url).includes("api.openai.com")) {
+      model.runs += 1;
+      if (model.failures > 0) {
+        model.failures -= 1;
+        return new Response(JSON.stringify({ error: { message: "overloaded" } }), { status: 500, headers: { "Content-Type": "application/json", "x-should-retry": "false" } });
+      }
+      const report = { type: "function_call", id: "fc_1", call_id: "call_1", name: "report_call", arguments: JSON.stringify(model.report), status: "completed" };
+      const usage = { input_tokens: 400, output_tokens: 40, total_tokens: 440, input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 0 } };
+      return new Response(JSON.stringify({ id: `resp_${model.runs}`, object: "response", created_at: 0, status: "completed", model: "gpt-6-astra", output: [report], usage }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
     // Labelling a message is a PATCH to the same inbox; it is not a send, and
     // must not be mistaken for the reply a test is reading.
@@ -533,6 +574,20 @@ test("as a conversation: words are taken only while a conversation our server st
 
 // ---------------------------------------------------------------- CALL ME
 const NUMBER = "+1 718 555 0142";
+
+/**
+ * A call test, run twice: with NOTICE_CALL_FLOW unset, where what happens
+ * after the call hangs up is the scheduled functions it always was, and set to
+ * "workflow", where it is a workflow (convex/callFlow.ts).
+ */
+function callTest(name: string, fn: (flow: "workflow" | "direct") => Promise<void>) {
+  for (const flow of ["direct", "workflow"] as const) {
+    test(flow === "direct" ? name : `${name} (NOTICE_CALL_FLOW=workflow)`, async () => {
+      vi.stubEnv("NOTICE_CALL_FLOW", flow === "direct" ? undefined : flow);
+      await fn(flow);
+    });
+  }
+}
 const finished = (structured: unknown, turns: { speaker: string; text: string }[] = [{ speaker: "bot", text: "Is it fixed?" }, { speaker: "user", text: "No. Nobody came, it's the same." }]) => ({
   id: "call_test_1",
   status: "completed",
@@ -540,7 +595,7 @@ const finished = (structured: unknown, turns: { speaker: string; text: string }[
   recipients: [{ attempts: [{ transcript_turns: turns.map((t, i) => ({ offset_seconds: i * 4, ...t })) }] }],
 });
 
-test("CALL ME rings the number they wrote, and what they say on the call is recorded like a written answer", async () => {
+callTest("CALL ME rings the number they wrote, and what they say on the call is recorded like a written answer", async (flow) => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
   await seed(t);
@@ -560,6 +615,8 @@ test("CALL ME rings the number they wrote, and what they say on the call is reco
   // The number is not in our tables: a hash, and four digits.
   const row = await t.run((ctx) => ctx.db.query("calls").first());
   expect(row).toMatchObject({ tail: "0142", status: "ringing", callId: "call_test_1", asked: [VIOLATION] });
+  // The path it finishes on is kept on the row as it is placed.
+  expect(row?.workflowId !== undefined).toBe(flow === "workflow");
   expect(JSON.stringify(row)).not.toContain("7185550142");
 
   // The call ends. One answer about the repair we asked about, one about a repair nobody asked about.
@@ -589,7 +646,7 @@ test("CALL ME rings the number they wrote, and what they say on the call is reco
   expect(sent.length).toBe(before + 1);
 });
 
-test("no number, nothing to ask, or a number that said no: no telephone rings", async () => {
+callTest("no number, nothing to ask, or a number that said no: no telephone rings", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
   await seed(t);
@@ -613,7 +670,7 @@ test("no number, nothing to ask, or a number that said no: no telephone rings", 
   expect(calle.placed).toHaveLength(1);
 });
 
-test("a quote is kept only if the transcript has them saying it", async () => {
+callTest("a quote is kept only if the transcript has them saying it", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
   await seed(t);
@@ -632,7 +689,7 @@ test("a quote is kept only if the transcript has them saying it", async () => {
   expect(await t.run((ctx) => ctx.db.query("calls").first())).toMatchObject({ status: "completed", readBy: "CALL-E" });
 });
 
-test("with a model to ask, a call is read twice, and only what both readers agree on is recorded", async () => {
+callTest("with a model to ask, a call is read twice, and only what both readers agree on is recorded", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
   await seed(t);
@@ -675,7 +732,7 @@ test("with a model to ask, a call is read twice, and only what both readers agre
   expect(sent.length).toBe(before + 1);
 });
 
-test("two readers who disagree record nothing, and the person is asked again in writing", async () => {
+callTest("two readers who disagree record nothing, and the person is asked again in writing", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
   await seed(t);
@@ -692,7 +749,7 @@ test("two readers who disagree record nothing, and the person is asked again in 
   expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "completed", answered: 0, unsure: [VIOLATION] });
 });
 
-test("a second reading that never comes back is not waited for", async () => {
+callTest("a second reading that never comes back is not waited for", async () => {
   const t = make();
   vi.stubEnv("CALLE_API_KEY", "test-calle");
   await seed(t);
@@ -708,3 +765,196 @@ test("a second reading that never comes back is not waited for", async () => {
   expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "completed", answered: 1, readBy: "CALL-E" });
 });
 
+
+// ---------------------------------------------------------------- after the call hangs up: the workflow
+// Each call here is placed with NOTICE_CALL_FLOW=workflow: unset, a call finishes the direct way.
+const workflows = (t: T) => t.run(async (ctx) => (await list(ctx, components.workflow)).page);
+const hook = (t: T) =>
+  t.fetch("/hooks/calle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "call.completed", data: { id: "call_test_1" } }) });
+const stillBroken = () =>
+  finished({ reached: "yes", asked_for_this_call: "yes", answers: [{ violation: VIOLATION, answer: "still_broken", their_words: "nobody came, it is the same" }] });
+const agrees = { asked_for_this_call: "yes", answers: [{ violation: VIOLATION, answer: "still_broken", their_words: "Nobody came, it's the same" }] };
+
+test("only NOTICE_CALL_FLOW=workflow, in any case, switches the workflow on; any other value is said in the logs and places calls the direct way", () => {
+  const said = vi.spyOn(console, "error").mockImplementation(() => {});
+  const cases: [string | undefined, "workflow" | "direct"][] = [
+    [undefined, "direct"],
+    ["", "direct"],
+    ["direct", "direct"],
+    ["workflow", "workflow"],
+    [" Workflow ", "workflow"],
+    ["on", "direct"],
+    ["true", "direct"],
+  ];
+  for (const [value, flow] of cases) {
+    vi.stubEnv("NOTICE_CALL_FLOW", value);
+    expect(callFlow()).toBe(flow);
+  }
+  expect(said.mock.calls.map((c) => String(c[0]))).toEqual([expect.stringContaining('"on"'), expect.stringContaining('"true"')]);
+  said.mockRestore();
+});
+
+test("a webhook that comes again, and the polls, start no second workflow, and the call is recorded once", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  const callRow = (await t.run((ctx) => ctx.db.query("calls").first()))!._id;
+  const [one] = await workflows(t);
+  expect(one).toMatchObject({ name: "callFlow:afterCall" });
+  expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ workflowId: one.workflowId });
+
+  // Still ringing: told twice to look, and a poll. It looks each time, and waits.
+  calle.result = { id: "call_test_1", status: "in_progress" };
+  const before = sent.length;
+  expect((await hook(t)).status).toBe(204);
+  expect((await hook(t)).status).toBe(204);
+  await t.action(internal.calls.reconcile, { callId: "call_test_1" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect((await workflows(t)).map((w) => w.workflowId)).toEqual([one.workflowId]);
+  expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "on the call" });
+  expect(sent.length).toBe(before);
+
+  // It hangs up, and CALL-E says so twice, while a poll finds it too.
+  calle.result = stillBroken();
+  await hook(t);
+  await hook(t);
+  await t.action(internal.calls.reconcile, { callId: "call_test_1" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sent.length).toBe(before + 1);
+  expect(sent.at(-1)?.body.text ?? "").toContain(`On the call you said still broken, about #${VIOLATION}.`);
+  expect((await t.run((ctx) => ctx.db.query("attestations").collect())).filter((a) => a.answer === "still_broken")).toHaveLength(1);
+  expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "completed", answered: 1, readBy: "CALL-E", workflowId: one.workflowId });
+  // Its journal, with the transcript in it, is not kept once it has ended.
+  expect(await workflows(t)).toEqual([]);
+  expect(calle.placed).toHaveLength(1);
+
+  // A webhook after that finds the call finished.
+  await hook(t);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sent.length).toBe(before + 1);
+});
+
+test("CALL-E failing to answer when the call is read back is tried again, without waiting for the next poll", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  calle.result = stillBroken();
+  calle.failReads = 1;
+  calle.reads = 0;
+  const before = sent.length;
+  // One webhook, and no poll after it.
+  await hook(t);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(calle.reads).toBe(2);
+  expect(sent.length).toBe(before + 1);
+  expect(sent.at(-1)?.body.text ?? "").toContain(`On the call you said still broken, about #${VIOLATION}.`);
+  expect(await t.run((ctx) => ctx.db.query("calls").first())).toMatchObject({ status: "completed", answered: 1 });
+});
+
+test("the second reader failing once is tried again, and what the two readers agree on is recorded", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  vi.stubEnv("OPENAI_API_KEY", "sk-test");
+  model.failures = 1;
+  model.report = agrees;
+  calle.result = stillBroken();
+  const before = sent.length;
+  await hook(t);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  // On the direct path, CALL-E's reading would have stood alone after the first failure.
+  expect(model.runs).toBe(2);
+  expect(sent.length).toBe(before + 1);
+  const receipt = sent.at(-1)?.body.text ?? "";
+  expect(receipt).toContain(`On the call you said still broken, about #${VIOLATION}.`);
+  expect(receipt).toContain("Two readers went over the call separately and read your answer the same way");
+  expect((await t.run((ctx) => ctx.db.query("attestations").collect())).filter((a) => a.answer === "still_broken")).toHaveLength(1);
+  expect(await t.run((ctx) => ctx.db.query("calls").first())).toMatchObject({ status: "completed", answered: 1, readBy: "CALL-E and GPT-6 Astra" });
+});
+
+test("the second reader failing every time leaves CALL-E's reading standing alone, as on the direct path", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  vi.stubEnv("OPENAI_API_KEY", "sk-test");
+  model.failures = 10;
+  calle.result = stillBroken();
+  await hook(t);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(model.runs).toBe(2);
+  expect(sent.at(-1)?.body.text ?? "").toContain(`On the call you said still broken, about #${VIOLATION}.`);
+  expect(await t.run((ctx) => ctx.db.query("calls").first())).toMatchObject({ status: "completed", answered: 1, readBy: "CALL-E" });
+});
+
+test("a call placed by the old code, and parked by it for a second reading, still finishes, with no workflow", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  // Placed the way every call was before the workflow; then the switch is set, or the deploy lands, while it rings.
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
+  const callRow = (await t.run((ctx) => ctx.db.query("calls").first()))!._id;
+  expect((await t.run((ctx) => ctx.db.get(callRow)))?.workflowId).toBeUndefined();
+
+  // It hangs up. callFinished parks it and schedules its second reading, as the old code did.
+  vi.stubEnv("OPENAI_API_KEY", "sk-test");
+  model.report = agrees;
+  calle.result = stillBroken();
+  await t.action(internal.calls.reconcile, { callId: "call_test_1" });
+  expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "reading" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sent.at(-1)?.body.text ?? "").toContain("Two readers went over the call separately and read your answer the same way");
+  expect(await t.run((ctx) => ctx.db.get(callRow))).toMatchObject({ status: "completed", answered: 1, readBy: "CALL-E and GPT-6 Astra" });
+  expect(await workflows(t)).toEqual([]);
+});
+
+test("a call placed with a workflow finishes in it after the switch is turned off", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  expect(await workflows(t)).toHaveLength(1);
+  vi.stubEnv("NOTICE_CALL_FLOW", undefined);
+  calle.result = stillBroken();
+  await t.action(internal.calls.reconcile, { callId: "call_test_1" });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sent.at(-1)?.body.text ?? "").toContain(`On the call you said still broken, about #${VIOLATION}.`);
+  expect(await t.run((ctx) => ctx.db.query("calls").first())).toMatchObject({ status: "completed", answered: 1 });
+  // It ran to its end and was deleted: the workflow finished the call.
+  expect(await workflows(t)).toEqual([]);
+});
+
+test("a workflow that stops before the call ends does not lose the call: the direct path finishes it", async () => {
+  const t = make();
+  vi.stubEnv("CALLE_API_KEY", "test-calle");
+  vi.stubEnv("NOTICE_CALL_FLOW", "workflow");
+  await seed(t);
+  await receive(t, "<m1@test>", `Re: ${LABEL}`, "ASK");
+  await receive(t, "<m2@test>", `Re: ${LABEL}`, `CALL ME ${NUMBER}`);
+  const [one] = await workflows(t);
+  await t.run((ctx) => cancel(ctx, components.workflow, one.workflowId));
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(await workflows(t)).toEqual([]);
+  calle.result = stillBroken();
+  const before = sent.length;
+  await hook(t);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sent.length).toBe(before + 1);
+  expect(sent.at(-1)?.body.text ?? "").toContain(`On the call you said still broken, about #${VIOLATION}.`);
+  expect(await t.run((ctx) => ctx.db.query("calls").first())).toMatchObject({ status: "completed", answered: 1, readBy: "CALL-E" });
+});

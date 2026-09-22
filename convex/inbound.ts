@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, type ObjectType } from "convex/values";
 import { internalQuery, internalMutation, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -1305,7 +1305,17 @@ const callAnswers = v.array(v.object({ violationId: v.string(), answer: answerAr
 const callTurns = v.array(v.object({ who: v.string(), text: v.string() }));
 
 /** A second reading that never came back is not waited for. */
-const READING_PATIENCE_MS = 150_000;
+export const READING_PATIENCE_MS = 150_000;
+
+const callEnding = {
+  callRow: v.id("calls"),
+  status: v.string(),
+  answers: callAnswers,
+  declined: v.boolean(),
+  reached: v.boolean(),
+  turns: callTurns,
+  why: v.string(),
+};
 
 /**
  * The call is over, and CALL-E has said what it heard. If it heard answers,
@@ -1315,33 +1325,42 @@ const READING_PATIENCE_MS = 150_000;
  * reading stands alone, as a typed keyword does.
  */
 export const callFinished = internalMutation({
-  args: {
-    callRow: v.id("calls"),
-    status: v.string(),
-    answers: callAnswers,
-    declined: v.boolean(),
-    reached: v.boolean(),
-    turns: callTurns,
-    why: v.string(),
-  },
+  args: callEnding,
   returns: v.null(),
   handler: async (ctx, a) => {
-    const row = await ctx.db.get(a.callRow);
-    if (!row || row.finishedAt !== undefined) return null;
-    const waiting = row.status === "reading";
-    if (waiting && Date.now() - (row.readingAt ?? 0) < READING_PATIENCE_MS) return null;
-    const secondReader =
-      !waiting && !a.declined && a.reached && a.answers.length > 0 && a.turns.some((t) => t.who === "you") && Boolean(process.env.OPENAI_API_KEY) && !paused("llm");
-    if (secondReader) {
-      await ctx.db.patch(a.callRow, { status: "reading", readingAt: Date.now(), turns: a.turns, heard: a.answers });
-      await ctx.scheduler.runAfter(0, internal.agent.readCall, { callRow: a.callRow });
-      return null;
-    }
-    const alone = settle(a.answers, null, a.turns);
-    await finishCall(ctx, row, { status: a.status, answers: alone.agreed, unsure: [], declined: a.declined, reached: a.reached, turns: a.turns, readBy: "CALL-E" });
+    if ((await callEnded(ctx, a)) === "read") await ctx.scheduler.runAfter(0, internal.agent.readCall, { callRow: a.callRow });
     return null;
   },
 });
+
+/**
+ * The same, as a step of the call's workflow (convex/callFlow.ts), which runs
+ * the second reading itself rather than scheduling it: "read" when there is
+ * one to run, "held" when a reading already under way is being waited for,
+ * "done" when nothing is left to do.
+ */
+export const callOver = internalMutation({
+  args: callEnding,
+  returns: v.union(v.literal("read"), v.literal("held"), v.literal("done")),
+  handler: async (ctx, a) => await callEnded(ctx, a),
+});
+
+/** What CALL-E heard is recorded alone, or held for a second reading. */
+async function callEnded(ctx: MutationCtx, a: ObjectType<typeof callEnding>): Promise<"read" | "held" | "done"> {
+  const row = await ctx.db.get(a.callRow);
+  if (!row || row.finishedAt !== undefined) return "done";
+  const waiting = row.status === "reading";
+  if (waiting && Date.now() - (row.readingAt ?? 0) < READING_PATIENCE_MS) return "held";
+  const secondReader =
+    !waiting && !a.declined && a.reached && a.answers.length > 0 && a.turns.some((t) => t.who === "you") && Boolean(process.env.OPENAI_API_KEY) && !paused("llm");
+  if (secondReader) {
+    await ctx.db.patch(a.callRow, { status: "reading", readingAt: Date.now(), turns: a.turns, heard: a.answers });
+    return "read";
+  }
+  const alone = settle(a.answers, null, a.turns);
+  await finishCall(ctx, row, { status: a.status, answers: alone.agreed, unsure: [], declined: a.declined, reached: a.reached, turns: a.turns, readBy: "CALL-E" });
+  return "done";
+}
 
 /** GPT-6 Astra has read the call too. What both readers agree on is recorded; the rest is asked again in writing. */
 export const callRead = internalMutation({

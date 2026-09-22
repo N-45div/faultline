@@ -1,6 +1,6 @@
 "use node";
 
-import { v } from "convex/values";
+import { v, type Infer } from "convex/values";
 import { Agent, run, setDefaultOpenAIKey, setTracingDisabled, tool } from "@openai/agents";
 import OpenAI from "openai";
 import { z } from "zod";
@@ -369,46 +369,83 @@ const callReader = new Agent<CallReaderCtx>({
   resetToolChoice: false,
 });
 
+/** What callRead records: the two readings settled, or CALL-E's standing alone. */
+const vReading = v.object({
+  answers: v.array(v.object({ violationId: v.string(), answer: v.union(v.literal("fixed"), v.literal("still_broken"), v.literal("not_sure")), words: v.string() })),
+  unsure: v.array(v.string()),
+  declined: v.boolean(),
+  readBy: v.string(),
+  cents: v.optional(v.number()),
+});
+export type Reading = Infer<typeof vReading>;
+
+type ForReading = { identity: string; asked: string[]; questions: { violationId: string; description: string; statusDate: string }[]; turns: { who: string; text: string }[]; heard: CallAnswer[] };
+
 export const readCall = internalAction({
   args: { callRow: v.id("calls") },
   returns: v.null(),
   handler: async (ctx, { callRow }) => {
-    const call: { identity: string; asked: string[]; questions: { violationId: string; description: string; statusDate: string }[]; turns: { who: string; text: string }[]; heard: CallAnswer[] } | null =
-      await ctx.runQuery(internal.calls.forReading, { callRow });
+    const call: ForReading | null = await ctx.runQuery(internal.calls.forReading, { callRow });
     if (!call) return null;
-    // Whatever happens to the model, the call is settled: CALL-E's reading stands alone, as a typed keyword does.
-    const alone = async (why: string) => {
-      console.warn(`[agent] call read by CALL-E alone: ${why}`);
-      const first = settle(call.heard, null, call.turns);
-      await ctx.runMutation(internal.inbound.callRead, { callRow, answers: first.agreed, unsure: [], declined: false, readBy: "CALL-E" });
-    };
-    const key = process.env.OPENAI_API_KEY;
-    if (!key) return void (await alone("no key"));
-    if (paused("llm")) return void (await alone("NOTICE_PAUSE"));
-    if (await ctx.runQuery(internal.breaker.open, { provider: "openai" })) return void (await alone("openai breaker open"));
-    const room: boolean = await ctx.runMutation(internal.llm.allowAgentRun, { web: isWeb(call.identity) });
-    if (!room) return void (await alone(`daily cap ${AGENT_DAILY_CAP} reached`));
-
-    setDefaultOpenAIKey(key);
-    const state: CallReaderCtx = { report: null };
+    let read: Reading;
     try {
-      const result = await run(callReader, secondReaderInput(call.questions, call.turns), { context: state, maxTurns: 3 });
-      const u = result.state.usage;
-      const cached = (u.inputTokensDetails ?? []).reduce((n, d) => n + Number(d?.cached_tokens ?? 0), 0);
-      const cents = costCents(AGENT_MODEL, { input_tokens: u.inputTokens, output_tokens: u.outputTokens, input_tokens_details: { cached_tokens: cached } });
-      await ctx.runMutation(internal.llm.recordUsage, { model: AGENT_MODEL, purpose: "call", inputTokens: u.inputTokens, cachedTokens: cached, outputTokens: u.outputTokens, costCents: cents });
-      await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: true });
-      if (!state.report) return void (await alone("the model reported nothing"));
-      // Cut down by the same function that cuts CALL-E's report down: repairs we asked about, the three words, one each.
-      const second = answersFromCall(state.report, call.asked);
-      const both = settle(call.heard, second, call.turns);
-      await ctx.runMutation(internal.inbound.callRead, { callRow, answers: both.agreed, unsure: both.unsure, declined: both.declined, readBy: "CALL-E and GPT-6 Astra", cents });
-      console.log(`[agent] ${AGENT_MODEL} read a call: agreed=${both.agreed.length} unsure=${both.unsure.length}${both.declined ? " declined" : ""} in=${u.inputTokens} cached=${cached} out=${u.outputTokens} cost=${cents}c`);
-    } catch (e) {
-      console.error(`[agent] call reading failed: ${String(e)}`);
-      if (providerFault(e)) await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: false, error: String(e) });
-      await alone("the run failed");
+      read = await readTwice(ctx, call);
+    } catch {
+      read = alone(call, "the run failed");
     }
+    await ctx.runMutation(internal.inbound.callRead, { callRow, ...read });
     return null;
   },
 });
+
+/**
+ * The same reading, as a step of the call's workflow (convex/callFlow.ts):
+ * returned for the workflow to record, and a failed model run is thrown, so
+ * the step is tried again before CALL-E's reading is left to stand alone.
+ */
+export const secondReading = internalAction({
+  args: { callRow: v.id("calls") },
+  returns: v.union(v.null(), vReading),
+  handler: async (ctx, { callRow }): Promise<Reading | null> => {
+    const call: ForReading | null = await ctx.runQuery(internal.calls.forReading, { callRow });
+    return call ? await readTwice(ctx, call) : null;
+  },
+});
+
+/** Whatever happens to the model, the call is settled: CALL-E's reading stands alone, as a typed keyword does. */
+function alone(call: ForReading, why: string): Reading {
+  console.warn(`[agent] call read by CALL-E alone: ${why}`);
+  const first = settle(call.heard, null, call.turns);
+  return { answers: first.agreed, unsure: [], declined: false, readBy: "CALL-E" };
+}
+
+/** What callRead is to record. Throws only when the model run itself failed. */
+async function readTwice(ctx: ActionCtx, call: ForReading): Promise<Reading> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return alone(call, "no key");
+  if (paused("llm")) return alone(call, "NOTICE_PAUSE");
+  if (await ctx.runQuery(internal.breaker.open, { provider: "openai" })) return alone(call, "openai breaker open");
+  const room: boolean = await ctx.runMutation(internal.llm.allowAgentRun, { web: isWeb(call.identity) });
+  if (!room) return alone(call, `daily cap ${AGENT_DAILY_CAP} reached`);
+
+  setDefaultOpenAIKey(key);
+  const state: CallReaderCtx = { report: null };
+  try {
+    const result = await run(callReader, secondReaderInput(call.questions, call.turns), { context: state, maxTurns: 3 });
+    const u = result.state.usage;
+    const cached = (u.inputTokensDetails ?? []).reduce((n, d) => n + Number(d?.cached_tokens ?? 0), 0);
+    const cents = costCents(AGENT_MODEL, { input_tokens: u.inputTokens, output_tokens: u.outputTokens, input_tokens_details: { cached_tokens: cached } });
+    await ctx.runMutation(internal.llm.recordUsage, { model: AGENT_MODEL, purpose: "call", inputTokens: u.inputTokens, cachedTokens: cached, outputTokens: u.outputTokens, costCents: cents });
+    await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: true });
+    if (!state.report) return alone(call, "the model reported nothing");
+    // Cut down by the same function that cuts CALL-E's report down: repairs we asked about, the three words, one each.
+    const second = answersFromCall(state.report, call.asked);
+    const both = settle(call.heard, second, call.turns);
+    console.log(`[agent] ${AGENT_MODEL} read a call: agreed=${both.agreed.length} unsure=${both.unsure.length}${both.declined ? " declined" : ""} in=${u.inputTokens} cached=${cached} out=${u.outputTokens} cost=${cents}c`);
+    return { answers: both.agreed, unsure: both.unsure, declined: both.declined, readBy: "CALL-E and GPT-6 Astra", cents };
+  } catch (e) {
+    console.error(`[agent] call reading failed: ${String(e)}`);
+    if (providerFault(e)) await ctx.runMutation(internal.breaker.record, { provider: "openai", ok: false, error: String(e) });
+    throw e;
+  }
+}

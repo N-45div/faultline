@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
+import { vWorkflowId } from "@convex-dev/workflow";
 
 const fields = v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()));
 
@@ -293,6 +294,12 @@ export default defineSchema({
     readCents: v.optional(v.number()),
     /** Repairs the two readers read differently: nothing recorded, asked again in writing. */
     unsure: v.optional(v.array(v.string())),
+    /**
+     * The workflow that finishes the call once it hangs up (convex/callFlow.ts),
+     * started when the call was placed. None: it finishes the way calls did
+     * before there was one, whatever NOTICE_CALL_FLOW says by the time it ends.
+     */
+    workflowId: v.optional(vWorkflowId),
   })
     .index("by_call", ["callId"])
     .index("by_thread", ["threadId", "createdAt"]),

@@ -13,6 +13,7 @@ import type * as agentmailClient from "../agentmailClient.js";
 import type * as attest from "../attest.js";
 import type * as auth from "../auth.js";
 import type * as breaker from "../breaker.js";
+import type * as callFlow from "../callFlow.js";
 import type * as calls from "../calls.js";
 import type * as corroborate from "../corroborate.js";
 import type * as corroborateData from "../corroborateData.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   attest: typeof attest;
   auth: typeof auth;
   breaker: typeof breaker;
+  callFlow: typeof callFlow;
   calls: typeof calls;
   corroborate: typeof corroborate;
   corroborateData: typeof corroborateData;
@@ -121,5 +123,6 @@ export declare const components: {
   agentmail: import("@agentmail/convex/_generated/component.js").ComponentApi<"agentmail">;
   rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
   actionCache: import("@convex-dev/action-cache/_generated/component.js").ComponentApi<"actionCache">;
+  workflow: import("@convex-dev/workflow/_generated/component.js").ComponentApi<"workflow">;
   firecrawl: import("@firecrawl/firecrawl-convex/_generated/component.js").ComponentApi<"firecrawl">;
 };

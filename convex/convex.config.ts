@@ -5,6 +5,7 @@ import agentmail from "@agentmail/convex/convex.config";
 import firecrawl from "@firecrawl/firecrawl-convex/convex.config";
 import rateLimiter from "@convex-dev/rate-limiter/convex.config";
 import actionCache from "@convex-dev/action-cache/convex.config";
+import workflow from "@convex-dev/workflow/convex.config";
 
 const app = defineApp({
   env: {
@@ -26,6 +27,8 @@ app.use(rateLimiter);
 
 // The city's history for a building, fetched once and reused.
 app.use(actionCache);
+// Everything after a phone call hangs up, as durable steps (convex/callFlow.ts).
+app.use(workflow);
 
 // One-shot scrape/parse only. No httpPrefix means no component-mounted webhook,
 // so the static catch-all stays the only wildcard route in the deployment.
