@@ -30,7 +30,7 @@ Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 
 | Write this | What comes back, in the same thread |
 |---|---|
-| `ASK 155 Linden Boulevard, Brooklyn` | Every repair the owner has certified to the city at that address in the last 70 days, in the city's own words, with the day the clock runs out on each one certified on time; one certified late is shown no clock |
+| `ASK 155 Linden Boulevard, Brooklyn` | Up to three repairs the owner has certified to the city at that address in the last 70 days and the city still lists as certified, newest first, in the city's own words, with the day the clock runs out on each one certified on time; one certified late is shown no clock |
 | *(then answer it)* `#19114297 STILL BROKEN`, or just "the tiles by the compactor are still cracked" | Your answer, kept and dated beside the city's record, on a private page only you have the link to |
 | `Spirit Airlines` | Every layoff notice it filed, in every state we read, with the days between notice and layoff against the statute that actually applies |
 | `FOLLOW` | One email a day at most, when anything you follow changes. `STOP` ends it, and is honoured before every other rule |
@@ -52,7 +52,7 @@ In the thirty days from 16 August 2026, the city's own file shows **7,313** viol
 
 The loop, end to end:
 
-1. **Ask.** The reply lists each certified repair still inside its 70 days. The landing page shows that same reply as it reads right now, built by the same functions.
+1. **Ask.** The reply lists up to three certified repairs still inside their 70 days, newest first. The landing page shows that same reply as it reads right now, built by the same functions.
 2. **They answer in their own words.** `#19105974 STILL BROKEN` is read with no model at all. A sentence goes to GPT-6 Astra, which picks the tool — and which repair the words are about is settled by embeddings in a Convex vector index, not by the model's guess.
 3. **Kept, private, dated.** The answer lives on their own page behind a random token: what the city's file said when we asked, what it says now, HPD's 70 days, their words, their photo if they sent one — and whether our reply reached them, delivered, bounced, or sent by text.
 4. **The city's second word.** When HPD later stamps that certification FALSE or INVALID, the person who answered is told, with both dates. Only then does the public building page show that someone said so first, and never in their words.
