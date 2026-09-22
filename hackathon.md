@@ -2049,6 +2049,43 @@ engine, 111 receipt, 38 state, 10 wall and 9 Maryland, with both typechecks and
 the copy lint clean. The repository holds 349 commits at d6cefad, the first on
 29 August.
 
+### 2026-09-22 - 1c3220a · 1e57f62 · a7fc03b · 3866cb8 · b82080f · 592cc08 · 24832b7 · 75061cb · f48a3d8
+Two more reviews by Codex, running GPT-6 Astra, asked for one thing: make the
+tenant's next action the story, and make the repair cited before the moment a
+judge remembers. All of it is presentation over data the pages already had; no
+function, table or index changed.
+
+The landing opens on the tenant's question, "Still broken after your landlord
+said it was fixed?", with an address box, Check a repair, that opens /try with
+the ASK already typed, and Try a real building beside it. The bar is a tenant's
+three doors: Try it, How it works and Tour. The engine's layoff bands fold under
+one line, and the city's stamp comes before layoff letters.
+
+On /try, the first repair the city cited before under another number is marked
+Start here, whichever row that is, and the guide and /judge's ninety seconds
+send a judge to it. Explore a documented case sets out two certifications at the
+sample building the city found false, each as a dated line: cited, the owner
+certified it corrected, and the city recorded FALSE CERTIFICATION five and six
+days later. It is the city's record alone, as read on 22 September, with its own
+rows one click away; no tenant's answer is shown or made up. The record card now
+says what the record holds: your dated answer, the city's evidence, and a
+checklist for your next 311 call.
+
+On the record, each repair opens with what the city recorded since we asked,
+both dates, or that nothing new is recorded; it says what the file says and
+never that an answer caused it. Then the repair in date order, each line saying
+whose word it is (the earlier citation, the owner's certification, the answers,
+the data file and HPD Online), and that an earlier citation is history, not
+proof the condition stayed broken. The earlier citation is introduced as history
+you can bring with you, and the tools are named by what they are for: your call,
+someone helping you, and checking the evidence. The 311 checklist says what to
+have ready before you call, and, after a review found it, says the condition is
+still there only after STILL BROKEN; any other answer leaves a line for the
+person to fill.
+
+The top of this file was rewritten to open on the tenant in thirty seconds and
+the four steps on /try.
+
 ## About
 
 When a landlord in New York City tells the housing agency a repair is done, the
