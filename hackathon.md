@@ -23,7 +23,7 @@ Or by email: write `ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.t
 Nothing on either path is simulated: the repairs come from a copy of the city's file refreshed every day, and the
 email, the phone call and every model run are real.
 
-**Demo:** https://youtu.be/Xa8uKOZP-Y4 · **For a tenant, in plain words:**
+**Demo:** https://youtu.be/_Eys64EFWIY · **For a tenant, in plain words:**
 [/how-it-works](https://clear-dogfish-72.convex.site/how-it-works) · **Every check** (481, run on every push by
 [.gitlab-ci.yml](.gitlab-ci.yml)): [tests/RUN.md](tests/RUN.md) · **Where each Convex feature and each sponsor lives,
 file by file:** [README](README.md#where-each-thing-lives)
@@ -64,7 +64,7 @@ keeps every version of files the government overwrites. The tenant loop above is
 - **Try it without email or sign-in:** https://clear-dogfish-72.convex.site/try
 - **Tour for judges:** https://clear-dogfish-72.convex.site/judge
 - **How it works, for a tenant:** https://clear-dogfish-72.convex.site/how-it-works
-- **Demo video:** https://youtu.be/Xa8uKOZP-Y4
+- **Demo video:** https://youtu.be/_Eys64EFWIY
 - **Repo:** https://gitlab.com/ndivij2004/faultline (moved from GitHub on 20 Sep 2026 with its whole history, every commit and date as it was)
 - **Frontend:** Convex static hosting (convex.site)
 - **Convex deployment:** https://clear-dogfish-72.convex.cloud (moved 4 Sep from spotted-elephant-420 when the first team hit the free plan's database I/O limit; the full history was exported and imported, so every version since 29 Aug is still held). Since 22 Sep the project is back in the author's own Convex team, N DIVIJ, with the same deployment, data and address
@@ -2103,6 +2103,9 @@ record and /judge carry every change above. The judges' path passed all seven
 steps on production at 21:31 IST: ASK answered in 3.0 s with three rows, Still
 broken stamped 0.4 s later by the keyword reader with no model, no sideways
 scroll at 390 by 844, and no page errors.
+
+The demo was re-cut the same evening, 2:44, in the author's own voice, ending on
+the record and its 311 checklist: https://youtu.be/_Eys64EFWIY
 
 ## About
 

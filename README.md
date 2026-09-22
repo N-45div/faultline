@@ -6,7 +6,7 @@ When a landlord in New York City certifies a repair to the city's housing agency
 
 **It reads the city's history too.** At 155 Linden Boulevard in Brooklyn, one of the repairs /try asks about was cited before under a new number: the owner certified it on 31 July 2025, and the city recorded NOT COMPLIED WITH on 22 August 2025. The row says so. [Try it, no sign-in](https://clear-dogfish-72.convex.site/try): press the first button. Or write `ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.to, and the same handler answers in the same thread.
 
-**Live:** https://clear-dogfish-72.convex.site · **Try it, no sign-in:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://youtu.be/Xa8uKOZP-Y4) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **How it works, for tenants:** [/how-it-works](https://clear-dogfish-72.convex.site/how-it-works) · **Build log:** [hackathon.md](hackathon.md), dated, corrections included
+**Live:** https://clear-dogfish-72.convex.site · **Try it, no sign-in:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://youtu.be/_Eys64EFWIY) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **How it works, for tenants:** [/how-it-works](https://clear-dogfish-72.convex.site/how-it-works) · **Build log:** [hackathon.md](hackathon.md), dated, corrections included
 
 [![checks](https://gitlab.com/ndivij2004/faultline/badges/main/pipeline.svg)](https://gitlab.com/ndivij2004/faultline/-/pipelines) Every push runs the checks on a clean machine ([.gitlab-ci.yml](.gitlab-ci.yml)); the last full run is in [tests/RUN.md](tests/RUN.md).
 
