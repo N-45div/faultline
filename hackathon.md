@@ -59,7 +59,7 @@ each sponsor lives, file by file: [README, Where each thing lives](README.md#whe
 - **Photon** (not a hackathon sponsor): the same inbox by text, behind a signed webhook
 - **CALL-E** (not a hackathon sponsor): the same questions on a real telephone: one API call carrying the script the tools wrote and a strict result schema, an unsigned webhook believed for nothing but a call id, the call read back with our own key, and the transcript read a second time by GPT-6 Astra before anything is recorded
 - **Started:** 2026-08-29T18:42:23Z
-- **Last updated:** 2026-09-21 (night)
+- **Last updated:** 2026-09-22
 
 ## Log
 
@@ -1797,6 +1797,42 @@ heading afterwards, and writing a commit's hash into that commit changes the
 hash, so the headings named each commit as it was before its heading was
 filled in. The content is the same apart from that one line. The headings now
 name the commits as the history holds them; every hash in a heading is on main.
+
+### 2026-09-22 - c52f78e · fb82019 · eb571a0 · 953a3b4 · d030d3e
+Cited again under a new number. One of the three repairs /try asks about at
+155 Linden Boulevard, the plaster in apartment 4A's kitchen (#19112934,
+certified 18 September), was cited before in the same words at the same
+apartment as #18037661: the owner certified that one on 31 July 2025, and the
+city recorded NOT COMPLIED WITH on 22 August 2025. The row now says so, in a
+callout with a link to the city's rows for both. engine/conditionHistory.ts
+links two violations only when the words are the same, the apartment and story
+are the same, the inspections were on different days, and the earlier one was
+certified or closed before the later inspection; a description one word apart
+is a different citation, so a third, near-identical record (#17916497) is not
+claimed. At this building, 74 such chains are in its 3,496 rows; in a sample of
+150 apartment violations from June across the city, 4 had one, so most rows
+show nothing and say nothing.
+
+The city's rows for a building are read by an internal action through the
+Convex Action Cache, kept twenty hours; the page reads only a small table,
+through one query, and nothing a visitor does can start a read of the city's
+file. The daily refresh of the sample's card fills it; there is no new cron of
+ours (the component clears its own expired entries once a day).
+
+The phone call can now run as a Convex Workflow from the moment it is placed:
+read back from CALL-E, the second reading, and the record, each a step with its
+own retries (convex/callFlow.ts). It is switched on only by
+NOTICE_CALL_FLOW=workflow and is off on production until a real call has run
+through it; every call test runs both ways.
+
+An outside review of this repo found that the check on a quoted note counted
+shared words, so "the leak is fixed" passed for "the leak is not fixed". A
+quote or note is now kept only as an unbroken run of the person's own words,
+in their order; the answer is recorded either way. Deployed in two steps today
+(the note check, the LATE clock, link previews without the unit, the returning
+visitor on /try and a FIND allowance of 20 a day first; then the rest), each
+walked on production afterwards: all seven steps of the judges' path passed.
+Checks: 444, in tests/RUN.md.
 
 ## About
 
