@@ -980,6 +980,10 @@ async function answerReceipt(
       attachment: { agentInboxId: t.agentInboxId, messageId: t.messageId, attachmentId: photo.id, filename: photo.filename },
     });
   }
+  // ---- HPD Online (convex/cityPage.ts) ----
+  // The city's own page for this repair, read now that the answer is kept.
+  await ctx.scheduler.runAfter(0, internal.cityPage.request, { violationId: open.violationId, from });
+  // ---- end HPD Online ----
   await ctx.db.patch(t.inboxId, { matchedSubjectKey: open.subjectKey });
   const building = await ctx.db
     .query("subjects")
