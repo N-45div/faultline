@@ -13,7 +13,7 @@ import { diffRows } from "../engine/diff";
 import { warnNoticeGap } from "../engine/rules";
 import { askFrom, askHeadline, askLine, challengeDeadline, fixedClaim, howToAnswer, nextStepFor, parseAnswer, pickAsks, secondWordLine, seventyDaysFrom, theirWords, withoutUnit, type Ask } from "../engine/hpd";
 import { askRows, plainThing } from "../engine/askRows";
-import { citedBefore, citedBeforeLine, cityRowsUrl, fromCity, resolvedBefore, sameText, sharingText, whyNot, type CityRow } from "../engine/conditionHistory";
+import { citedBefore, citedBeforeLine, cityRowsUrl, fromCity, resolvedBefore, sameText, whyNot, type CityRow } from "../engine/conditionHistory";
 import { buildingReceipt, receiptText, type Receipt } from "../engine/receipt";
 import { classifyInbound } from "../engine/intent";
 import { changedLines } from "../engine/evidence";
@@ -543,9 +543,6 @@ console.log("\n== the same condition, cited before");
     citedBeforeLine({ violationId: "1", inspectionDate: "2026-01-01", certifiedDate: "2026-02-03", status: "NOV CERTIFIED ON TIME", statusDate: "2026-02-03" }) === "Cited before under #1: the owner certified it on 3 Feb 2026.",
     "an earlier row still at the owner's certification says only that",
   );
-  // Kept small: only rows another number shares words with, and the links are the same.
-  const kept = sharingText(rows);
-  check(!kept.some((r) => r.violationId === "19178388") && rows.every((r) => JSON.stringify(citedBefore(kept, r.violationId)) === JSON.stringify(citedBefore(rows, r.violationId))), `only rows that share words are kept (${kept.length} of ${rows.length}), and every link survives`);
   const url = cityRowsUrl(["18037661", "19112934"]);
   check(
     url.startsWith("https://data.cityofnewyork.us/resource/wvxf-dwi5.json?%24select=") && url.includes("%24where=violationid%20in%28%2718037661%27%2C%2719112934%27%29") && !/[ '(),]/.test(url.split("?")[1]),

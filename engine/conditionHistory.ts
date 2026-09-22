@@ -156,21 +156,6 @@ export function citedBefore(rows: CityRow[], violationId: string, max = MAX_EARL
     .map((a) => ({ violationId: a.violationId, inspectionDate: a.inspected!, certifiedDate: a.certified, status: a.status, statusDate: a.statusDate }));
 }
 
-/**
- * Only the rows whose description another violation number shares: the only
- * rows a link can be made from. The rest of a building's file is most of it,
- * and is not kept.
- */
-export function sharingText(rows: CityRow[]): CityRow[] {
-  const ids = new Map<string, Set<string>>();
-  for (const r of rows) {
-    const t = sameText(r.text);
-    if (!t) continue;
-    ids.set(t, (ids.get(t) ?? new Set()).add(r.violationId));
-  }
-  return rows.filter((r) => (ids.get(sameText(r.text))?.size ?? 0) >= 2);
-}
-
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** 2025-07-31 as 31 Jul 2025. */
