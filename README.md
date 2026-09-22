@@ -4,9 +4,9 @@
 
 When a landlord in New York City certifies a repair to the city's housing agency, HPD, the city can close the violation after 70 days on that word. Faultline shows a tenant each repair their landlord certified, with its clock, takes their answer in one tap or their own words, and keeps it dated beside the city's record.
 
-**It reads the city's history too.** At 155 Linden Boulevard in Brooklyn, one of the repairs /try asks about was cited before under another number: the owner certified it on 31 July 2025, and the city recorded NOT COMPLIED WITH on 22 August 2025. The row says so. [Try it, no sign-in](https://clear-dogfish-72.convex.site/try): press the first button. Or write `ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.to, and the same handler answers in the same thread.
+**It reads the city's history too.** At 155 Linden Boulevard in Brooklyn, one of the repairs /try asks about was cited before under a new number: the owner certified it on 31 July 2025, and the city recorded NOT COMPLIED WITH on 22 August 2025. The row says so. [Try it, no sign-in](https://clear-dogfish-72.convex.site/try): press the first button. Or write `ASK 155 Linden Boulevard, Brooklyn` to getnotice@agentmail.to, and the same handler answers in the same thread.
 
-**Live:** https://clear-dogfish-72.convex.site · **Try it, no sign-in:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://youtu.be/Xa8uKOZP-Y4) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), dated, corrections included
+**Live:** https://clear-dogfish-72.convex.site · **Try it, no sign-in:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://youtu.be/Xa8uKOZP-Y4) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **How it works, for tenants:** [/how-it-works](https://clear-dogfish-72.convex.site/how-it-works) · **Build log:** [hackathon.md](hackathon.md), dated, corrections included
 
 [![checks](https://gitlab.com/ndivij2004/faultline/badges/main/pipeline.svg)](https://gitlab.com/ndivij2004/faultline/-/pipelines) Every push runs the checks on a clean machine ([.gitlab-ci.yml](.gitlab-ci.yml)); the last full run is in [tests/RUN.md](tests/RUN.md).
 
@@ -18,7 +18,9 @@ Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 
 ## Try it in sixty seconds
 
-**In a browser:** open [/try](https://clear-dogfish-72.convex.site/try) and press the first button. What you type goes through the handler an email goes through, the reply arrives on the page by itself from a live Convex query, and under each of your messages it says how it was read: by the keyword reader with no model, or by GPT-6 Astra, with the tool it finished on and what the run cost. Nothing is emailed unless you ask: after an answer, the page offers to send your record to someone helping you, and Faultline's agent writes to them from its own AgentMail inbox with the city's record and your one-word answer, never anything you typed; you watch it go out, and their reply comes back onto the page. What is said in a trial is never counted on a public page.
+**In a browser:** open [/try](https://clear-dogfish-72.convex.site/try) and press the first button. What you type goes through the handler an email goes through, the reply arrives on the page by itself from a live Convex query, and under each of your messages it says how it was read: by the keyword reader with no model, or by GPT-6 Astra, with the tool it finished on and what the run cost. Tap **Still broken** on a repair and the answer is stamped and dated; Firecrawl then opens HPD Online, the city's own site, for that repair, and what it read shows under the repair, beside the data file's line. **Open your record** opens your record beside the thread at the repair you just answered, and it changes by itself as you answer the next one. A trial's answers are practice answers: the reply says so, and they are never counted on a public page.
+
+Nothing is emailed unless you ask. After an answer, the page offers to send your record to someone helping you: one letter from Faultline's AgentMail inbox, built from the city's record for that repair and your answer in one word, never anything you typed, and saying the answer came from the browser trial. Its line on the page moves from sent to accepted by their mail server, and each reply they send comes back under it, in order.
 
 **By voice:** on the same page press **Say it**, answer out loud the way you'd tell a neighbour, and press again. OpenAI writes your words down, the recording is dropped, and the words go through the same door as typing. Every reply has a **Listen** button, and what it reads is what the tool wrote, made sayable: no web addresses, a violation by its last four digits, forty seconds at most. The model writes no sentence you hear; it writes down yours and reads out ours.
 
@@ -31,7 +33,7 @@ Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 | Write this | What comes back, in the same thread |
 |---|---|
 | `ASK 155 Linden Boulevard, Brooklyn` | Up to three repairs the owner has certified to the city at that address in the last 70 days and the city still lists as certified, newest first, in the city's own words, with the day the clock runs out on each one certified on time; one certified late is shown no clock |
-| *(then answer it)* `#19114297 STILL BROKEN`, or just "the tiles by the compactor are still cracked" | Your answer, kept and dated beside the city's record, on a private page only you have the link to |
+| *(then answer it)* `#19114297 STILL BROKEN`, or just "the tiles by the compactor are still cracked" | Your answer, kept and dated beside the city's record, on a private page that opens with the link in the reply |
 | `Spirit Airlines` | Every layoff notice it filed, in every state we read, with the days between notice and layoff against the statute that actually applies |
 | `FOLLOW` | One email a day at most, when anything you follow changes. `STOP` ends it, and is honoured before every other rule |
 | `PACK` | A PDF evidence pack: every version we hold, each with its hash and capture time |
@@ -41,6 +43,8 @@ Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 | `CALL ME +1 718 555 0142` | Your phone rings and the same questions are put to you by voice. The call is read twice, and only what both readers agree on is recorded |
 
 A reply that is not one of those words goes to the inbox agent, which must finish by calling one of twelve tools. Every reply you read is written by the tool it called.
+
+**In plain words, for a tenant:** [/how-it-works](https://clear-dogfish-72.convex.site/how-it-works) says what a certification is, what the 70 days can and cannot do, what saving an answer does (it files nothing with HPD), how to challenge a certification through 311, and what stays private.
 
 ---
 
@@ -54,7 +58,7 @@ The loop, end to end:
 
 1. **Ask.** The reply lists up to three certified repairs still inside their 70 days, newest first. The landing page shows that same reply as it reads right now, built by the same functions.
 2. **They answer in their own words.** `#19105974 STILL BROKEN` is read with no model at all. A sentence goes to GPT-6 Astra, which picks the tool — and which repair the words are about is settled by embeddings in a Convex vector index, not by the model's guess.
-3. **Kept, private, dated.** The answer lives on their own page behind a random token: what the city's file said when we asked, what it says now, HPD's 70 days, their words, their photo if they sent one — and whether our reply reached them, delivered, bounced, or sent by text.
+3. **Kept, private, dated.** The answer lives on their own page behind a random token, one case file per repair: what the city's file said when we asked and what it says now, HPD's 70 days, whether the city cited it before under a new number, what HPD Online showed, their words, their photo if they sent one, and the one thing to do next, which follows the city's latest status. **Prepare my 311 call** turns a repair into a checklist to change, copy or print, headed "Nothing has been filed": saving an answer files nothing with HPD. Under it all, whether our reply reached them: delivered, bounced, or sent by text.
 4. **The city's second word.** When HPD later stamps that certification FALSE or INVALID, the person who answered is told, with both dates. Only then does the public building page show that someone said so first, and never in their words.
 
 HPD can take the full 70 days to reinspect, so the whole loop also runs end to end in convex-test, in memory, in under a second.
@@ -79,12 +83,12 @@ Send a company name and the reply reads the record, never a verdict:
 - the amendment chain: when a state edits a notice in place, which field moved, from what to what, and the day it was caught;
 - the reason the state recorded, and whether those words name an exception the rule allows;
 - the 30- and 90-day picture: "3rd notice from X at this address in 74 days, 61 workers cumulative", the batching pattern workers describe and no tracker computes;
-- for a building: the city's own FALSE CERTIFICATION stamp on a landlord's "it's fixed", kept after the city overwrote it, and the restaurants the Health Department closed at that address;
+- for a building: the city's own FALSE CERTIFICATION stamp on a landlord's "it's fixed", kept after the city overwrote it, and the restaurants the Health Department closed at that address; on the web, **Check these repairs** opens /try with the address already typed, and nothing is sent until the person presses Send;
 - what is held: rows, versions, how many times the file has been read, and the exact URL and time of the last read.
 
 ## What a receipt will not do
 
-Say "violation" about a layoff (the word is *gap*; exceptions are a lawyer's question). Print a notice period where the state's file cannot support one. Count a 13-worker filing against a statute that doesn't reach it. Email an address that has never written to it. Show a tenant's words on a public page.
+Say "violation" about a layoff (the word is *gap*; exceptions are a lawyer's question). Print a notice period where the state's file cannot support one. Count a 13-worker filing against a statute that doesn't reach it. Email an address that has never written to it, other than a helper a tenant names on /try, who gets one letter a day at most. Show a tenant's words on a public page. Count a browser trial's practice answer on one. File anything with HPD: saving an answer is not a challenge, and a record's 311 checklist says nothing has been filed.
 
 "Nothing filed" is an answer too — dated to the minute, with each file's last read, and followable.
 
@@ -94,10 +98,10 @@ Say "violation" about a layoff (the word is *gap*; exceptions are a lawyer's que
 
 | | Where it does real work |
 |---|---|
-| **Convex** | The whole backend. 36 tables, 72 indexes, a full-text index and a vector index; 201 deployed functions by `npx convex function-spec --prod` (60 queries, 93 mutations, 33 actions, 15 HTTP); 8 crons; file storage for packs, held bytes and screenshots; realtime queries behind every page; Convex Auth; static hosting; convex-test. **Six components:** static hosting, AgentMail, Firecrawl; `@convex-dev/rate-limiter`, which holds one counter for each ceiling the inbox keeps instead of counting a table that only grows, and gives the browser trial rooms of its own, so a public page that can reach a paid model cannot spend the inbox's replies or its agent runs; `@convex-dev/action-cache`, which holds the city's history for a building for twenty hours, so the repairs cited before under another number are found without reading the city again; and `@convex-dev/workflow`, which can run everything after a phone call hangs up as durable, retried steps; it is installed and switched off on production until a real call has run through it (`NOTICE_CALL_FLOW=workflow`), and every call test runs both ways. |
-| **AgentMail** | The front door and the back door. The component verifies the inbox's webhook, stores each event once, and hands us inbound mail and the delivery events for what we send. Those events are **acted on**: a bounce, rejection or complaint writes the address down and takes every follow off with it — a complaint is final, a bounce clears when mail arrives from that address, which is proof the mailbox works. Every inbound message is **labelled where it lives**: how it was read, what it was about, what came of it, with `unread` removed when the reply goes, so what is still unread in the inbox is exactly what nothing has handled. Attachments both ways: PDFs and photos in, packs and spreadsheets out. |
+| **Convex** | The whole backend. 36 tables, 72 indexes, a full-text index and a vector index; 202 deployed functions by `npx convex function-spec --prod` on 22 September (61 queries, 93 mutations, 33 actions, 15 HTTP); 8 crons; file storage for packs, held bytes and screenshots; realtime queries behind every page; Convex Auth; static hosting; convex-test. **Six components:** static hosting, AgentMail, Firecrawl; `@convex-dev/rate-limiter`, which holds one counter for each ceiling the inbox keeps instead of counting a table that only grows, and gives the browser trial rooms of its own, so a public page that can reach a paid model cannot spend the inbox's replies or its agent runs; `@convex-dev/action-cache`, which holds the city's history for a building for twenty hours, so the repairs cited before under a new number are found without reading the city again; and `@convex-dev/workflow`, which can run everything after a phone call hangs up as durable, retried steps; it is installed and switched off on production until a real call has run through it (`NOTICE_CALL_FLOW=workflow`), and every call test runs both ways. |
+| **AgentMail** | The front door and the back door. The component verifies the inbox's webhook, stores each event once, and hands us inbound mail and the delivery events for what we send. Those events are **acted on**: a bounce, rejection or complaint writes the address down and takes every follow off with it — a complaint is final, a bounce clears when mail arrives from that address, which is proof the mailbox works. Every inbound message is **labelled where it lives**: how it was read, what it was about, what came of it, with `unread` removed when the reply goes, so what is still unread in the inbox is exactly what nothing has handled. Attachments both ways: PDFs and photos in, packs and spreadsheets out. **A record sent on:** after an answer on /try, a tenant can name one person helping them, and one letter goes from the inbox, built by code (`engine/shareLetter.ts`) from the city's record and the answer's one word, never from anything the tenant typed, and saying the answer came from the browser trial. It is sent under an Idempotency-Key with a label of its own, `share-<id>`; its delivery events move its line on /try live, from sent to accepted by their mail server; the replies in its thread from the address it went to are kept in order, up to the newest twenty, and shown under it, and none is answered. A send AgentMail never answered says "not confirmed", not "not sent", and is not sent again; a later event reaches it only by that letter's own label, never by the address, so two tenants who write to the same helper never see each other's replies (b93bbfe). On 22 September a letter sent from /try to the author's own Gmail was accepted by its mail server 2.1 seconds after Send, and the reply sent back from that inbox was on the page about a minute after the letter. |
 | **OpenAI** | GPT-6 Astra on the Agents SDK is the inbox agent: **twelve strict tools**, tool choice required, one call at a time, at most six turns, a byte-stable cached prefix, a cost ledger in cents and a daily cap. gpt-5.6-luna reads forwarded letters and photographed notices into one zod schema that drives both strict output and validation, with PDF and image input and a capped hosted web search. **text-embedding-3-small** embeds the condition behind every question we ask and the sentence a person answers with. **gpt-4o-mini-transcribe** and **gpt-4o-mini-tts** let someone say their answer and hear ours, with the recording never kept and only our own tool-written replies ever read aloud. **gpt-live-1** holds a full conversation in the browser with **client delegation**: the voice asks the page for help, the page asks the inbox, and the tool-written reply goes back as `session.commentary.append`; the server attaches to every session from a node action and closes it at the time limit. GPT-6 Astra is also the **second reader of every phone call**. Free moderation runs first. |
-| **Firecrawl** | Fetches Wisconsin's page from its side, because the host does not resolve from the deployment, and waits for the page's own scripts. Every read asks for **change tracking in git-diff mode** and a **full-page screenshot**, so each capture carries a second reading beside ours — including when the two disagree. **KEEP** holds any page someone sends, as served, hashed. **FIND** uses Firecrawl **search** for the other half of the question: what does this owner say where we have not looked? |
+| **Firecrawl** | Fetches Wisconsin's page from its side, because the host does not resolve from the deployment, and waits for the page's own scripts. Every read asks for **change tracking in git-diff mode** and a **full-page screenshot**, so each capture carries a second reading beside ours — including when the two disagree. **KEEP** holds any page someone sends, as served, hashed. **FIND** uses Firecrawl **search** for the other half of the question: what does this owner say where we have not looked? **HPD Online**, the city's own site, is read with **browser actions** the moment someone answers about a repair: the violation number typed into the page's own search box, its row opened, and a picture of the screen and a SHA-256 of the page's text kept beside the data file's row, neither said to be the other. Three readings a day for one person and forty in all; a repair read in the last six hours shows that reading again. On 22 September it read #19112934 as CIV14 MAILED, 09/21/2026, while the data file said NOV CERTIFIED ON TIME, 2026-09-18: two places, two dates, both kept. |
 
 ### Beyond the sponsors
 
@@ -110,7 +114,7 @@ Photon and CALL-E are not sponsors of this hackathon. They are here so the same 
 
 ### Built with
 
-Faultline was written with Claude Code and the Convex plugin. Convex's agent skills (`get-convex/agent-skills`, pinned in `skills-lock.json`) sit in `.claude/skills/` for Claude Code and in `.agents/skills/` for Codex and other agents, and `npx convex ai-files install` keeps Convex's guidelines in `convex/_generated/ai/guidelines.md`, which `CLAUDE.md` and `AGENTS.md` point to. All of it has been in the repository since 30 August (f6be936).
+Faultline was written with Claude Code and the Convex plugin. Convex's agent skills (`get-convex/agent-skills`, pinned in `skills-lock.json`) sit in `.claude/skills/` for Claude Code and in `.agents/skills/` for Codex and other agents, and `npx convex ai-files install` keeps Convex's guidelines in `convex/_generated/ai/guidelines.md`, which `CLAUDE.md` and `AGENTS.md` point to. All of it has been in the repository since 29 August (f6be936). On the last day the code and the live site were reviewed by Codex, running GPT-6 Astra; what each review found, and the commit that answered it, is in [hackathon.md](hackathon.md).
 
 ### Where each thing lives
 
@@ -120,15 +124,19 @@ Faultline was written with Claude Code and the Convex plugin. Convex's agent ski
 | Full-text search, for company names | `convex/schema.ts` (`search_label`), `convex/lookup.ts` |
 | Live queries: the /try reply and your record change by themselves | `src/Try.tsx`, `src/Record.tsx`, and eleven more pages that use `useQuery` |
 | 8 crons; the one that reads the files ticks every minute | `convex/crons.ts`, `convex/ingest/write.ts` |
-| Scheduled work: fetch, commit in slices, replies, calls | `ctx.scheduler` in `convex/ingest/write.ts`, `convex/inbound.ts`, `convex/calls.ts`, `convex/web.ts` and eight more |
+| Scheduled work: fetch, commit in slices, replies, calls, a record sent on, HPD Online's reading | `ctx.scheduler` in `convex/ingest/write.ts`, `convex/inbound.ts`, `convex/calls.ts`, `convex/web.ts`, `convex/share.ts`, `convex/cityPage.ts` and eleven more |
 | File storage: held pages, screenshots, PDF packs | `convex/files.ts`, `convex/pages.ts`, `convex/packBuild.ts`, `convex/ingest/fetch.ts` |
 | HTTP routes: the AgentMail, CALL-E and Photon webhooks, voice, packs | `convex/http.ts` |
 | Convex Auth | `convex/auth.ts`, `convex/auth.config.ts` |
 | Components: static hosting, AgentMail, Firecrawl, the rate limiter, the Action Cache, and Workflow (installed; off until a live call runs through it) | `convex/convex.config.ts`; every limit in `convex/limits.ts` |
-| A repair the city cited before under another number: the city's history for a building, read through the Action Cache | `engine/conditionHistory.ts`, `convex/history.ts` |
+| A repair the city cited before under a new number: the city's history for a building, read through the Action Cache | `engine/conditionHistory.ts`, `convex/history.ts` |
 | Everything after a phone call hangs up as a durable Workflow, switched on by `NOTICE_CALL_FLOW=workflow` | `convex/callFlow.ts` |
 | AgentMail: the inbox, its verified webhook and events, delivery events acted on, labels, attachments | `convex/agentmailClient.ts`, `convex/http.ts`, `convex/inbound.ts`, `convex/mail.ts` |
-| AgentMail: the agent sending a tenant's record on, from its own inbox, under an Idempotency-Key; the delivery status and the helper's reply back on /try | `convex/share.ts`, `engine/shareLetter.ts` |
+| AgentMail: a tenant's record sent on from the inbox, in a letter built by code, under an Idempotency-Key and its own `share-<id>` label; its delivery live on /try, the helper's replies kept in order (the newest twenty), "not confirmed" when AgentMail never answered, a late event matched only by that letter's own label | `convex/share.ts`, `engine/shareLetter.ts`; events and replies arrive through `convex/inbound.ts` |
+| A person's record, one case file per repair: the earlier citation where there is one, HPD Online's reading, the answer (a practice one from the browser trial), the one next step from the city's latest status, and when the city's file is read next; opened at the repair its link names, which from /try is the one just answered | `src/Record.tsx`, `src/CitedBefore.tsx`, `convex/attest.ts` (`record`, `recordChecks`), `src/Try.tsx` |
+| Prepare my 311 call (a checklist to change, copy or print, headed "Nothing has been filed"), Copy summary, and Print this record | `src/Record.tsx` |
+| How it works, for a tenant: a certification, the 70 days, what saving an answer does, how to challenge, what is private, and what a helper's letter holds | `src/HowItWorks.tsx` |
+| A housing receipt's Check these repairs, which opens /try with the address typed | `src/Employer.tsx`, `src/Try.tsx` |
 | OpenAI: GPT-6 Astra on the Agents SDK, twelve strict tools, and the second reader of every call | `convex/agent.ts` |
 | OpenAI: gpt-live-1, gpt-4o-mini-transcribe and gpt-4o-mini-tts | `convex/liveActions.ts`, `convex/voice.ts` |
 | OpenAI: gpt-5.6-luna for letters and photographed notices, and moderation | `convex/llm.ts`, `convex/llmActions.ts` |
@@ -136,7 +144,7 @@ Faultline was written with Claude Code and the Convex plugin. Convex's agent ski
 | Firecrawl: FIND, KEEP, and change tracking in git-diff mode | `convex/pages.ts`, `convex/ingest/firecrawl.ts` |
 | Firecrawl: HPD Online, the city's own site, read by a browser the moment someone answers a repair (its search box used, the row opened, the screenshot and a SHA-256 kept beside the data file's row) | `convex/cityPage.ts`, `convex/cityPageCapture.ts`, `engine/hpdOnline.ts` |
 | CALL-E (not a sponsor): the phone call and its two readers | `convex/calls.ts`, `engine/call.ts` |
-| Tests | `tests/*.test.ts` (85 convex-test), `scripts/*-test.ts`; every push runs them in [.gitlab-ci.yml](.gitlab-ci.yml) |
+| Tests | `tests/*.test.ts` (95 convex-test in eight files), `scripts/*-test.ts`; every push runs them in [.gitlab-ci.yml](.gitlab-ci.yml) |
 
 ### The two rules that decide correctness
 
@@ -159,16 +167,17 @@ engine/      pure TypeScript, zero Convex imports: ten adapters, canonical hashi
              diff, matching, statutes, HPD's vocabulary, receipts, the CSV export
 convex/      schema, crons, ingest (tick -> fetch -> commit), lookup, inbound mail and
              texts, the inbox agent, embeddings, attestations, digest, packs, breakers,
-             HTTP routes, limits
-src/         landing, receipts wall, employer and building pages, the private record
-             page, the judge's tour, sign-in
-tests/       convex-test: the tenant loop, the agent's tools, suppressions, Photon
+             HTTP routes, limits, calls, voice, a record sent on, HPD Online readings
+src/         landing, the browser trial, receipts wall, employer and building pages,
+             the private record page, the judge's tour, how it works, sign-in
+tests/       convex-test: the tenant loop, the agent's tools, suppressions, HPD Online,
+             the cited-before history, a record sent on, the record's checks, Photon
 scripts/     fixture tests on real government bytes, plus a copy lint over every
              user-facing string
 data/        the fixtures those tests run on
 ```
 
-**471 automated checks:** 218 engine, 111 receipt, 38 state, 10 wall, 9 markdown, and 85 convex-test tests covering the tenant loop, the agent's twelve tools, the phone call from CALL ME to the receipt (against a stand-in for CALL-E: nothing in a test can ring a telephone), the delivery-event suppressions, re-watching a building someone is asked about, the browser trial's fences (nothing mailed, never counted publicly, its own rate-limit rooms), a conversation's (words taken only while one our server started is open, priced by the clock), and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
+**481 automated checks:** 218 engine, 111 receipt, 38 state, 10 wall, 9 Maryland, and 95 convex-test tests covering the tenant loop, the agent's twelve tools, the phone call from CALL ME to the receipt (against a stand-in for CALL-E: nothing in a test can ring a telephone), the delivery-event suppressions, re-watching a building someone is asked about, the browser trial's fences (nothing mailed, never counted publicly, its own rate-limit rooms), a conversation's (words taken only while one our server started is open, priced by the clock), HPD Online's reading and its caps (against a stand-in for Firecrawl), the cited-before history, a record sent on (refused for a repair not answered, sent once without the note, one letter a day to an address, every reply from the helper kept in order and no one else's, the last twenty at most, STOP final, "not confirmed" when AgentMail never answered and never sent again, a late event matched only by that letter's own label and never by the address), the record's checks query (only that person's buildings, a failed read said, a paused file promising no next read), and the Photon endpoint — plus a copy lint that fails if a reader-facing string says "source", "snapshot", "crawler" or any other of our words instead of theirs.
 
 ## Running it
 
@@ -178,10 +187,10 @@ cp .env.example .env         # keys go on the deployment, not in the file
 npx convex dev               # backend
 npm run dev                  # site
 
-npm run typecheck && npm run lint:copy && npm run test:engine && npx vitest run
+npm run typecheck && npm run typecheck:tests && npm run lint:copy && npm run test:engine && npx vitest run
 ```
 
-Deployment env: `OPENAI_API_KEY`, `AGENTMAIL_API_KEY`, `AGENTMAIL_WEBHOOK_SECRET`, `AGENTMAIL_INBOX_ID`, `FIRECRAWL_API_KEY`, `SITE_URL`, `JWT_PRIVATE_KEY`, `JWKS`. Optional: `SPECTRUM_PROJECT_ID`, `SPECTRUM_PROJECT_SECRET`, `SPECTRUM_WEBHOOK_SECRET` for Photon; `OPENAI_AGENT_MODEL` to run the agent on something other than `gpt-6-astra`.
+Deployment env: `OPENAI_API_KEY`, `AGENTMAIL_API_KEY`, `AGENTMAIL_WEBHOOK_SECRET`, `AGENTMAIL_INBOX_ID`, `FIRECRAWL_API_KEY`, `SITE_URL`, `JWT_PRIVATE_KEY`, `JWKS`. Optional: `SPECTRUM_PROJECT_ID`, `SPECTRUM_PROJECT_SECRET`, `SPECTRUM_WEBHOOK_SECRET` for Photon; `CALLE_API_KEY` for CALL-E's calls, and `NOTICE_CALL_FLOW=workflow` to finish them as a Workflow; `OPENAI_AGENT_MODEL` to run the agent on something other than `gpt-6-astra`.
 
 ## Honesty notes
 
@@ -192,6 +201,7 @@ Every claim a receipt makes is checkable against the government URL it names, an
 - the day a backwards date range in Maryland's file read as compliance;
 - the day Wisconsin's `?version=N` link parameter was read as a revision count — later confirmed wrong by Firecrawl's own git-diff, which showed those numbers moving while nothing else on the page did;
 - the day replies moved onto the AgentMail component's send queue and failed in production, and were moved back within minutes;
-- the day a tenant's words were filed against the wrong repair.
+- the day a tenant's words were filed against the wrong repair;
+- the day a late delivery event was matched to a letter by the address it went to, which could have put one tenant's helper's replies on another's page; a review by Codex, running GPT-6 Astra, reproduced it, and it was fixed before it reached production.
 
 Each is in [hackathon.md](hackathon.md), with the commit that fixed it.
