@@ -1,4 +1,4 @@
-import { askHeadline, fixedClaim } from "./hpd";
+import { askHeadline, certifiedLate, fixedClaim, LATE_NO_CLOCK } from "./hpd";
 
 // The ASK reply, read back into its repairs, for the page that shows it. Each
 // line it reads was written by askLine (engine/hpd.ts) and put into the reply
@@ -21,7 +21,7 @@ export type AskRow = {
   status: string;
   /** The day of that status, YYYY-MM-DD. */
   asOf: string;
-  /** The last of HPD's 70 days, for an owner's certification. */
+  /** The last of HPD's 70 days, for an owner's certification made on time. */
   until: string | null;
   /** The line exactly as askLine wrote it, without the "- " the reply puts before it. */
   line: string;
@@ -29,10 +29,12 @@ export type AskRow = {
 
 const OWNER = "The owner certified this corrected";
 const CITY = "The city closed this";
+/** The line a late certification carries where an on-time one has its clock, as a pattern. */
+const LATE = LATE_NO_CLOCK.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * askLine, backwards:
- *   #{id} at {where}[ (class {c})][ — "{description}"]. {who}: {status} as of {date}[; the owner had certified it corrected on {date}].[ HPD's 70 days run to {date}.]
+ *   #{id} at {where}[ (class {c})][ — "{description}"]. {who}: {status} as of {date}[; the owner had certified it corrected on {date}].[ HPD's 70 days run to {date}.| {LATE_NO_CLOCK}]
  * The description is greedy on purpose: it is the one part that may itself hold
  * quotation marks, and whatever follows it is fixed words and dates.
  */
@@ -43,7 +45,7 @@ const ROW = new RegExp(
     '(?: — "(.*)")?',
     `\\. (${OWNER}|${CITY}): (.+?) as of (\\d{4}-\\d{2}-\\d{2})(?:T[\\d:.]+Z?)?`,
     "(?:; the owner had certified it corrected on ([^\\s;]+))?",
-    "\\.(?: HPD's 70 days run to (\\d{4}-\\d{2}-\\d{2})\\.)?$",
+    `\\.(?: HPD's 70 days run to (\\d{4}-\\d{2}-\\d{2})\\.| (${LATE}))?$`,
   ].join(""),
 );
 
@@ -65,14 +67,16 @@ export function askRows(reply: string): AskRow[] {
     if (!raw.startsWith("- #")) continue;
     const m = ROW.exec(raw);
     if (!m) return [];
-    const [, id, , cls, described, who, status, asOf, certifiedBy, until] = m;
+    const [, id, , cls, described, who, status, asOf, certifiedBy, until, late] = m;
     // askLine picks its words from the status, so the two must agree; the
     // owner's earlier date is only written for a closure, the 70 days only
-    // for a certification.
+    // for a certification made on time, and the line about the clock only for
+    // one made late.
     const owner = fixedClaim(status) === "owner";
     if ((who === OWNER) !== owner) return [];
     if (certifiedBy !== undefined && owner) return [];
-    if (until !== undefined && !owner) return [];
+    if (until !== undefined && (!owner || certifiedLate(status))) return [];
+    if ((late !== undefined) !== certifiedLate(status)) return [];
     const cityWords = described ?? "";
     rows.push({
       id,

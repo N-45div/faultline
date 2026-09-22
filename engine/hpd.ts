@@ -26,6 +26,18 @@ export function saysFalse(status: string): boolean {
   return CITY_SAYS_FALSE.has((status ?? "").trim().toUpperCase());
 }
 
+/**
+ * The owner certified, but after the date the notice set for it. The city's
+ * own file shows HPD closing a certification made on time 72 to 75 days later,
+ * and not closing a late one on that clock: a late one has no 70 days to count.
+ */
+export function certifiedLate(status: string): boolean {
+  return (status ?? "").trim().toUpperCase() === "NOV CERTIFIED LATE";
+}
+
+/** Said on a late certification's line, where an on-time one gives the day its 70 days run out. */
+export const LATE_NO_CLOCK = "HPD does not close a late certification on its 70-day clock.";
+
 export interface Ask {
   violationId: string;
   status: string;
@@ -62,7 +74,7 @@ export function askLine(a: Ask, where: string): string {
   const what = a.description ? ` — "${shorten(a.description, 120)}"` : "";
   const by = a.certifiedBy && fixedClaim(a.status) === "city" ? `; the owner had certified it corrected on ${a.certifiedBy}` : "";
   const clock = challengeDeadline(a);
-  const until = clock ? ` HPD's 70 days run to ${clock}.` : "";
+  const until = clock ? ` HPD's 70 days run to ${clock}.` : certifiedLate(a.status) ? ` ${LATE_NO_CLOCK}` : "";
   return `#${a.violationId} at ${where}${cls}${what}. ${who}: ${a.status} as of ${a.statusDate}${by}.${until}`;
 }
 
@@ -104,9 +116,18 @@ export const HPD_PAGES = {
 export const HOW_TO_REPORT_AGAIN =
   "The city closed this violation, so there is no certification to challenge. If the condition is still there, report it again the way HPD takes complaints: call 311 or use nyc.gov/311, and describe it.";
 
-/** HPD's 70 days from the certification, after which an unreinspected violation is deemed complied. */
+/**
+ * HPD's 70 days from the certification, after which an unreinspected violation
+ * is deemed complied. Only for a certification made on time: HPD does not
+ * close a late one on this clock (certifiedLate), so it has no day to show.
+ */
 export function challengeDeadline(a: Ask): string | null {
-  if (fixedClaim(a.status) !== "owner") return null;
+  if (fixedClaim(a.status) !== "owner" || certifiedLate(a.status)) return null;
+  return seventyDaysFrom(a);
+}
+
+/** Seventy days from the day the owner certified (else the status date): the bare arithmetic, whatever the status. */
+export function seventyDaysFrom(a: Ask): string | null {
   const from = a.certifiedBy ?? a.statusDate;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) return null;
   const d = new Date(`${from}T00:00:00Z`);
@@ -191,8 +212,9 @@ export function nextStepFor(status: string): string {
 
 /**
  * What to ask about on request: the owner's certifications whose 70 days have
- * not run out, newest first — the ones HPD has not yet closed. A violation the
- * city already closed is not asked about on request.
+ * not run out, newest first — the ones HPD has not yet closed. A late one is
+ * asked about for the same 70 days, with no clock. A violation the city
+ * already closed is not asked about on request.
  */
 /** The building the landing page, the tour and the browser trial all start from. */
 export const SAMPLE_BBL = "3050840061";
@@ -202,7 +224,9 @@ export function pickAsks(rows: Fields[], today: string, max = 3): Ask[] {
   for (const f of rows) {
     const a = askFrom(f);
     if (!a || fixedClaim(a.status) !== "owner") continue;
-    const until = challengeDeadline(a);
+    // The same 70 days for a late certification: it is asked about as long as
+    // an on-time one would be, only with no clock on its line.
+    const until = seventyDaysFrom(a);
     if (!until || until < today) continue;
     asks.push(a);
   }
