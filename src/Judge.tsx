@@ -78,7 +78,8 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         <p className="lede-sub">
           Ten public files, read on a schedule and kept whole because the agencies overwrite theirs, and one question
           the city's file cannot answer, asked of the people who can. AgentMail is the front door, GPT-6 Astra on the
-          OpenAI Agents SDK reads what people write back, and Firecrawl reads the one state page that needs a browser.
+          OpenAI Agents SDK reads what people write back, and the moment someone answers a repair, Firecrawl opens HPD
+          Online, the city's own site, types the violation number into its search box and keeps a picture of the page.
           Everything below is live: the numbers are Convex queries rendered as you look, and every button sends a real
           email.
         </p>
@@ -94,8 +95,14 @@ export default function Judge({ go }: { go: (p: string) => void }) {
             </li>
             <li>
               Tap <strong>Still broken</strong> on a repair (read with no model), or answer in your own words: GPT-6
-              Astra may only pick a tool. The answer is stamped and dated; open your record beside it and it changes by
-              itself, with no reload. Under your message the page says which tool finished and what the run cost.
+              Astra can only act through twelve tools. The answer is stamped and dated; open your record beside it and it
+              changes by itself, with no reload. Under your message the page says which tool finished and what the run cost.
+            </li>
+            <li>
+              Under the repair you answered, Firecrawl's reading of HPD Online appears: the city's own row, a picture of
+              the page and a checksum. Then send the record to someone helping you: the letter goes from AgentMail's
+              inbox under an Idempotency-Key, its row moves from sent to accepted by their mail server, and their reply
+              lands under it. Use an address you can read; the letter holds nothing you typed.
             </li>
             <li>
               Or do it from your own email: send <strong>ASK 155 Linden Boulevard, Brooklyn</strong> to{" "}
@@ -126,7 +133,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         <span className="num">1</span>
         <h2 className="h2">They marked it fixed. Is it? Email ASK and an address.</h2>
         <p>
-          When an owner certifies a repair to HPD, the violation closes after 70 days unless HPD reinspects, and a tenant
+          When an owner certifies a repair to HPD, the city can close the violation after 70 days unless HPD reinspects, and a tenant
           may challenge the certification to trigger that inspection. The city's file holds the owner's word; it has no
           place for the tenant's.
           Email <strong>{SAMPLE_ASK}</strong> and within seconds you get each repair the owner certified there that is
@@ -199,7 +206,7 @@ export default function Judge({ go }: { go: (p: string) => void }) {
           Twelve tools with strict schemas, tool choice required, one call at a time, low reasoning effort, at most six
           turns, and free moderation first. The twelfth rings a telephone, and only a number that appears in the
           person's own message: the model can pick the wrong tool, but it cannot ring a number nobody wrote. One number
-          is rung at most twice a day, and our tables keep a hash of it and its last four digits. Four of them are the components: send a link and Firecrawl reads the page,
+          is rung at most twice a day, and our tables keep a hash of it and its last four digits. Four of them bring something back: send a link and Firecrawl reads the page,
           which is kept as it was served with a picture of it and a checksum; name an owner or an employer and Firecrawl
           looks over the open web, lists up to five pages that name them, and holds the first one the same way; ask for proof
           and the evidence pack or the filings spreadsheet arrives attached to the thread. You can have the first two
@@ -447,10 +454,11 @@ export default function Judge({ go }: { go: (p: string) => void }) {
         <h2 className="h2">Under the hood, in one paragraph.</h2>
         <p>
           Convex: schema, indexes, full-text search, vector search, queries, mutations, actions, node actions, HTTP actions, crons,
-          scheduled functions, file storage, realtime queries, Convex Auth, static hosting, and three components —
+          scheduled functions, file storage, realtime queries, Convex Auth, and six components — static hosting;
           AgentMail, which verifies the inbox's events, stores each once, and hands us inbound mail and delivery
-          reports; Firecrawl; and the rate limiter, which holds one counter for each ceiling the inbox keeps instead of
-          counting a table that only grows. A read is a start, then slices of 150 rows, then a finish, because a city file is
+          reports; Firecrawl; the rate limiter, which holds one counter for each ceiling the inbox keeps instead of
+          counting a table that only grows; the Action Cache, which holds a building's history from the city for twenty
+          hours; and Workflow, installed and switched off on production until a live run has gone through it. A read is a start, then slices of 150 rows, then a finish, because a city file is
           bigger than one transaction. Two states rename their file on every publish, so the read takes today's link
           from the state's own page. AgentMail's delivery reports are acted on, not only recorded: a bounce or a spam
           complaint stops the mail and takes the follows off with it, and every message is labelled in the inbox with
