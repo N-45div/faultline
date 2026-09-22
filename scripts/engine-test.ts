@@ -11,9 +11,9 @@ import { adapters } from "../engine/adapters/index";
 import { hashFields } from "../engine/canon";
 import { diffRows } from "../engine/diff";
 import { warnNoticeGap } from "../engine/rules";
-import { askFrom, askHeadline, askLine, challengeDeadline, fixedClaim, howToAnswer, nextStepFor, parseAnswer, pickAsks, secondWordLine, seventyDaysFrom, theirWords, type Ask } from "../engine/hpd";
+import { askFrom, askHeadline, askLine, challengeDeadline, fixedClaim, howToAnswer, nextStepFor, parseAnswer, pickAsks, secondWordLine, seventyDaysFrom, theirWords, withoutUnit, type Ask } from "../engine/hpd";
 import { askRows, plainThing } from "../engine/askRows";
-import { receiptText, type Receipt } from "../engine/receipt";
+import { buildingReceipt, receiptText, type Receipt } from "../engine/receipt";
 import { classifyInbound } from "../engine/intent";
 import { changedLines } from "../engine/evidence";
 import { forSpeech, SPOKEN_MAX } from "../engine/speech";
@@ -420,6 +420,68 @@ console.log("\n== the ASK reply, read back into rows");
   const one = text.split("\n");
   const broken = one.map((l) => (l.startsWith("- #19106317") ? l.replace(" as of ", " on ") : l)).join("\n");
   check(askRows(broken).length === 0, "ASK rows: one line that does not read back and none is used");
+}
+
+// A building's link, pasted into a chat, unfurls with its first repair in the
+// city's words. The clause that says which home is left out there, and only
+// there. Each description is a real one, as HPD's file serves it.
+console.log("\n== the unit, left out of a link preview");
+{
+  const door =
+    "§ 27-2005, 27-2007, 27-2041.1 HMC, §238, § 309; § 107 (2) ( C) MDL AND 28 RCNY §25-171: REPLACE OR REPAIR THE SELF-CLOSING DOORS THAT IS MISSING OR DEFECTIVE HINGES IN THE ENTRANCE LOCATED AT APT 2E, 2nd STORY, 1st APARTMENT FROM NORTH AT EAST";
+  check(
+    withoutUnit(door) === "§ 27-2005, 27-2007, 27-2041.1 HMC, §238, § 309; § 107 (2) ( C) MDL AND 28 RCNY §25-171: REPLACE OR REPAIR THE SELF-CLOSING DOORS THAT IS MISSING OR DEFECTIVE HINGES IN THE ENTRANCE [apartment withheld]",
+    "unit: the apartment, its floor and its place on the floor go together; the condition stays in the city's words",
+  );
+  const mould =
+    "§ 27-2017.3 HMC: TRACE AND REPAIR THE SOURCE AND ABATE THE VISIBLE MOLD CONDITION... LESS THAN 10 SQ FT OBSERVED AT CEILING AND EAST WALL IN THE BATHROOM LOCATED AT APT 4N, 4th STORY, 2nd APARTMENT FROM EAST AT SOUTH , SECTION ''760''";
+  check(withoutUnit(mould).endsWith("IN THE BATHROOM [apartment withheld]"), "unit: a SECTION after the clause goes with it");
+  const cellar = "HMC ADM CODE: § 27-2017.4 ABATE THE INFESTATION CONSISTING OF MICE IN THE ENTIRE APARTMENT LOCATED AT CELLAR APT B6, 1st CELLAR APT FROM NORTH AT EAST , SECTION ''730 ROGERS''";
+  check(withoutUnit(cellar) === "HMC ADM CODE: § 27-2017.4 ABATE THE INFESTATION CONSISTING OF MICE IN THE ENTIRE APARTMENT [apartment withheld]", "unit: a cellar apartment, and IN THE ENTIRE APARTMENT is kept");
+  const basement =
+    "§ 27-2017.3 HMC: TRACE AND REPAIR THE SOURCE AND ABATE THE VISIBLE MOLD CONDITION... APPROX. 10 SQ. FT. AT THE NORTH WALL AND WEST WALL IN THE BATHROOM LOCATED AT BSMT-APT B2, 1st BSMT-APT FROM EAST AT SOUTH ORIGINAL VIOLATION 13147909 ISSUED 28-JUN-19 HAS BEEN UPGRADED TO CLASS C PER ADMINISTRATIVE CODE §27-2017.3a(5)(a) or (b).";
+  check(
+    withoutUnit(basement).endsWith("IN THE BATHROOM [apartment withheld] ORIGINAL VIOLATION 13147909 ISSUED 28-JUN-19 HAS BEEN UPGRADED TO CLASS C PER ADMINISTRATIVE CODE §27-2017.3a(5)(a) or (b).") && !/B2\b/.test(withoutUnit(basement)),
+    "unit: a basement apartment goes, and the city's note after it that the violation was upgraded stays",
+  );
+  const room = "§ 27-2026, 2027 HMC: PROPERLY REPAIR THE SOURCE AND ABATE THE EVIDENCE OF A WATER LEAK CEILING & NORTH WALL IN THE BATHROOM LOCATED AT B-ROOM 1X, 1st STORY, 1st B-ROOM FROM NORTH AT EAST";
+  check(withoutUnit(room).endsWith("IN THE BATHROOM [apartment withheld]"), "unit: a rooming unit is a home too");
+  const older = "§ 27-2018 ADMIN. CODE: ABATE THE NUISANCE CONSISTING OF MICE AT ENTIRE APARTMENT, 4th STORY, APARTMENT, SECTION ''1997'', 1st FROM EAST AT SOUTH";
+  check(withoutUnit(older) === "§ 27-2018 ADMIN. CODE: ABATE THE NUISANCE CONSISTING OF MICE AT ENTIRE APARTMENT [apartment withheld]", "unit: the form with no LOCATED AT, a floor and APARTMENT, goes whole");
+  const oldest = "SECTION 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE CERAMIC FLOOR TILE 5 STY NORTHEAST APT L4. , SECTION '' ''";
+  check(withoutUnit(oldest) === "SECTION 27-2005 ADM CODE PROPERLY REPAIR WITH SIMILAR MATERIAL THE BROKEN OR DEFECTIVE CERAMIC FLOOR TILE APT [unit]. , SECTION '' ''", "unit: the oldest form names it mid-sentence; the unit and its floor go");
+  const lock =
+    "SECTION 27-2005 ADM CODE PROPERLY REPAIR THE BROKEN OR DEFECTIVE MORTISE LOCK AT APT. ENTRANCE DOOR IN THE FOYER LOCATED AT APT 4I, 4th STORY, 1st APARTMENT FROM NORTH AT EAST , SECTION ''WEST''";
+  check(withoutUnit(lock) === "SECTION 27-2005 ADM CODE PROPERLY REPAIR THE BROKEN OR DEFECTIVE MORTISE LOCK AT APT. ENTRANCE DOOR IN THE FOYER [apartment withheld]", "unit: APT. ENTRANCE DOOR names no unit and stays");
+  const hall = "§ 27-2005 HMC: PROPERLY REPAIR OR REPLACE THE BROKEN OR DEFECTIVE LATCH SET AND ASSEMBLY AT COMPACTOR CLOSERT AT 1 STY AT PUBLIC HALL, 1st STORY";
+  check(withoutUnit(hall) === hall, "unit: a public hall and its floor are nobody's home, and nothing goes");
+  const entrance = "§ 27-2005 HMC: PROPERLY REPAIR OR REPLACE THE BROKEN OR DEFECTIVE MORTISE LOCK AND ASSEMBLY AT BUILDING ENTRANCE DOOR FROM STREET TO 1ST STORY LOCATED AT PUBLIC PARTS 1E, 1st STORY";
+  check(withoutUnit(entrance).endsWith("LOCATED AT PUBLIC PARTS, 1st STORY"), "unit: a public part keeps its place and loses the unit it was filed under");
+  check(withoutUnit(withoutUnit(door)) === withoutUnit(door), "unit: taking it out twice is taking it out once");
+
+  // The preview is drawn from the receipt, whose line for a repair cuts the
+  // city's words at 220 characters, often inside the clause.
+  const shared = (description: string) =>
+    buildingReceipt("155 Linden Boulevard", "3050840061", "155 LINDEN BOULEVARD, Brooklyn", [{ status: "NOV CERTIFIED ON TIME", date: "2026-09-17", hazardClass: "B", certifiedBy: "2026-09-17", description }], { versionsSince: "2026-08-29" })
+      .blocks[0].slice(0, 3)
+      .map(withoutUnit)
+      .join(" ");
+  const cut = shared(door);
+  check(door.length > 220 && cut.startsWith("NOV CERTIFIED ON TIME on 2026-09-17 (class B)") && !/\bAPT\b|STORY|FROM NORTH/.test(cut), `unit: a line cut inside the clause shows none of it (…${cut.slice(-40)})`);
+
+  // Every row in HPD's file on disk: no in-unit row keeps its unit, its floor
+  // or its place on the floor; every other row is left exactly as it was. And
+  // the separate apartment and story columns are not kept at all.
+  const held: Record<string, string | undefined>[] = JSON.parse(readFileSync(join(dir, "nyc-hpd-certs.json"), "utf8"));
+  const inUnit = held.filter((r) => r.apartment);
+  const flat = (s?: string) => (s ?? "").replace(/\s+/g, " ").trim();
+  check(
+    inUnit.length > 0 && inUnit.every((r) => !withoutUnit(flat(r.novdescription)).includes(`APT ${r.apartment}`) && !/\d+(?:st|nd|rd|th) STORY|APARTMENT FROM/i.test(withoutUnit(flat(r.novdescription)))),
+    `unit: none of the ${inUnit.length} in-unit rows on disk keeps its unit, floor or position`,
+  );
+  check(held.filter((r) => !r.apartment).every((r) => withoutUnit(flat(r.novdescription)) === flat(r.novdescription)), "unit: every other row on disk is left as the city wrote it");
+  const kept = adapters["nyc-hpd"].normalise(inUnit[0]);
+  check(!("apartment" in kept) && !("story" in kept) && String(kept.novdescription).includes(`APT ${inUnit[0].apartment}`), "unit: the apartment and story columns are dropped; the city's description, which names the unit, is kept");
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");

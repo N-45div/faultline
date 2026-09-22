@@ -260,3 +260,38 @@ export function secondWordLine(p: { answer: Answer; saidOn: string; violationId:
   const lead = p.answer === "still_broken" ? "The city agrees with you: " : "";
   return `${lead}HPD stamped #${p.violationId} at ${p.where} ${p.status} on ${p.on}. You said ${said} on ${p.saidOn}; both dates are on your record.`;
 }
+
+// A home, as the city names one before its unit, and the way it finds one on a floor.
+const HOME = String.raw`(?:(?:CELLAR|BASEMENT|BSMT)[ -])?(?:APT|B-ROOM)`;
+const SIDE = "(?:NORTH|SOUTH|EAST|WEST)";
+// The clause runs to the end of the description, or to the city's note that a violation was upgraded.
+const TO_END = String.raw`.*?(?=\s+ORIGINAL VIOLATION\b|$)`;
+const LOCATED_AT_HOME = new RegExp(String.raw`\s*\bLOCATED AT ${HOME}\b${TO_END}`, "gi");
+const STORY_APARTMENT = new RegExp(String.raw`\s*,?\s*\b\d+(?:ST|ND|RD|TH) STORY, APARTMENT\b${TO_END}`, "gi");
+const UNIT_NAMED = /\b(?:\d+ S?TY(?: (?:NORTH|SOUTH|EAST|WEST)+){0,2} )?APT\b\.?\s*(?:NO\.?|#)?\s*(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]*/gi;
+const PUBLIC_PARTS_UNIT = /\b(LOCATED AT PUBLIC PARTS) (?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]*/gi;
+const POSITION = new RegExp(String.raw`\s*,?\s*\b\d+(?:ST|ND|RD|TH) (?:(?:CELLAR|BSMT)[ -])?(?:APARTMENT|APT|B-ROOM) FROM ${SIDE}(?: AT ${SIDE})?`, "gi");
+
+/**
+ * The city's description of a violation inside a home ends by saying which
+ * home: "LOCATED AT APT 4A, 4th STORY, 1st APARTMENT FROM NORTH AT EAST", with
+ * CELLAR APT, BSMT-APT or B-ROOM in place of APT in some buildings, and a
+ * SECTION after it in others. The building page shows it as the city publishes
+ * it. A link preview is read by whoever the link is pasted to, so there the
+ * clause is left out whole: the floor and the position find the same door the
+ * unit does. What the condition is, "IN THE ENTIRE APARTMENT", and the city's
+ * note after the clause that a violation was upgraded stay the city's words.
+ * An older form names the unit with no clause ("5 STY NORTHEAST APT L4"); the
+ * unit and the floor in front of it go, and "APT. ENTRANCE DOOR", which names
+ * no unit, stays. A public part keeps its place and loses only the unit the
+ * city filed it under ("LOCATED AT PUBLIC PARTS 1E, 1st STORY").
+ */
+export function withoutUnit(text: string): string {
+  return (text ?? "")
+    .replace(LOCATED_AT_HOME, " [apartment withheld]")
+    .replace(STORY_APARTMENT, " [apartment withheld]")
+    .replace(UNIT_NAMED, "APT [unit]")
+    .replace(PUBLIC_PARTS_UNIT, "$1")
+    .replace(POSITION, "")
+    .trim();
+}
