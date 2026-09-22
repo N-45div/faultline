@@ -294,25 +294,44 @@ function Part({ kind, label, children }: { kind: string; label: string; children
  * What the city has recorded since we asked, in one line at the top of a
  * repair: a later HPD stamp on the certification, or a new status, with both
  * dates; or that nothing new is recorded. It says only what the city's file
- * says, and never that an answer caused it.
+ * says, and never that an answer caused it. "Latest" is always the file's
+ * current status; a stamp HPD recorded before it is named as well, not in its
+ * place. The city dates to the day, so a change on the day of an answer is
+ * "the same date", never "after".
  */
-function Changed({ asked, last, cityStatus, cityDate, sinceAsked }: { asked: Item; last: Item | undefined; cityStatus: string; cityDate: string; sinceAsked: boolean }) {
-  const later = asked.laterStatus ? { status: asked.laterStatus, date: asked.laterStatusDate ?? "" } : sinceAsked ? { status: cityStatus, date: cityDate } : null;
+function Changed({ asked, last }: { asked: Item; last: Item | undefined }) {
   const answeredOn = last?.saidAt !== undefined ? day(last.saidAt) : null;
-  if (!later) {
+  if (!asked.nowStatus) {
     return (
       <p className="case-change">
-        <strong>No new city status since we asked</strong> ({day(asked.askedAt)}): the city's file still says {cityStatus}, as of {cityDate}.
-        {answeredOn ? " Your answer stays separate from the city's record." : ""}
+        <strong>Latest city status unavailable;</strong> showing the record from when we asked ({day(asked.askedAt)}): {asked.askedStatus}, as of{" "}
+        {asked.askedStatusDate}.
       </p>
     );
   }
-  const after = answeredOn !== null && (ymd(later.date) ?? "") >= answeredOn;
+  if (asked.nowStatus === asked.askedStatus && !asked.laterStatus) {
+    return (
+      <p className="case-change">
+        <strong>No new city status since we asked</strong> ({day(asked.askedAt)}): the city's file still says {asked.nowStatus}, as of{" "}
+        {asked.nowStatusDate}.{answeredOn ? " Your answer stays separate from the city's record." : ""}
+      </p>
+    );
+  }
+  const changedOn = ymd(asked.laterStatus ? asked.laterStatusDate : asked.nowStatusDate);
+  const when =
+    answeredOn === null || !changedOn
+      ? "since we asked"
+      : changedOn > answeredOn
+        ? "after your answer"
+        : changedOn === answeredOn
+          ? "on the same date as your answer"
+          : "since we asked, before your answer";
+  const stamp = asked.laterStatus && asked.laterStatus !== asked.nowStatus ? ` HPD also stamped the certification ${asked.laterStatus}, ${asked.laterStatusDate ?? ""}.` : "";
   return (
     <p className="case-change changed">
-      <strong>The city's record changed {after ? "after your answer" : "since we asked"}.</strong> When we asked, on {day(asked.askedAt)}:{" "}
-      {asked.askedStatus}. Latest: <strong>{later.status}</strong>
-      {later.date ? `, ${later.date}` : ""}. {answeredOn ? "Your dated answer and both city records are kept below." : "Both city records are kept below."}
+      <strong>The city's record changed {when}.</strong> When we asked, on {day(asked.askedAt)}: {asked.askedStatus}. Latest:{" "}
+      <strong>{asked.nowStatus}</strong>, {asked.nowStatusDate}.{stamp}{" "}
+      {answeredOn ? "Your dated answer and the city's records are kept below." : "The city's records are kept below."}
     </p>
   );
 }
@@ -404,7 +423,7 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
         {asked.description && <p className="case-words">The city's words: {asked.description}</p>}
       </header>
 
-      <Changed asked={asked} last={last} cityStatus={cityStatus} cityDate={cityDate} sinceAsked={sinceAsked} />
+      <Changed asked={asked} last={last} />
 
       <Sequence id={id} asked={asked} answers={answers} before={before} read={read} cityStatus={cityStatus} cityDate={cityDate} trial={trial} />
 
