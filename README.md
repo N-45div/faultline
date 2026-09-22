@@ -8,9 +8,9 @@
 
 Faultline asks the person living with it, keeps their answer dated beside the city's own record, and tells them the day that record agrees. It also keeps every government file the government overwrites — layoff notices, housing violations, restaurant inspections — so yesterday's version still exists when someone needs it.
 
-It is an inbox. There is nothing to install and no account to make. **No email handy? [Try it in your browser](https://clear-dogfish-72.convex.site/try)**: the same handler, the same agent, the reply arriving live, with no sign-in.
+It is an inbox. There is nothing to install and no account to make. **Or [try it in your browser](https://clear-dogfish-72.convex.site/try)**: the same handler, the same agent, the reply arriving live, with no sign-in.
 
-**Live:** https://clear-dogfish-72.convex.site · **Try it, no email:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://youtu.be/Xa8uKOZP-Y4) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), dated, corrections included
+**Live:** https://clear-dogfish-72.convex.site · **Try it, no sign-in:** [/try](https://clear-dogfish-72.convex.site/try) · **Demo:** [video](https://youtu.be/Xa8uKOZP-Y4) · **Inbox:** getnotice@agentmail.to · **Tour for judges:** [/judge](https://clear-dogfish-72.convex.site/judge) · **Build log:** [hackathon.md](hackathon.md), dated, corrections included
 
 Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 
@@ -40,13 +40,13 @@ Built for the Convex All Gas Hackathon, 25 August – 22 September 2026.
 | `FIND Linden Plaza Preservation LLC` | Up to five pages on the open web that name them, and the first one held the same way |
 | `CALL ME +1 718 555 0142` | Your phone rings and the same questions are put to you by voice. The call is read twice, and only what both readers agree on is recorded |
 
-A reply that is not one of those words goes to the inbox agent, which must finish by calling one of twelve tools. It never writes a sentence you read.
+A reply that is not one of those words goes to the inbox agent, which must finish by calling one of twelve tools. Every reply you read is written by the tool it called.
 
 ---
 
 ## Why it exists
 
-When an owner certifies to New York City's housing agency, HPD, that a violation has been corrected, the violation closes after 70 days unless HPD reinspects. A tenant may challenge the certification, which triggers that inspection — but the city's file holds only the owner's word. **It has no column for the tenant's.**
+When an owner certifies to New York City's housing agency, HPD, that a violation has been corrected, HPD can close the violation after 70 days unless it reinspects. A tenant may challenge the certification, which triggers that inspection — but the city's file holds only the owner's word. **It has no column for the tenant's.**
 
 In the thirty days from 16 August 2026, the city's own file shows **7,313** violations whose latest status is an owner's certification, and **1,527** whose latest status is HPD's stamp that a certification was FALSE or INVALID. Those are different violations, not a rate; both counts come from [one query on the city's file](https://data.cityofnewyork.us/resource/wvxf-dwi5.json?$select=currentstatus%2Ccount(1)&$where=currentstatusdate%3E%3D'2026-08-16'%20AND%20currentstatus%20in('NOV%20CERTIFIED%20ON%20TIME'%2C'NOV%20CERTIFIED%20LATE'%2C'FALSE%20CERTIFICATION'%2C'INVALID%20CERTIFICATION')&$group=currentstatus), refreshed daily on the landing page.
 
