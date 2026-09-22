@@ -18,6 +18,34 @@ type Found = {
 // "We couldn't find it" and "we didn't look" are different answers.
 type Said = ({ state: "found" | "none"; cached?: boolean } & Found) | { state: "budget" | "off" | "failed" } | null;
 
+/** A receipt line with its bare links shown as the site's name: a city URL runs to hundreds of characters on a phone. */
+function Linked({ line }: { line: string }) {
+  const parts = line.split(/(https?:\/\/[^\s]+)/g);
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (!/^https?:\/\//.test(p)) return <span key={i}>{p}</span>;
+        const tail = /[.,;:)]+$/.exec(p)?.[0] ?? "";
+        const url = tail ? p.slice(0, -tail.length) : p;
+        let host = url;
+        try {
+          host = new URL(url).hostname.replace(/^www\./, "");
+        } catch {
+          // not a URL after all: show it as written
+        }
+        return (
+          <span key={i}>
+            <a href={url} target="_blank" rel="noreferrer">
+              {host} ↗
+            </a>
+            {tail}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 export default function Employer({ q, onBack }: { q: string; onBack: () => void }) {
   const result = useQuery(api.lookup.employer, { q });
   const check = useAction(api.corroborate.check);
@@ -71,15 +99,22 @@ export default function Employer({ q, onBack }: { q: string; onBack: () => void 
         <p className="kicker">{r.kind === "layoff" ? "Layoff filing" : r.kind === "building" ? "Housing record" : "No match"}</p>
         <h2>{r.headline}</h2>
         {r.blocks.map((b, i) => (
-          <p key={i} className={i === 0 && r.kind === "layoff" ? "gap" : undefined}>
+          <p key={i} className={`receipt-lines${i === 0 && r.kind === "layoff" ? " gap" : ""}`}>
             {b.map((line, j) => (
               <span key={j}>
-                {line}
+                <Linked line={line} />
                 {j < b.length - 1 && <br />}
               </span>
             ))}
           </p>
         ))}
+        {r.kind === "building" && (
+          <p className="tour-ctas">
+            <a className="cta primary" href={`/try?ask=${encodeURIComponent(q.replace(/-/g, " "))}`}>
+              Check these repairs →
+            </a>
+          </p>
+        )}
         {r.links.length > 0 && (
           <p>
             {r.links.map((l, i) => (

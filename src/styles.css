@@ -273,6 +273,11 @@ body {
   line-height: 1.25;
   margin: 0 0 14px;
 }
+/* A receipt quotes the city's words, which can run long without a space; they wrap rather than widen the page. */
+.receipt-lines,
+.hero .fine {
+  overflow-wrap: anywhere;
+}
 .gap {
   font-size: 22px;
   margin: 0 0 18px;

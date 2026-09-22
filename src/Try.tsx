@@ -322,7 +322,15 @@ export default function Try({ go }: { go: (p: string) => void }) {
   const [session, fresh] = useSession();
   const thread = useQuery(api.web.thread, { session });
   const say = useMutation(api.web.say);
-  const [draft, setDraft] = useState("");
+  // /try?ask=<address>, from a housing receipt's "Check these repairs", fills the box; nothing is sent until they press.
+  const [draft, setDraft] = useState(() => {
+    try {
+      const a = new URLSearchParams(window.location.search).get("ask");
+      return a ? `ASK ${a.slice(0, 120)}` : "";
+    } catch {
+      return "";
+    }
+  });
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState("");
   const [mine, setMine] = useState<Record<string, string>>(() => {
