@@ -15,6 +15,7 @@ const LINKS: [string, string][] = [
   ["/try", "Try it"],
   ["/judge", "Tour"],
   ["/files", "Files"],
+  ["/how-it-works", "How it works"],
 ];
 
 export default function Nav({ path, go }: { path: string; go: (p: string) => void }) {
