@@ -432,7 +432,7 @@ export default function Try({ go }: { go: (p: string) => void }) {
         ? {
             step: 2,
             head: "Now answer it, any way you like.",
-            body: "Tap Still broken on a repair (read with no model), or press the suggested sentence: GPT-6 Astra reads your own words and may only pick a tool. Or talk to it, or have it ring your phone.",
+            body: "Tap Still broken on a repair, starting with one marked Start here if the list has one (read with no model), or press the suggested sentence: GPT-6 Astra reads your own words and may only pick a tool. Or talk to it, or have it ring your phone.",
           }
         : {
             step: 1,
@@ -631,6 +631,9 @@ export default function Try({ go }: { go: (p: string) => void }) {
     return said;
   };
   function askList(rows: AskRow[], at: number) {
+    // The repair with the most to show, the first one the city cited before under another number, is where to start:
+    // its answer, HPD Online's reading, the record and the 311 checklist all carry the same number.
+    const start = rows.find((r) => cited.has(r.id) && !saidAfter(r.id, at))?.id;
     return (
       <div className="try-rows">
         {rows.map((r) => {
@@ -638,7 +641,8 @@ export default function Try({ go }: { go: (p: string) => void }) {
           const what = r.thing ? ` (${r.thing.toLowerCase()})` : "";
           const before = cited.get(r.id);
           return (
-            <div key={r.id} className="try-row" data-id={r.id}>
+            <div key={r.id} className={`try-row${r.id === start ? " try-row-start" : ""}`} data-id={r.id}>
+              {r.id === start && <p className="try-row-start-cue">Start here: this repair was cited before under a new number.</p>}
               <p className="try-row-head">
                 {r.thing ? (
                   <>
@@ -846,7 +850,8 @@ export default function Try({ go }: { go: (p: string) => void }) {
       {hasCard && (
         <div className="try-record" ref={card}>
           <p>
-            <strong>Your record is live.</strong> Open it<span className="try-beside"> beside this page</span>, then{" "}
+            <strong>Your record is live:</strong> your dated answer, the city's evidence, and a checklist for your next 311
+            call. Open it<span className="try-beside"> beside this page</span>, then{" "}
             <button type="button" className="linklike" onClick={toRows}>
               answer another repair ↑
             </button>{" "}

@@ -94,9 +94,12 @@ export default function Judge({ go }: { go: (p: string) => void }) {
               and press the first button. A real Brooklyn building answers from the city's file, with no model.
             </li>
             <li>
-              Tap <strong>Still broken</strong> on a repair (read with no model), or answer in your own words: GPT-6
-              Astra can only act through twelve tools. The answer is stamped and dated; open your record beside it and it
-              changes by itself, with no reload. Under your message the page says which tool finished and what the run cost.
+              Tap <strong>Still broken</strong> on the repair marked <strong>Start here</strong>: the city cited the same
+              condition before under a new number, and the row shows both, in the city's dates (read with no model). Or
+              answer in your own words: GPT-6 Astra can only act through twelve tools. The answer is stamped and dated, and
+              the same violation number carries through HPD Online's reading, your record and its 311 checklist; open your
+              record beside it and it changes by itself, with no reload. Under your message the page says which tool
+              finished and what the run cost.
             </li>
             <li>
               Under the repair you answered, Firecrawl's reading of HPD Online appears: the city's own row, a picture of
