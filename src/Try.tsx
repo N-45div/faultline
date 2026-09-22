@@ -255,6 +255,7 @@ const SHARE_STATUS: Record<string, string> = {
   complained: "they marked it as spam",
   rejected: "their server refused it",
   failed: "not sent",
+  unconfirmed: "not confirmed",
 };
 
 /**
@@ -302,7 +303,7 @@ function SharePanel({ session, violationId }: { session: string; violationId: st
       {shares.map((s) => (
         <p key={s.id} className={`try-share-row ${s.status}`}>
           → {s.to} · #{s.violationId} · {SHARE_STATUS[s.status] ?? s.status}
-          {s.status === "failed" && s.why ? ` (${s.why})` : ""} · {time(s.at)}
+          {(s.status === "failed" || s.status === "unconfirmed") && s.why ? ` (${s.why})` : ""} · {time(s.at)}
           {s.replies.map((r, i) => (
             <span key={i}>
               <br />

@@ -109,11 +109,13 @@ export const deliver = internalAction({
       site: site(),
       inbox: inbox(),
     });
+    let sent: { message_id: string; thread_id?: string };
     try {
       const res = await fetch(`${API}/inboxes/${encodeURIComponent(inbox())}/messages/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "Idempotency-Key": `share-${shareId}` },
         body: JSON.stringify({ to: [j.share.to], subject: letter.subject, text: letter.text, labels: ["share"], headers: { "Auto-Submitted": "auto-generated" } }),
+        signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       });
       const data: any = await res.json().catch(() => ({}));
       if (!res.ok || typeof data?.message_id !== "string") {
@@ -121,16 +123,37 @@ export const deliver = internalAction({
         (err as Error & { status?: number }).status = res.status;
         throw err;
       }
-      await ctx.runMutation(internal.share.mark, { shareId, status: "sent", outboundId: data.message_id, mailThreadId: data.thread_id });
-      await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: true });
+      sent = data;
     } catch (e) {
       console.error(`[share] send failed: ${String(e)}`);
       if (providerFault(e)) await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: false, error: String(e) });
-      await ctx.runMutation(internal.share.mark, { shareId, status: "failed", why: "AgentMail didn't take it. Nothing was sent." });
+      // Only an error status is AgentMail saying no. No answer at all - the
+      // connection dropped, the wait ran out, or an answer we could not read -
+      // can come after AgentMail took the letter, so the page says only what is
+      // known. Nothing sends it again on its own: a retry of this share would
+      // carry the same Idempotency-Key and be the same send, and a new share to
+      // the same address is refused for the day. If AgentMail does report the
+      // letter, shareEvent moves this row to what it says.
+      const status = (e as { status?: number } | null)?.status;
+      const refused = typeof status === "number" && (status < 200 || status >= 300) && !GATEWAY.has(status);
+      await ctx.runMutation(
+        internal.share.mark,
+        refused ? { shareId, status: "failed", why: NOT_SENT } : { shareId, status: "unconfirmed", why: UNCONFIRMED },
+      );
+      return null;
     }
+    await ctx.runMutation(internal.share.mark, { shareId, status: "sent", outboundId: sent.message_id, mailThreadId: sent.thread_id });
+    await ctx.runMutation(internal.breaker.record, { provider: "agentmail", ok: true });
     return null;
   },
 });
+
+/** How long a send may take before the page stops waiting for AgentMail's answer. */
+const SEND_TIMEOUT_MS = 30_000;
+/** Statuses from something in front of AgentMail that lost it mid-request: the letter may have been taken. */
+const GATEWAY = new Set([502, 504]);
+const NOT_SENT = "AgentMail didn't take it. Nothing was sent.";
+const UNCONFIRMED = "Delivery could not be confirmed. It may still arrive; if AgentMail reports it, this line will say so.";
 
 const vReply = v.object({ text: v.string(), at: v.number() });
 type Reply = { text: string; at: number };

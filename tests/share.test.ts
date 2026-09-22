@@ -216,6 +216,49 @@ test("a letter from before replies were kept as a list shows its one reply, and 
   expect((await mine(t))[0].replies.map((r) => r.text)).toEqual(["Got it, I'm calling HPD.", "They came Tuesday."]);
 });
 
+/** AgentMail answering the send with this instead of a message id. */
+function sendAnswers(answer: () => Response) {
+  vi.stubGlobal("fetch", async (url: string | URL, init?: RequestInit) => {
+    if (String(url).includes("/messages/send")) {
+      sends.push({ url: String(url), headers: (init?.headers ?? {}) as Record<string, string>, body: JSON.parse(String(init?.body ?? "{}")) });
+      return answer();
+    }
+    return new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } });
+  });
+}
+const json = (body: unknown, status: number) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+test("AgentMail answering with an error status: the page says nothing was sent", async () => {
+  const t = make();
+  await answered(t);
+  sendAnswers(() => json({ message: "invalid recipient" }, 422));
+  expect(await share(t, HELPER)).toEqual({ ok: true });
+  expect(sends).toHaveLength(1);
+  expect((await mine(t))[0]).toMatchObject({ status: "failed", why: "AgentMail didn't take it. Nothing was sent." });
+});
+
+test("no answer from AgentMail: the page says delivery could not be confirmed, not that nothing was sent, and nothing sends it again", async () => {
+  const t = make();
+  await answered(t);
+  const answers: [string, () => Response][] = [
+    ["dropped@example.org", () => { throw new TypeError("fetch failed"); }],
+    ["unread@example.org", () => new Response("<html>ok</html>", { status: 200 })],
+    ["gateway@example.org", () => json({ message: "upstream timed out" }, 504)],
+  ];
+  for (const [to, answer] of answers) {
+    sendAnswers(answer);
+    expect(await share(t, to)).toEqual({ ok: true });
+  }
+  expect(sends).toHaveLength(3);
+  for (const row of await mine(t)) {
+    expect(row.status).toBe("unconfirmed");
+    expect(row.why).toMatch(/^Delivery could not be confirmed\./);
+    expect(row.why).not.toMatch(/Nothing was sent/);
+  }
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(sends).toHaveLength(3);
+});
+
 test("STOP from them is final: marked on the page, and the address gets nothing more", async () => {
   const t = make();
   await answered(t);
