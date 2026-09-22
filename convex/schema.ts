@@ -364,8 +364,11 @@ export default defineSchema({
     mailThreadId: v.optional(v.string()),
     statusAt: v.optional(v.number()),
     why: v.optional(v.string()),
+    /** Rows from before replies were kept as a list: their one reply. Read, no longer written. */
     replyText: v.optional(v.string()),
     replyAt: v.optional(v.number()),
+    /** Every reply from the address written to, oldest first, the last 20. */
+    replies: v.optional(v.array(v.object({ text: v.string(), at: v.number() }))),
     stopped: v.optional(v.boolean()),
   })
     .index("by_session", ["session", "createdAt"])

@@ -132,7 +132,19 @@ export const deliver = internalAction({
   },
 });
 
-/** The letters this page sent, newest first, the address masked. */
+const vReply = v.object({ text: v.string(), at: v.number() });
+type Reply = { text: string; at: number };
+
+/** At most this many replies are kept on one letter, the newest. */
+const KEPT_REPLIES = 20;
+
+/** Every reply on a letter, oldest first. A row from before the list keeps its one reply in replyText. */
+function repliesOf(s: Doc<"shares">): Reply[] {
+  if (s.replies) return s.replies;
+  return s.replyText ? [{ text: s.replyText, at: s.replyAt ?? s.statusAt ?? s.createdAt }] : [];
+}
+
+/** The letters this page sent, newest first, the address masked, each with every reply in order. */
 export const forSession = query({
   args: { session: v.string() },
   returns: v.array(
@@ -143,8 +155,7 @@ export const forSession = query({
       status: v.string(),
       at: v.number(),
       why: v.optional(v.string()),
-      replyText: v.optional(v.string()),
-      replyAt: v.optional(v.number()),
+      replies: v.array(vReply),
       stopped: v.optional(v.boolean()),
     }),
   ),
@@ -158,7 +169,7 @@ export const forSession = query({
       status: s.status,
       at: s.statusAt ?? s.createdAt,
       ...(s.why ? { why: s.why } : {}),
-      ...(s.replyText ? { replyText: s.replyText, replyAt: s.replyAt } : {}),
+      replies: repliesOf(s),
       ...(s.stopped ? { stopped: true } : {}),
     }));
   },
@@ -176,12 +187,14 @@ export async function shareEvent(ctx: MutationCtx, messageId: string, status: st
 /**
  * A reply in the thread of a letter we sent. Kept only from the address we
  * wrote to, and never answered: the agent does not write back to a helper on
- * its own, so two agents can never talk to each other in a loop.
+ * its own, so two agents can never talk to each other in a loop. Every reply
+ * is kept, in the order it came, after any the row already had.
  */
 export async function shareReply(ctx: MutationCtx, share: Doc<"shares">, from: string, words: string, stop: boolean): Promise<boolean> {
   if (from.trim().toLowerCase() !== share.to) return false;
   const text = words.replace(/\s+/g, " ").trim().slice(0, 500);
-  await ctx.db.patch(share._id, { replyText: text || "(a reply with no words)", replyAt: Date.now(), ...(stop ? { stopped: true } : {}) });
+  const replies = [...repliesOf(share), { text: text || "(a reply with no words)", at: Date.now() }].slice(-KEPT_REPLIES);
+  await ctx.db.patch(share._id, { replies, ...(stop ? { stopped: true } : {}) });
   return true;
 }
 

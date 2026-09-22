@@ -303,14 +303,14 @@ function SharePanel({ session, violationId }: { session: string; violationId: st
         <p key={s.id} className={`try-share-row ${s.status}`}>
           → {s.to} · #{s.violationId} · {SHARE_STATUS[s.status] ?? s.status}
           {s.status === "failed" && s.why ? ` (${s.why})` : ""} · {time(s.at)}
-          {s.replyText && (
-            <>
+          {s.replies.map((r, i) => (
+            <span key={i}>
               <br />
               <span className="try-share-reply">
-                Their reply, {time(s.replyAt ?? s.at)}: “{s.replyText}”
+                Their reply, {time(r.at)}: “{r.text}”
               </span>
-            </>
-          )}
+            </span>
+          ))}
           {s.stopped && " · they replied STOP, and get nothing more"}
         </p>
       ))}

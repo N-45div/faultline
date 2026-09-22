@@ -135,7 +135,7 @@ test("AgentMail's delivery event shows on the page, and their reply lands beside
     eventId: "x",
   });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
-  expect((await mine(t))[0].replyText).toBeUndefined();
+  expect((await mine(t))[0].replies).toEqual([]);
   const receiptsBefore = (await t.run((ctx) => ctx.db.query("receipts").collect())).length;
   const sendsBefore = sends.length;
   await t.mutation(internal.inbound.onMessageReceived, {
@@ -145,10 +145,75 @@ test("AgentMail's delivery event shows on the page, and their reply lands beside
   });
   await t.finishAllScheduledFunctions(vi.runAllTimers);
   const [row] = await mine(t);
-  expect(row.replyText).toBe("Still dripping, I saw it Sunday.");
+  expect(row.replies.map((r) => r.text)).toEqual(["Still dripping, I saw it Sunday."]);
   // Their reply is kept, not answered: no receipt, and nothing sent back.
   expect((await t.run((ctx) => ctx.db.query("receipts").collect())).length).toBe(receiptsBefore);
   expect(sends).toHaveLength(sendsBefore);
+});
+
+/** A message into a letter's thread, as AgentMail passes it on. */
+async function reply(t: T, id: string, from: string, text: string, thread = "share-thread-1") {
+  await t.mutation(internal.inbound.onMessageReceived, {
+    message: { message_id: `<${id}@example.org>`, thread_id: thread, inbox_id: "getnotice@agentmail.to", from, subject: "Re: Repair", text },
+    thread: {},
+    eventId: id,
+  });
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+}
+
+test("every reply from them is kept, in the order it came, and a reply from anyone else is not", async () => {
+  const t = make();
+  await answered(t);
+  await share(t, HELPER);
+  const first = Date.now() + 60_000;
+  const second = first + 3_600_000;
+  vi.setSystemTime(first);
+  await reply(t, "r1", `Org <${HELPER}>`, "Still dripping, I saw it Sunday.");
+  vi.setSystemTime(first + 60_000);
+  await reply(t, "x", "Someone <someone@else.org>", "not me");
+  vi.setSystemTime(second);
+  await reply(t, "r2", HELPER, "The super came by  today.\n\nStill broken.");
+  const [row] = await mine(t);
+  expect(row.replies).toEqual([
+    { text: "Still dripping, I saw it Sunday.", at: first },
+    { text: "The super came by today. Still broken.", at: second },
+  ]);
+  expect(JSON.stringify(await mine(t))).not.toContain(HELPER);
+});
+
+test("each reply is cut at 500 characters, and a letter keeps its last 20", async () => {
+  const t = make();
+  await answered(t);
+  await share(t, HELPER);
+  await reply(t, "long", HELPER, "x".repeat(900));
+  expect((await mine(t))[0].replies[0].text).toHaveLength(500);
+  for (let i = 1; i <= 21; i++) await reply(t, `n${i}`, HELPER, `reply ${i}`);
+  const { replies } = (await mine(t))[0];
+  expect(replies).toHaveLength(20);
+  expect(replies[0].text).toBe("reply 2");
+  expect(replies[19].text).toBe("reply 21");
+});
+
+test("a letter from before replies were kept as a list shows its one reply, and the next comes after it", async () => {
+  const t = make();
+  const at = Date.now() - 3_600_000;
+  await t.run(async (ctx) => {
+    await ctx.db.insert("shares", {
+      session: SESSION,
+      violationId: VIOLATION,
+      to: HELPER,
+      status: "delivered",
+      createdAt: at - 600_000,
+      outboundId: "<share-old@agentmail.to>",
+      mailThreadId: "share-thread-old",
+      statusAt: at - 300_000,
+      replyText: "Got it, I'm calling HPD.",
+      replyAt: at,
+    });
+  });
+  expect((await mine(t))[0].replies).toEqual([{ text: "Got it, I'm calling HPD.", at }]);
+  await reply(t, "r-old", HELPER, "They came Tuesday.", "share-thread-old");
+  expect((await mine(t))[0].replies.map((r) => r.text)).toEqual(["Got it, I'm calling HPD.", "They came Tuesday."]);
 });
 
 test("STOP from them is final: marked on the page, and the address gets nothing more", async () => {
