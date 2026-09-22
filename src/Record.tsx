@@ -50,9 +50,11 @@ type Checks = FunctionReturnType<typeof api.attest.recordChecks>;
  * One repair as plain text, for pasting into a message to someone helping:
  * the building, the number, the city's statuses with their dates, the earlier
  * citation, the tenant's answer and its day, and the city's own row. Never the
- * note, and never which home: the same as the letter /try sends.
+ * note, and never which home: the same as the letter /try sends. A browser
+ * trial's answer is labelled a practice one: anyone can give it, so it is not
+ * a tenant's word.
  */
-function summaryText({ asked, answers, before, read }: { asked: Item; answers: Item[]; before: Earlier | undefined; read: CityPageRead | undefined }): string {
+function summaryText({ asked, answers, before, read, trial }: { asked: Item; answers: Item[]; before: Earlier | undefined; read: CityPageRead | undefined; trial: boolean }): string {
   const thing = plainThing(asked.description);
   const lines = [`Faultline record: violation #${asked.violationId} at ${asked.where}${asked.hazardClass ? ` (class ${asked.hazardClass})` : ""}`];
   if (thing) lines.push(`Condition: ${thing}`);
@@ -71,8 +73,9 @@ function summaryText({ asked, answers, before, read }: { asked: Item; answers: I
   } else if (read?.outcome === "not_found") {
     lines.push(`HPD Online, read by Firecrawl ${at(read.capturedAt)}: not listed (it lists open violations only).`);
   }
-  if (answers.length === 0) lines.push("Tenant's answer: none yet.");
-  for (const a of answers) if (a.answer) lines.push(`Tenant's answer: ${WORD[a.answer]}, ${day(a.saidAt ?? 0)}.`);
+  const said = trial ? "Answer (practice, Faultline's browser trial, never counted publicly)" : "Tenant's answer";
+  if (answers.length === 0) lines.push(`${said}: none yet.`);
+  for (const a of answers) if (a.answer) lines.push(`${said}: ${WORD[a.answer]}, ${day(a.saidAt ?? 0)}.`);
   lines.push(`The city's row: ${cityRowsUrl([asked.violationId])}`);
   return lines.join("\n");
 }
@@ -285,7 +288,7 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
         </p>
       </Part>
 
-      <CopySummary text={summaryText({ asked, answers, before, read })} />
+      <CopySummary text={summaryText({ asked, answers, before, read, trial })} />
     </article>
   );
 }
