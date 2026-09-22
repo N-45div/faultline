@@ -260,6 +260,13 @@ export default function Landing({ go }: { go: (p: string) => void }) {
               </p>
             </div>
           </div>
+          <p className="fine">
+            What a certification is, what the 70 days can and can't do, how to challenge one through 311, and what stays
+            private:{" "}
+            <a href="/how-it-works" onClick={(e) => { e.preventDefault(); go("/how-it-works"); }}>
+              how it works, in plain words →
+            </a>
+          </p>
         </div>
       </section>
 

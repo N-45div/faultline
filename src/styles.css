@@ -2178,3 +2178,7 @@ a.try-chip {
   flex-wrap: wrap;
   gap: 4px 14px;
 }
+/* The line under the home page's three steps that leads to /how-it-works. */
+.steps + .fine {
+  margin-top: 22px;
+}
