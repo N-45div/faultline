@@ -4,7 +4,7 @@ import type { FunctionReturnType } from "convex/server";
 import { api } from "../convex/_generated/api";
 import { plainThing } from "../engine/askRows";
 import { citedBeforeLine, cityRowsUrl, type Earlier } from "../engine/conditionHistory";
-import { fixedClaim, withoutUnit } from "../engine/hpd";
+import { fixedClaim, saysFalse, withoutUnit } from "../engine/hpd";
 import CitedBefore from "./CitedBefore";
 import CityPage, { type CityPageRead } from "./CityPage";
 
@@ -103,6 +103,18 @@ function CopySummary({ text }: { text: string }) {
   );
 }
 
+/** The way HPD takes a tenant's word: 311, by phone or on the web. */
+function Call311() {
+  return (
+    <>
+      <a href="tel:311">call 311</a> or use{" "}
+      <a href="https://www.nyc.gov/311" target="_blank" rel="noreferrer">
+        nyc.gov/311
+      </a>
+    </>
+  );
+}
+
 /** One section of a case file, labelled, in a box of its own. */
 function Part({ kind, label, children }: { kind: string; label: string; children: ReactNode }) {
   return (
@@ -129,6 +141,13 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
   const cityStatus = asked.nowStatus || asked.askedStatus;
   const cityDate = asked.nowStatusDate || asked.askedStatusDate;
   const openClock = asked.deadline !== null && asked.deadline >= today;
+  // Today's step follows the city's file as it reads now, not as it read when
+  // we asked: a certification the city has since closed, or found false, has
+  // nothing left to challenge. The owner's box above keeps the status we asked
+  // about; its 70 days count here only while that same status stands.
+  const nowClaim = fixedClaim(cityStatus);
+  const sinceAsked = cityStatus !== asked.askedStatus;
+  const challengeBy = nowClaim === "owner" && !sinceAsked && openClock ? asked.deadline : null;
 
   return (
     <article className="case" aria-label={`Violation #${id}`}>
@@ -217,22 +236,23 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
 
       <Part kind="next" label="What to do next">
         {last?.answer === "fixed" && <p>You said it is fixed. If that changes:</p>}
-        {byCity ? (
+        {nowClaim === "owner" ? (
           <p className="case-action">
-            If it is still there, <a href="tel:311">call 311</a> or use{" "}
-            <a href="https://www.nyc.gov/311" target="_blank" rel="noreferrer">
-              nyc.gov/311
-            </a>{" "}
-            and describe it. The city closed this violation, so there is no certification to challenge.
+            If it is still there, <Call311 />, give violation <strong>#{id}</strong>, and say the certified condition is still there. HPD says
+            that challenge starts an audit inspection{challengeBy ? `; make it before ${challengeBy}` : ""}.
+          </p>
+        ) : nowClaim === "city" ? (
+          <p className="case-action">
+            If it is still there, <Call311 /> and describe it. The city closed this violation
+            {sinceAsked ? ` after we asked (${cityStatus} as of ${cityDate})` : ""}, so there is no certification to challenge.
           </p>
         ) : (
           <p className="case-action">
-            If it is still there, <a href="tel:311">call 311</a> or use{" "}
-            <a href="https://www.nyc.gov/311" target="_blank" rel="noreferrer">
-              nyc.gov/311
-            </a>
-            , give violation <strong>#{id}</strong>, and say the certified condition is still there. HPD says that challenge starts an audit
-            inspection{openClock ? `; make it before ${asked.deadline}` : ""}.
+            {saysFalse(cityStatus)
+              ? `The city checked the owner's certification and found it false or invalid: ${cityStatus} as of ${cityDate}.`
+              : `The city's file now says ${cityStatus} as of ${cityDate}, not that the owner certified it corrected.`}{" "}
+            There is no certification left to challenge. If it is still there, <Call311 /> and describe it; the violation number is{" "}
+            <strong>#{id}</strong>.
           </p>
         )}
         <p className="fine">
