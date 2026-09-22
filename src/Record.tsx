@@ -317,7 +317,9 @@ function Changed({ asked, last }: { asked: Item; last: Item | undefined }) {
       </p>
     );
   }
-  const changedOn = ymd(asked.laterStatus ? asked.laterStatusDate : asked.nowStatusDate);
+  // The headline dates the change it names: the current status when that is what moved, HPD's stamp only when the
+  // status itself has not; the stamp's own date is given with it below.
+  const changedOn = ymd(asked.nowStatus !== asked.askedStatus ? asked.nowStatusDate : asked.laterStatusDate);
   const when =
     answeredOn === null || !changedOn
       ? "since we asked"
