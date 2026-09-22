@@ -2,7 +2,8 @@
 
 **Read this first.** Faultline is for New York City tenants. When a landlord tells the city (HPD) a repair is done,
 the city closes the violation after 70 days unless someone challenges it through 311 and an inspector goes back.
-Faultline shows the tenant each repair their landlord certified and the day its 70 days run out, tells them how to
+Faultline shows the tenant each repair their landlord certified and, for one certified on time, the day its 70 days
+run out, tells them how to
 challenge it, takes their answer in their own words (typed, spoken, or on a real phone call), keeps it dated beside the
 city's record, and tells them if the city later stamps that certification FALSE. Try it with no sign-in at
 https://clear-dogfish-72.convex.site/try: press the first button, then Still broken on a repair, or the suggested
@@ -40,7 +41,7 @@ each sponsor lives, file by file: [README, Where each thing lives](README.md#whe
 
 - **Project:** Faultline
 - **Event:** Convex All Gas Hackathon
-- **What it does:** Your landlord told New York City the repair is done. Is it? Faultline is an email address (getnotice@agentmail.to): write ASK and your address and it sends back every repair the owner certified there, in the city's words, with the day the city's 70 days run out. Answer in your own words; GPT-6 Astra reads it but can only choose a tool, and the tool writes the reply. Your answer is kept private and dated beside the city's record, and you are told the day the city stamps that certification FALSE. Underneath: ten government files that overwrite themselves (NYC housing violations, NYC restaurant inspections, eight states' layoff notices), read on a schedule with every version kept. Email a company name and get back what it filed, including the versions the state has since overwritten.
+- **What it does:** Your landlord told New York City the repair is done. Is it? Faultline is an email address (getnotice@agentmail.to): write ASK and your address and it sends back every repair the owner certified there, in the city's words, with the day the city's 70 days run out on each one certified on time. Answer in your own words; GPT-6 Astra reads it but can only choose a tool, and the tool writes the reply. Your answer is kept private and dated beside the city's record, and you are told the day the city stamps that certification FALSE. Underneath: ten government files that overwrite themselves (NYC housing violations, NYC restaurant inspections, eight states' layoff notices), read on a schedule with every version kept. Email a company name and get back what it filed, including the versions the state has since overwritten.
 - **Live app:** https://clear-dogfish-72.convex.site
 - **Try it without email or sign-in:** https://clear-dogfish-72.convex.site/try
 - **Tour for judges:** https://clear-dogfish-72.convex.site/judge
