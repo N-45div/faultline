@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import schema from "../convex/schema";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import firecrawlTest from "@firecrawl/firecrawl-convex/test";
@@ -24,6 +24,15 @@ const make = () => {
   return t;
 };
 type T = ReturnType<typeof make>;
+
+// convex-test waits a bounded number of turns for a scheduled function to
+// finish, and the first reading loads the Firecrawl component's modules. Loaded
+// cold beside the other suites, they took longer than that; they are loaded here
+// first, as tenant-loop.test.ts does for the workflow's.
+beforeAll(async () => {
+  const all = [modules, firecrawlTest.modules, rateLimiterTest.modules].flatMap((m) => Object.entries(m));
+  await Promise.all(all.filter(([path]) => !/convex\.config|\.test\./.test(path)).map(([, load]) => load()));
+});
 
 const VIOLATION = "19105968";
 const BUILDING = "327072";
