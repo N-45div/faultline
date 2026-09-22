@@ -17,6 +17,8 @@ import { askRows, type AskRow } from "../engine/askRows";
 const KEY = "faultline.try.session";
 const MINE = "faultline.try.mine";
 const GUIDE = "faultline.try.guide";
+/** The thread this tab has already opened, kept for as long as the tab is. */
+const OPENED = "faultline.try.opened";
 /** The two certifications at the sample building that the city stamped FALSE this summer, as the city's own API serves them. */
 const ROACH_ROWS = "https://data.cityofnewyork.us/resource/wvxf-dwi5.json?$select=violationid,currentstatus,currentstatusdate,novdescription&$where=violationid%20in('19105968','19114310')";
 
@@ -281,13 +283,30 @@ export default function Try({ go }: { go: (p: string) => void }) {
   // heading, which is about housing. One with no building in it - about a
   // company's layoff filings, say - would read as if it were the housing check,
   // so the person chooses first: pick it up again, or start a housing check on a
-  // fresh thread. Decided once, when the thread first loads; a thread that is
-  // already about a building opens as it always has: one that sent an ASK, or
-  // one we replied to about a building, however it was asked.
+  // fresh thread. Decided once a visit, when the thread first loads: the page
+  // is mounted again each time someone comes back to it from another, so the
+  // thread this tab has opened, or started, is remembered while the tab is open.
+  // A thread that is already about a building opens as it always has: one that
+  // sent an ASK, or one we replied to about a building, however it was asked.
   const askedHousing =
     beenAsked || ours.some((m) => aboutBuilding(m.text)) || messages.some((m) => m.who === "you" && /^\s*ask\b/i.test(mine[m.id] ?? m.text));
+  const openedHere = () => {
+    try {
+      return sessionStorage.getItem(OPENED) === session;
+    } catch {
+      return false;
+    }
+  };
   const [returning, setReturning] = useState<boolean | null>(null);
-  if (returning === null && thread !== undefined) setReturning(messages.length > 0 && !askedHousing);
+  if (returning === null && thread !== undefined) setReturning(messages.length > 0 && !askedHousing && !openedHere());
+  useEffect(() => {
+    if (returning !== false) return;
+    try {
+      sessionStorage.setItem(OPENED, session);
+    } catch {
+      /* a browser that keeps nothing is asked again when it comes back */
+    }
+  }, [returning, session]);
   // Its topic is the first thing they sent, or, when another browser typed it,
   // the headline of our first reply.
   const firstYou = messages.find((m) => m.who === "you");
