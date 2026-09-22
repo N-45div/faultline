@@ -97,11 +97,27 @@ test("a failed read throws, and nothing is kept from it", async () => {
   await expect(t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).rejects.toThrow(/HTTP 503/);
   answer = () => json({ error: "not rows" });
   await expect(t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).rejects.toThrow(/did not answer with rows/);
+  // A 200 with no rows, for a building whose file has thousands, is a failed read too.
+  answer = () => json([]);
+  await expect(t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).rejects.toThrow(/answered with no rows/);
   expect(await kept(t)).toEqual([]);
   // The next check reads the city again, and keeps the chain.
   answer = theRows;
   expect(await t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).toMatchObject({ cited: ["19112934"] });
-  expect(city).toHaveLength(3);
+  expect(city).toHaveLength(4);
+
+  // An empty answer after that leaves the chain as it was kept, and the next check reads the city again.
+  answer = () => json([]);
+  await expect(t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] })).rejects.toThrow(/answered with no rows/);
+  const still = async () => (await t.query(api.history.forRepairs, { violationIds: ["19112934"] }))[0]?.earlier.map((e) => e.violationId);
+  expect(await still()).toEqual(["18037661"]);
+  // Nor does a check that read none of the city's rows replace a citation already kept.
+  await t.mutation(internal.history.keep, { bbl: BBL, rowsRead: 0, checked: [{ violationId: "19112934", earlier: [] }] });
+  expect(await still()).toEqual(["18037661"]);
+  answer = theRows;
+  await t.action(internal.history.refresh, { bbl: BBL, violationIds: ["19112934"] });
+  expect(city).toHaveLength(6);
+  expect(await still()).toEqual(["18037661"]);
 });
 
 test("paused reads read nothing, and nothing but a parcel number and violation numbers is taken", async () => {

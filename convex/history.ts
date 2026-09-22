@@ -62,6 +62,10 @@ async function cityRows(bbl: string): Promise<Held> {
     }
     if (page.length < PAGE) break;
   }
+  // An empty answer is a failed read too. Only repairs the city's file lists at
+  // this building are ever checked, so its file has rows; none back means the
+  // city did not answer, not that nothing was ever cited there.
+  if (read === 0) throw new Error(`the city's housing file answered with no rows for ${bbl}`);
   console.log(`[history] ${bbl}: read ${read} rows of the city's file`);
   return { read, rows };
 }
@@ -92,7 +96,11 @@ export const refresh = internalAction({
   },
 });
 
-/** One row per violation, replaced on every check. */
+/**
+ * One row per violation, replaced on every check, except by a check that read
+ * none of the city's rows: that found nothing because it read nothing, and an
+ * earlier citation already kept stays.
+ */
 export const keep = internalMutation({
   args: {
     bbl: v.string(),
@@ -108,6 +116,7 @@ export const keep = internalMutation({
         .query("repairHistory")
         .withIndex("by_violation", (q) => q.eq("violationId", violationId))
         .first();
+      if (held && rowsRead === 0 && earlier.length === 0 && held.earlier.length > 0) continue;
       if (held) await ctx.db.replace(held._id, row);
       else await ctx.db.insert("repairHistory", row);
     }
