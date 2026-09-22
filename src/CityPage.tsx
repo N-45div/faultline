@@ -35,6 +35,10 @@ export default function CityPage({ read, violationId, cityStatus, cityDate }: { 
       The city's data file: {cityStatus}, {cityDate}
     </p>
   );
+  // The copy kept, in two parts: the picture and one plain link to open it up
+  // front, and the hash and how the page was read behind a disclosure, for
+  // whoever wants to check it.
+  const saved = read.screenshotUrl ?? read.markdownUrl;
   const kept = read.sha256 ? (
     <div className="try-city-page-kept">
       {read.screenshotUrl && (
@@ -42,17 +46,31 @@ export default function CityPage({ read, violationId, cityStatus, cityDate }: { 
           <img src={read.screenshotUrl} loading="lazy" alt={`HPD Online's violations page, searched for #${violationId}, as Firecrawl saw it`} />
         </a>
       )}
-      <p className="try-city-page-hash">
-        sha256{" "}
-        {read.markdownUrl ? (
-          <a href={read.markdownUrl} target="_blank" rel="noreferrer">
-            {read.sha256.slice(0, 12)}…
+      <p className="try-city-page-open">
+        {saved && (
+          <a href={saved} target="_blank" rel="noreferrer">
+            Open saved page
           </a>
-        ) : (
-          `${read.sha256.slice(0, 12)}…`
         )}
-        {read.changedFrom !== undefined && <> · changed since {when(read.changedFrom)}</>}
+        {read.changedFrom !== undefined && <>{saved ? " · " : ""}changed since {when(read.changedFrom)}</>}
       </p>
+      <details className="try-city-page-more">
+        <summary>How this copy is kept</summary>
+        <p>
+          Firecrawl opened HPD Online's violations page for this building, searched it for #{violationId}, and kept a picture of the page and its
+          text as served. The text's SHA-256 is below; a copy that differs from it is not this one.
+        </p>
+        <p className="try-city-page-hash">
+          SHA-256{" "}
+          {read.markdownUrl ? (
+            <a href={read.markdownUrl} target="_blank" rel="noreferrer">
+              {read.sha256}
+            </a>
+          ) : (
+            read.sha256
+          )}
+        </p>
+      </details>
     </div>
   ) : null;
 

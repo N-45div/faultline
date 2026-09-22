@@ -1898,3 +1898,19 @@ a.try-chip {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ---------- HPD Online's saved page: one plain link up front, the hash behind a disclosure (src/CityPage.tsx, /try and /r/) ---------- */
+.try-city-page .try-city-page-open {
+  margin: 0;
+}
+.try-city-page-more {
+  flex-basis: 100%;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.try-city-page-more summary {
+  cursor: pointer;
+}
+.try-city-page-more p {
+  margin: 6px 0 0;
+}
