@@ -41,6 +41,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 const kept = (t: ReturnType<typeof make>) => t.run((ctx) => ctx.db.query("repairHistory").collect());
@@ -116,4 +117,43 @@ test("paused reads read nothing, and nothing but a parcel number and violation n
   expect(await t.action(internal.history.refresh, { bbl: BBL, violationIds: ["x", "19112934'"] })).toEqual({ read: 0, checked: 0, cited: [] });
   expect(city).toHaveLength(0);
   expect(await kept(t)).toEqual([]);
+});
+
+test("the daily refresh of the sample's card checks its repairs against the city's file; the refresh on a change to the file does not", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-09-22T06:25:00Z"));
+  const t = make();
+  const row = ROWS.find((r) => (r as { violationid: string }).violationid === "19112934") as Record<string, string>;
+  await t.run(async (ctx) => {
+    const sourceId = await ctx.db.insert("sources", { slug: "nyc-hpd", adapterVersion: 1, status: "active", emit: true, nextRunAt: 0, consecutiveFailures: 0, shadowCycles: 0 });
+    await ctx.db.insert("subjects", { kind: "building", key: BBL, label: "155 LINDEN BOULEVARD, Brooklyn" });
+    const snapshotId = await ctx.db.insert("snapshots", { sourceId, capturedAt: Date.now(), requestUrl: "https://city.test/file", httpStatus: 200, bodySha256: "0".repeat(64), rowCount: 1, degraded: false });
+    const fields = {
+      violationid: "19112934",
+      bbl: BBL,
+      class: "B",
+      currentstatus: "NOV CERTIFIED ON TIME",
+      currentstatusdate: "2026-09-18",
+      certifiedbydate: "2026-09-18",
+      inspectiondate: "2026-07-27",
+      novdescription: row.novdescription,
+      __subjectKind: "building",
+      __subjectKey: BBL,
+      __subjectLabel: "155 LINDEN BOULEVARD, Brooklyn",
+    };
+    const identityKey = `${BBL}/19112934`;
+    const observationId = await ctx.db.insert("observations", { sourceId, snapshotId, identityKey, subjectKey: BBL, claimKind: "hpd.violation_status", assertedAt: "2026-09-18", capturedAt: Date.now(), fields, sigHash: "s", fullHash: "f" });
+    await ctx.db.insert("current", { sourceId, identityKey, subjectKey: BBL, observationId, sigHash: "s", fullHash: "f", fields, updatedAt: Date.now() });
+  });
+  // A change to the housing file rebuilds the card, and reads nothing of the city's.
+  expect(await t.mutation(internal.wall.refreshSampleAsk, {})).toBe(1);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(city).toHaveLength(0);
+  expect(await kept(t)).toEqual([]);
+  // The daily run checks the repair it could ask about, and the page can show what was found.
+  expect(await t.mutation(internal.wall.refreshSampleAsk, { history: true })).toBe(1);
+  await t.finishAllScheduledFunctions(vi.runAllTimers);
+  expect(city).toHaveLength(1);
+  const out = await t.query(api.history.forRepairs, { violationIds: ["19112934"] });
+  expect(out.map((r) => [r.violationId, r.earlier.map((e) => e.violationId)])).toEqual([["19112934", ["18037661"]]]);
 });

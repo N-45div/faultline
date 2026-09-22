@@ -29,8 +29,9 @@ crons.interval("refresh stats", { hours: 6 }, internal.wall.refreshStats, {});
 crons.daily("refresh housing pulse", { hourUTC: 6, minuteUTC: 15 }, internal.wall.refreshHousingPulse, {});
 
 // The landing's reply card, as a backstop: it is rebuilt whenever the housing
-// file commits a change, and this covers the day nothing did.
-crons.daily("refresh sample ask", { hourUTC: 6, minuteUTC: 25 }, internal.wall.refreshSampleAsk, {});
+// file commits a change, and this covers the day nothing did. Only this run
+// also checks its repairs for an earlier citation of the same condition.
+crons.daily("refresh sample ask", { hourUTC: 6, minuteUTC: 25 }, internal.wall.refreshSampleAsk, { history: true });
 
 // Sent alerts older than a week.
 crons.daily("gc sent alerts", { hourUTC: 4, minuteUTC: 40 }, internal.digest.gc, {});
