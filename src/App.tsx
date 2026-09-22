@@ -3,6 +3,7 @@ import Building from "./Building";
 import YourRecord from "./Record";
 import SignIn from "./SignIn";
 import Employer from "./Employer";
+import HowItWorks from "./HowItWorks";
 import Judge from "./Judge";
 import Landing from "./Landing";
 import { Privacy, Terms } from "./Legal";
@@ -55,8 +56,9 @@ export default function App() {
   const isDeleted = path === "/deleted";
   const isScorecard = path === "/scorecard";
   const isTry = path === "/try";
+  const isHowTo = path === "/how-it-works";
   const recordMatch = /^\/r\/([^/]+)/.exec(path);
-  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms && !fileMatch && !commitMatch && !isFiles && !isDeleted && !isScorecard && !isTry && !recordMatch;
+  const isLanding = !employerMatch && !buildingMatch && !isApp && !isJudge && !isSignIn && !isPrivacy && !isTerms && !fileMatch && !commitMatch && !isFiles && !isDeleted && !isScorecard && !isTry && !isHowTo && !recordMatch;
   // The tab and the bookmark say where you are, not the repository's old name.
   useEffect(() => {
     const titles: [boolean, string][] = [
@@ -73,6 +75,7 @@ export default function App() {
       [isDeleted, "Gone from the files · Faultline"],
       [isScorecard, "Scorecard · Faultline"],
       [isTry, "Try it · Faultline"],
+      [isHowTo, "How it works · Faultline"],
       [Boolean(recordMatch), "Your record · Faultline"],
     ];
     document.title = titles.find(([on]) => on)?.[1] ?? "Faultline: did your NYC landlord really fix it?";
@@ -96,6 +99,7 @@ export default function App() {
   else if (isDeleted) body = <Deleted go={go} />;
   else if (isScorecard) body = <Scorecard go={go} />;
   else if (isTry) body = <Try go={go} />;
+  else if (isHowTo) body = <HowItWorks go={go} />;
   else if (recordMatch) body = <YourRecord token={safeDecode(recordMatch[1])} go={go} />;
   else body = <Landing go={go} />;
 

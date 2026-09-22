@@ -2121,3 +2121,21 @@ a.try-chip {
     width: 140px;
   }
 }
+
+/* ---------- /how-it-works (src/HowItWorks.tsx): the tour's steps, as plain answers ---------- */
+.howto section[id] {
+  /* the "On this page" links land below the sticky bar */
+  scroll-margin-top: 84px;
+}
+.howto-list {
+  max-width: 640px;
+  margin: 0 0 14px;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.howto .tour-step,
+.howto .lede-sub,
+.howto-list li {
+  overflow-wrap: anywhere;
+}
