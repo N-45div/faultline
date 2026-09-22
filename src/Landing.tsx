@@ -270,6 +270,13 @@ export default function Landing({ go }: { go: (p: string) => void }) {
         </div>
       </section>
 
+      {/* Where Faultline started: the same engine on the files the government overwrites. Kept one tap down,
+          so the page a tenant lands on stays about their repair. */}
+      <details className="landing-more">
+        <summary className="container">
+          Also underneath: the same engine keeps every version of ten government files, eight states' layoff notices
+          among them
+        </summary>
       {log && log.since && (
         <section className="band">
           <div className="container">
@@ -342,24 +349,10 @@ export default function Landing({ go }: { go: (p: string) => void }) {
           </div>
         </section>
       )}
+      </details>
 
       <section className="band">
         <div className="container two-col">
-          <div>
-            <p className="kicker">Layoff notices too</p>
-            <h2 className="h2">Email a company name. Paste the letter you were given.</h2>
-            <p>
-              Get back what the employer filed with the state: the notice date and the layoff date side by side against
-              the statute that actually applies, and the state's own page. Paste your letter and it sits beside the
-              filing: the reason in their own words, the days between the letter and your last day, the deadline you
-              were given to sign, and whether the list of job titles and ages the law requires for anyone over 40 came
-              with it.
-            </p>
-            <p className="fine">
-              <a href={mailto("Spirit Airlines")}>Email "Spirit Airlines" →</a> Letters are read once by a model, kept
-              private, never sold, never used to train anything.
-            </p>
-          </div>
           <div>
             <p className="kicker">The city's own stamp, kept</p>
             <h2 className="h2">"It's fixed," said the landlord.</h2>
@@ -374,6 +367,21 @@ export default function Landing({ go }: { go: (p: string) => void }) {
               </p>
             )}
             <p className="fine">Class C is immediately hazardous, B hazardous, A non-hazardous — the city's own scale.</p>
+          </div>
+          <div>
+            <p className="kicker">Layoff notices too</p>
+            <h2 className="h2">Email a company name. Paste the letter you were given.</h2>
+            <p>
+              Get back what the employer filed with the state: the notice date and the layoff date side by side against
+              the statute that actually applies, and the state's own page. Paste your letter and it sits beside the
+              filing: the reason in their own words, the days between the letter and your last day, the deadline you
+              were given to sign, and whether the list of job titles and ages the law requires for anyone over 40 came
+              with it.
+            </p>
+            <p className="fine">
+              <a href={mailto("Spirit Airlines")}>Email "Spirit Airlines" →</a> Letters are read once by a model, kept
+              private, never sold, never used to train anything.
+            </p>
           </div>
         </div>
       </section>

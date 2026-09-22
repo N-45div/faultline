@@ -1643,6 +1643,17 @@ a.try-chip {
 .tour-more[open] > summary {
   margin-bottom: 12px;
 }
+/* The landing's engine bands, folded under one line (src/Landing.tsx). */
+.landing-more > summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--muted);
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+.landing-more[open] > summary {
+  padding-bottom: 0;
+}
 
 /* ---------- /try: an ASK reply as the tenant's list ---------- */
 .try-rows {
