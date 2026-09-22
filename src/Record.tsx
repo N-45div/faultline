@@ -284,6 +284,55 @@ function Part({ kind, label, children }: { kind: string; label: string; children
   );
 }
 
+/** A date as the city's file writes it, cut to the day. */
+const ymd = (s: string | null | undefined) => (s ? (/^(\d{4}-\d{2}-\d{2})/.exec(s)?.[1] ?? s) : null);
+
+/**
+ * One repair's story in date order, each line saying whose word it is: the
+ * earlier citation, the owner's certification, the tenant's answers, and what
+ * the city's two places show now. Only facts the case already holds, and
+ * never merged: the owner's, the city's and the tenant's lines stay apart.
+ */
+function Sequence({ id, asked, answers, before, read, cityStatus, cityDate, trial }: { id: string; asked: Item; answers: Item[]; before: Earlier | undefined; read: CityPageRead | undefined; cityStatus: string; cityDate: string; trial: boolean }) {
+  const lines: { date: string; who: string; what: string }[] = [];
+  if (before) {
+    const was = ymd(before.certifiedDate);
+    if (was) lines.push({ date: was, who: "The owner", what: `certified the same condition corrected under an earlier number, #${before.violationId}` });
+    const found = ymd(before.statusDate) ?? ymd(before.inspectionDate);
+    if (found && before.status) lines.push({ date: found, who: "The city", what: `recorded ${before.status} on #${before.violationId}` });
+  }
+  const cert = ymd(asked.certifiedBy);
+  if (cert) lines.push({ date: cert, who: "The owner", what: `certified #${id} corrected` });
+  for (const a of answers) {
+    if (a.answer) lines.push({ date: day(a.saidAt ?? 0), who: trial ? "Practice answer" : "You", what: `said ${WORD[a.answer]}` });
+  }
+  const now = ymd(cityDate);
+  if (now) lines.push({ date: now, who: "The city's file", what: cityStatus });
+  if (read?.outcome === "kept" && read.statusText) {
+    lines.push({ date: day(read.capturedAt), who: "HPD Online", what: `showed ${read.statusText}${read.statusDate ? `, ${read.statusDate}` : ""} (read by Firecrawl)` });
+  } else if (read?.outcome === "not_found") {
+    lines.push({ date: day(read.capturedAt), who: "HPD Online", what: "did not list it; it lists open violations only (read by Firecrawl)" });
+  }
+  if (lines.length < 2) return null;
+  lines.sort((x, y) => x.date.localeCompare(y.date));
+  return (
+    <Part kind="sequence" label="In order, with dates">
+      <ol className="case-sequence">
+        {lines.map((l, i) => (
+          <li key={i}>
+            <time>{l.date}</time> <strong>{l.who}</strong> {l.what}
+          </li>
+        ))}
+      </ol>
+      {before && (
+        <p className="fine">
+          An earlier citation shows this repair's history. It does not show the condition stayed broken in between.
+        </p>
+      )}
+    </Part>
+  );
+}
+
 function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item; answers: Item[]; checks: Checks | undefined; today: string; trial: boolean; go: (p: string) => void }) {
   const id = asked.violationId;
   // What /try reads for a repair, read here for this one: the earlier citation
@@ -321,6 +370,8 @@ function RepairCase({ asked, answers, checks, today, trial, go }: { asked: Item;
         </p>
         {asked.description && <p className="case-words">The city's words: {asked.description}</p>}
       </header>
+
+      <Sequence id={id} asked={asked} answers={answers} before={before} read={read} cityStatus={cityStatus} cityDate={cityDate} trial={trial} />
 
       <Part kind="owner" label={byCity ? "What the city's file said" : "What the owner told the city"}>
         <p>

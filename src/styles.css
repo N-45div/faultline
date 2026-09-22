@@ -2013,6 +2013,24 @@ a.try-chip {
 .case-part[data-part="owner"] {
   border-left-color: var(--muted);
 }
+/* the repair in date order, whose word each line is (src/Record.tsx, Sequence) */
+.case-part[data-part="sequence"] {
+  border-left-color: var(--accent);
+}
+.case-sequence {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 14.5px;
+  overflow-wrap: anywhere;
+}
+.case-sequence time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  margin-right: 6px;
+}
 .case-part[data-part="tenant"] {
   border-left-color: var(--ink);
 }
